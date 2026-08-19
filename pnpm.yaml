@@ -1,0 +1,5 @@
+# Overrides para forçar versões seguras de dependências transitivas vulneráveis
+overrides:
+  tar: ">=7.5.19"
+  fast-xml-parser: ">=4.5.3"
+  path-to-regexp: ">=8.2.0"

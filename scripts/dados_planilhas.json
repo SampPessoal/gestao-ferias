@@ -1,0 +1,1862 @@
+[
+  {
+    "empresa": "SOLAR",
+    "nome": "GUSTAVO BARBOSA DOS SANTOS",
+    "admissao": "2021-12-01",
+    "periodoAquisitivo": "2024-12-01",
+    "vencimento": "2025-11-30",
+    "dataLimite": "2026-11-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SOLAR",
+    "nome": "JEFERSON SUNDERLANDE DE OLIVEIRA",
+    "admissao": "2021-01-13",
+    "periodoAquisitivo": "2025-01-13",
+    "vencimento": "2026-01-12",
+    "dataLimite": "2026-12-14",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SOLAR",
+    "nome": "NILTON DE SANTANA",
+    "admissao": "2018-01-16",
+    "periodoAquisitivo": "2025-01-16",
+    "vencimento": "2026-01-15",
+    "dataLimite": "2026-12-17",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SOLAR",
+    "nome": "DAVI SANTOS BORGENS",
+    "admissao": "2016-03-01",
+    "periodoAquisitivo": "2025-03-01",
+    "vencimento": "2026-02-28",
+    "dataLimite": "2027-01-30",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SOLAR",
+    "nome": "JOSE DOS ANJOS BATISTA",
+    "admissao": "2015-07-01",
+    "periodoAquisitivo": "2025-07-01",
+    "vencimento": "2026-06-30",
+    "dataLimite": "2027-06-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SOLAR",
+    "nome": "FABRICIO MACEDO SANTANA",
+    "admissao": "2025-11-18",
+    "periodoAquisitivo": "2025-11-18",
+    "vencimento": "2026-11-17",
+    "dataLimite": "2027-10-19",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SOLAR",
+    "nome": "JOAO VITOR PRATES CERQUEIRA",
+    "admissao": "2025-12-15",
+    "periodoAquisitivo": "2025-12-15",
+    "vencimento": "2026-12-14",
+    "dataLimite": "2027-11-15",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "DIOGO SANTOS GUIMARAES",
+    "admissao": "2009-10-01",
+    "periodoAquisitivo": "2024-10-01",
+    "vencimento": "2025-09-30",
+    "dataLimite": "2026-09-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "ANA CAROLINA ASSIS DE ALMEIDA",
+    "admissao": "2012-10-01",
+    "periodoAquisitivo": "2024-10-01",
+    "vencimento": "2025-09-30",
+    "dataLimite": "2026-09-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "DOUGLAS SANTOS GUIMARAES",
+    "admissao": "2010-10-01",
+    "periodoAquisitivo": "2024-10-01",
+    "vencimento": "2025-09-30",
+    "dataLimite": "2026-09-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "IOLANDA SOUZA REIS",
+    "admissao": "2018-10-01",
+    "periodoAquisitivo": "2024-10-01",
+    "vencimento": "2025-09-30",
+    "dataLimite": "2026-09-01",
+    "saldo": 5,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "UALLAS CARLOS ANDRADE FONTES",
+    "admissao": "2010-12-01",
+    "periodoAquisitivo": "2024-12-01",
+    "vencimento": "2025-11-30",
+    "dataLimite": "2026-11-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "JOALAS ANDRADE FONTES",
+    "admissao": "2013-01-02",
+    "periodoAquisitivo": "2025-01-02",
+    "vencimento": "2026-01-01",
+    "dataLimite": "2026-12-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "SILVIA CRISTINA UCHOA LINS",
+    "admissao": "2014-01-02",
+    "periodoAquisitivo": "2025-01-02",
+    "vencimento": "2026-01-01",
+    "dataLimite": "2026-12-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "IRAMIR FREIRE RIBEIRO",
+    "admissao": "2010-03-01",
+    "periodoAquisitivo": "2025-03-01",
+    "vencimento": "2026-02-28",
+    "dataLimite": "2027-01-30",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "CASSIO OLIVIER PEREIRA CIMA",
+    "admissao": "2010-03-09",
+    "periodoAquisitivo": "2025-03-09",
+    "vencimento": "2026-03-08",
+    "dataLimite": "2027-02-07",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "ALEXANDRE OLIVEIRA FREITAS",
+    "admissao": "2011-03-21",
+    "periodoAquisitivo": "2025-03-21",
+    "vencimento": "2026-03-20",
+    "dataLimite": "2027-02-19",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "YURI SOUZA LEAO",
+    "admissao": "2024-04-15",
+    "periodoAquisitivo": "2025-04-15",
+    "vencimento": "2026-04-14",
+    "dataLimite": "2027-03-16",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "JUACI CARLOS SILVA SAMPAIO FILHO",
+    "admissao": "2010-05-03",
+    "periodoAquisitivo": "2025-05-03",
+    "vencimento": "2026-05-02",
+    "dataLimite": "2027-04-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "MARIANA DE ALMEIDA MOURA",
+    "admissao": "2025-05-26",
+    "periodoAquisitivo": "2025-05-26",
+    "vencimento": "2026-05-25",
+    "dataLimite": "2027-04-26",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "MARIA DO CARMO DE JESUS SILVA COUTO",
+    "admissao": "2009-07-01",
+    "periodoAquisitivo": "2025-07-01",
+    "vencimento": "2026-06-30",
+    "dataLimite": "2027-06-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "FELLIPE NARDE OLIVEIRA DA HORA",
+    "admissao": "2021-07-05",
+    "periodoAquisitivo": "2025-07-05",
+    "vencimento": "2026-07-04",
+    "dataLimite": "2027-06-05",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "DANIEL BEZERRA DE SOUZA",
+    "admissao": "2010-07-19",
+    "periodoAquisitivo": "2025-07-19",
+    "vencimento": "2026-07-18",
+    "dataLimite": "2027-06-19",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "JOSE ALVES DE JESUS",
+    "admissao": "2022-08-17",
+    "periodoAquisitivo": "2025-08-17",
+    "vencimento": "2026-08-16",
+    "dataLimite": "2027-07-18",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "GIOVANNI FRAGASSI LAGO",
+    "admissao": "2010-12-01",
+    "periodoAquisitivo": "2025-12-01",
+    "vencimento": "2026-11-30",
+    "dataLimite": "2027-11-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "DIJALMA GUIMARAES PASSOS SALES",
+    "admissao": "2024-12-27",
+    "periodoAquisitivo": "2025-12-27",
+    "vencimento": "2026-12-26",
+    "dataLimite": "2027-11-27",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "MERCIA DE JESUS PEREIRA",
+    "admissao": "2015-02-02",
+    "periodoAquisitivo": "2026-02-02",
+    "vencimento": "2027-02-01",
+    "dataLimite": "2028-01-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "JOSE EDUARDO BARBOSA DE CARVALHO",
+    "admissao": "2011-03-01",
+    "periodoAquisitivo": "2026-03-01",
+    "vencimento": "2027-02-28",
+    "dataLimite": "2028-01-30",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "TIAGO SANTOS DA CONCEICAO",
+    "admissao": "2026-03-16",
+    "periodoAquisitivo": "2026-03-16",
+    "vencimento": "2027-03-15",
+    "dataLimite": "2028-02-15",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "LEIDIANE DOS SANTOS",
+    "admissao": "2016-04-18",
+    "periodoAquisitivo": "2026-04-18",
+    "vencimento": "2027-04-17",
+    "dataLimite": "2028-03-19",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "CIRO SOUZA DA SILVA",
+    "admissao": "2012-06-02",
+    "periodoAquisitivo": "2026-06-02",
+    "vencimento": "2027-06-01",
+    "dataLimite": "2028-05-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "FREIRE",
+    "nome": "MARCOS SANTOS DA MOTA",
+    "admissao": "2014-07-03",
+    "periodoAquisitivo": "2026-07-03",
+    "vencimento": "2027-07-02",
+    "dataLimite": "2028-06-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "JOANES",
+    "nome": "ANTONIO SAMIR SOUZA DA SILVA",
+    "admissao": "2017-01-02",
+    "periodoAquisitivo": "2025-01-02",
+    "vencimento": "2026-01-01",
+    "dataLimite": "2026-12-03",
+    "saldo": 22,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "JOANES",
+    "nome": "JOSIMEIRE ALVES DE ALMEIDA MOURA",
+    "admissao": "2024-02-07",
+    "periodoAquisitivo": "2025-02-07",
+    "vencimento": "2026-02-06",
+    "dataLimite": "2027-01-08",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "JOANES",
+    "nome": "TAMARA SOARES CARVALHO",
+    "admissao": "2017-05-08",
+    "periodoAquisitivo": "2025-05-08",
+    "vencimento": "2026-05-07",
+    "dataLimite": "2027-04-08",
+    "saldo": 20,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "JOANES",
+    "nome": "ANTONIETA QUEIROZ DE SOUZA",
+    "admissao": "2009-08-01",
+    "periodoAquisitivo": "2025-08-01",
+    "vencimento": "2026-07-31",
+    "dataLimite": "2027-07-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "JOANES",
+    "nome": "CLEILSON SANTANA GOMES",
+    "admissao": "2009-10-01",
+    "periodoAquisitivo": "2025-10-01",
+    "vencimento": "2026-09-30",
+    "dataLimite": "2027-09-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "JOANES",
+    "nome": "IELDER OLIVEIRA CARNEIRO DOS SANTOS",
+    "admissao": "2009-10-01",
+    "periodoAquisitivo": "2025-10-01",
+    "vencimento": "2026-09-30",
+    "dataLimite": "2027-09-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "JOANES",
+    "nome": "REINALDO LIMA SOARES",
+    "admissao": "2024-03-11",
+    "periodoAquisitivo": "2026-03-11",
+    "vencimento": "2027-03-10",
+    "dataLimite": "2028-02-10",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "BRENO ASSUNCAO DE OLIVEIRA DE JESUS",
+    "admissao": "2024-10-25",
+    "periodoAquisitivo": "2024-10-25",
+    "vencimento": "2025-10-24",
+    "dataLimite": "2026-09-25",
+    "saldo": 10,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "TAINA NERI XAVIER DA SILVA SANTOS",
+    "admissao": "2022-11-08",
+    "periodoAquisitivo": "2024-11-08",
+    "vencimento": "2025-11-07",
+    "dataLimite": "2026-10-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "BRENO SANTOS DE OLIVEIRA",
+    "admissao": "2022-12-26",
+    "periodoAquisitivo": "2024-12-26",
+    "vencimento": "2025-12-25",
+    "dataLimite": "2026-11-26",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GABRIEL BARRETO SANTIAGO DOS SANTOS",
+    "admissao": "2024-01-08",
+    "periodoAquisitivo": "2025-01-08",
+    "vencimento": "2026-01-07",
+    "dataLimite": "2026-12-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LEONARDO CARVALHO DE OLIVEIRA",
+    "admissao": "2025-02-17",
+    "periodoAquisitivo": "2025-02-17",
+    "vencimento": "2026-02-16",
+    "dataLimite": "2027-01-18",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "PAMELA TAIANE AMORIM REGO",
+    "admissao": "2025-02-17",
+    "periodoAquisitivo": "2025-02-17",
+    "vencimento": "2026-02-16",
+    "dataLimite": "2027-01-18",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "HENRIQUE MOURA VIANA",
+    "admissao": "2025-02-18",
+    "periodoAquisitivo": "2025-02-18",
+    "vencimento": "2026-02-17",
+    "dataLimite": "2027-01-19",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ADRIANA MARIA BISPO SANTOS",
+    "admissao": "2023-03-29",
+    "periodoAquisitivo": "2025-03-29",
+    "vencimento": "2026-03-28",
+    "dataLimite": "2027-02-27",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JOSE ALBERTO DA SILVA NASCIMENTO",
+    "admissao": "2023-04-10",
+    "periodoAquisitivo": "2025-04-10",
+    "vencimento": "2026-04-09",
+    "dataLimite": "2027-03-11",
+    "saldo": 5,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JESSICA SILVA DE ASSIS",
+    "admissao": "2023-04-10",
+    "periodoAquisitivo": "2025-04-10",
+    "vencimento": "2026-04-09",
+    "dataLimite": "2027-03-11",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "THIAGO TELES SILVA",
+    "admissao": "2023-04-10",
+    "periodoAquisitivo": "2025-04-10",
+    "vencimento": "2026-04-09",
+    "dataLimite": "2027-03-11",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "KAILAN DE SOUZA DIAS",
+    "admissao": "2025-07-04",
+    "periodoAquisitivo": "2025-07-04",
+    "vencimento": "2026-07-03",
+    "dataLimite": "2027-06-04",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARIA EDUARDA PAMPONET RAMALHO",
+    "admissao": "2025-07-04",
+    "periodoAquisitivo": "2025-07-04",
+    "vencimento": "2026-07-03",
+    "dataLimite": "2027-06-04",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "IGOR SANTOS SILVA",
+    "admissao": "2025-07-08",
+    "periodoAquisitivo": "2025-07-08",
+    "vencimento": "2026-07-07",
+    "dataLimite": "2027-06-08",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "IVAN DE JESUS NEVES",
+    "admissao": "2024-08-12",
+    "periodoAquisitivo": "2025-08-12",
+    "vencimento": "2026-08-11",
+    "dataLimite": "2027-07-13",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "DANIEL SILVA NAVARRO",
+    "admissao": "2024-08-12",
+    "periodoAquisitivo": "2025-08-12",
+    "vencimento": "2026-08-11",
+    "dataLimite": "2027-07-13",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "SHEILA MACEDO DA SILVA",
+    "admissao": "2025-08-12",
+    "periodoAquisitivo": "2025-08-12",
+    "vencimento": "2026-08-11",
+    "dataLimite": "2027-07-13",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "YANA BARRETO LUIZ SIMINA",
+    "admissao": "2025-08-12",
+    "periodoAquisitivo": "2025-08-12",
+    "vencimento": "2026-08-11",
+    "dataLimite": "2027-07-13",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LEONARDO TELES XAVIER BRAGA",
+    "admissao": "2024-10-25",
+    "periodoAquisitivo": "2025-10-25",
+    "vencimento": "2026-10-24",
+    "dataLimite": "2027-09-25",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MURILO SILVA SOUZA",
+    "admissao": "2025-11-05",
+    "periodoAquisitivo": "2025-11-05",
+    "vencimento": "2026-11-04",
+    "dataLimite": "2027-10-06",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GUILHERME DE SOUZA DORTAS MATOS",
+    "admissao": "2024-11-11",
+    "periodoAquisitivo": "2025-11-11",
+    "vencimento": "2026-11-10",
+    "dataLimite": "2027-10-12",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "RICARDO HENRIQUE MONTEIRO DOS SANTOS",
+    "admissao": "2025-01-23",
+    "periodoAquisitivo": "2026-01-23",
+    "vencimento": "2027-01-22",
+    "dataLimite": "2027-12-24",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARIA EDUARDA SANTOS FAUSTINO",
+    "admissao": "2026-02-02",
+    "periodoAquisitivo": "2026-02-02",
+    "vencimento": "2027-02-01",
+    "dataLimite": "2028-01-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "BRUNO ARAUJO RAMOS SANTOS",
+    "admissao": "2025-02-17",
+    "periodoAquisitivo": "2026-02-17",
+    "vencimento": "2027-02-16",
+    "dataLimite": "2028-01-18",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "SILENIO VIANA LEITE NETO",
+    "admissao": "2025-02-17",
+    "periodoAquisitivo": "2026-02-17",
+    "vencimento": "2027-02-16",
+    "dataLimite": "2028-01-18",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LAIANE MENEZES ARAUJO",
+    "admissao": "2026-05-04",
+    "periodoAquisitivo": "2026-05-04",
+    "vencimento": "2027-05-03",
+    "dataLimite": "2028-04-04",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LUIZ WINNTOU GUIMARAES CAMERA",
+    "admissao": "2022-06-03",
+    "periodoAquisitivo": "2026-06-03",
+    "vencimento": "2027-06-02",
+    "dataLimite": "2028-05-04",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "TALITA OLIVEIRA GOMES",
+    "admissao": "2023-08-07",
+    "periodoAquisitivo": "2024-08-07",
+    "vencimento": "2025-08-06",
+    "dataLimite": "2026-07-08",
+    "saldo": 10,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "YURI CARVALHO FEITOSA",
+    "admissao": "2022-09-05",
+    "periodoAquisitivo": "2024-09-05",
+    "vencimento": "2025-09-04",
+    "dataLimite": "2026-08-06",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GEOVANA MICKAELA CAMPOS AMORIM",
+    "admissao": "2024-10-25",
+    "periodoAquisitivo": "2024-10-25",
+    "vencimento": "2025-10-24",
+    "dataLimite": "2026-09-25",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JORDAN VARJAO DIAS",
+    "admissao": "2025-01-02",
+    "periodoAquisitivo": "2025-01-02",
+    "vencimento": "2026-01-01",
+    "dataLimite": "2026-12-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARCELO SILVA SOUZA",
+    "admissao": "2025-01-20",
+    "periodoAquisitivo": "2025-01-20",
+    "vencimento": "2026-01-19",
+    "dataLimite": "2026-12-21",
+    "saldo": 20,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JAVAN GUIMARAES SALES OLIVEIRA",
+    "admissao": "2023-01-25",
+    "periodoAquisitivo": "2025-01-25",
+    "vencimento": "2026-01-24",
+    "dataLimite": "2026-12-26",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARIO HENRIQUE DE OLIVEIRA LOUREIRO",
+    "admissao": "2023-01-25",
+    "periodoAquisitivo": "2025-01-25",
+    "vencimento": "2026-01-24",
+    "dataLimite": "2026-12-26",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "YURI FERREIRA TORRES",
+    "admissao": "2024-03-04",
+    "periodoAquisitivo": "2025-03-04",
+    "vencimento": "2026-03-03",
+    "dataLimite": "2027-02-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "WELLINGTON GAUTAMA COSTA BORGES JUNIO",
+    "admissao": "2024-03-25",
+    "periodoAquisitivo": "2025-03-25",
+    "vencimento": "2026-03-24",
+    "dataLimite": "2027-02-23",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "IURY ROQUE",
+    "admissao": "2023-04-03",
+    "periodoAquisitivo": "2025-04-03",
+    "vencimento": "2026-04-02",
+    "dataLimite": "2027-03-04",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "EMANUEL RENATO PEREIRA DOS REIS",
+    "admissao": "2023-04-03",
+    "periodoAquisitivo": "2025-04-03",
+    "vencimento": "2026-04-02",
+    "dataLimite": "2027-03-04",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ANDRE LUIS SILVA DO CARMO",
+    "admissao": "2025-04-07",
+    "periodoAquisitivo": "2025-04-07",
+    "vencimento": "2026-04-06",
+    "dataLimite": "2027-03-08",
+    "saldo": 20,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JOAO HENRIQUE DE SOUZA SANTOS",
+    "admissao": "2025-04-07",
+    "periodoAquisitivo": "2025-04-07",
+    "vencimento": "2026-04-06",
+    "dataLimite": "2027-03-08",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "EDUARDO VARJAO DIAS",
+    "admissao": "2024-05-08",
+    "periodoAquisitivo": "2025-05-08",
+    "vencimento": "2026-05-07",
+    "dataLimite": "2027-04-08",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "CICERO RICARDO FARIAS DE LIMA JUNIOR",
+    "admissao": "2024-05-08",
+    "periodoAquisitivo": "2025-05-08",
+    "vencimento": "2026-05-07",
+    "dataLimite": "2027-04-08",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "EMMANUEL DE OLIVEIRA MONTEIRO",
+    "admissao": "2021-05-12",
+    "periodoAquisitivo": "2025-05-12",
+    "vencimento": "2026-05-11",
+    "dataLimite": "2027-04-12",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "FILIPE DE SA FALCAO",
+    "admissao": "2021-06-01",
+    "periodoAquisitivo": "2025-06-01",
+    "vencimento": "2026-05-31",
+    "dataLimite": "2027-05-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "EMILLY KAROLINA DA SILVA FERREIRA",
+    "admissao": "2025-06-02",
+    "periodoAquisitivo": "2025-06-02",
+    "vencimento": "2026-06-01",
+    "dataLimite": "2027-05-03",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "KAIQUE PEREIRA DOS SANTOS",
+    "admissao": "2025-06-02",
+    "periodoAquisitivo": "2025-06-02",
+    "vencimento": "2026-06-01",
+    "dataLimite": "2027-05-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ROMEU DIAS ROCHA",
+    "admissao": "2021-07-01",
+    "periodoAquisitivo": "2025-07-01",
+    "vencimento": "2026-06-30",
+    "dataLimite": "2027-06-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LUAN VITOR DE SA BORGES",
+    "admissao": "2023-09-13",
+    "periodoAquisitivo": "2025-09-13",
+    "vencimento": "2026-09-12",
+    "dataLimite": "2027-08-14",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "STHEFANY THAIANY SANTOS NOVAES",
+    "admissao": "2023-11-13",
+    "periodoAquisitivo": "2025-11-13",
+    "vencimento": "2026-11-12",
+    "dataLimite": "2027-10-14",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LUCAS DANIEL SANTOS BEZERRA",
+    "admissao": "2023-11-13",
+    "periodoAquisitivo": "2025-11-13",
+    "vencimento": "2026-11-12",
+    "dataLimite": "2027-10-14",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ISAAC MARQUES WANDERLEY",
+    "admissao": "2021-12-22",
+    "periodoAquisitivo": "2024-12-22",
+    "vencimento": "2025-12-21",
+    "dataLimite": "2026-11-22",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "CAIO NOVAIS DOS SANTOS",
+    "admissao": "2024-06-06",
+    "periodoAquisitivo": "2025-06-06",
+    "vencimento": "2026-06-05",
+    "dataLimite": "2027-05-07",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "BRUNO NOVAIS DOS SANTOS",
+    "admissao": "2022-07-20",
+    "periodoAquisitivo": "2025-07-20",
+    "vencimento": "2026-07-19",
+    "dataLimite": "2027-06-20",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "WELLINGTON WANDERLEY DE MORAES",
+    "admissao": "2023-10-02",
+    "periodoAquisitivo": "2025-10-02",
+    "vencimento": "2026-10-01",
+    "dataLimite": "2027-09-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "PHELIPE MACEL RIOS DOS SANTOS",
+    "admissao": "2025-10-30",
+    "periodoAquisitivo": "2025-10-30",
+    "vencimento": "2026-10-29",
+    "dataLimite": "2027-09-30",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "DANIELA VILAS BOAS BARBOSA",
+    "admissao": "2021-12-01",
+    "periodoAquisitivo": "2025-12-01",
+    "vencimento": "2026-11-30",
+    "dataLimite": "2027-11-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "RAMON PARAGUASSU RANGEL CARDOSO",
+    "admissao": "2023-05-04",
+    "periodoAquisitivo": "2025-05-04",
+    "vencimento": "2026-05-03",
+    "dataLimite": "2027-04-04",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GABRIEL AGUADE DO COUTO",
+    "admissao": "2023-05-09",
+    "periodoAquisitivo": "2025-05-09",
+    "vencimento": "2026-05-08",
+    "dataLimite": "2027-04-09",
+    "saldo": 16,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "IALI SAMIA BARBOSA RAMOS",
+    "admissao": "2022-08-08",
+    "periodoAquisitivo": "2025-08-08",
+    "vencimento": "2026-08-07",
+    "dataLimite": "2027-07-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "DANIELLE MARQUES CAZUMBA",
+    "admissao": "2022-08-08",
+    "periodoAquisitivo": "2025-08-08",
+    "vencimento": "2026-08-07",
+    "dataLimite": "2027-07-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ROSANA MARIA SANTOS SANT ANA",
+    "admissao": "2022-08-08",
+    "periodoAquisitivo": "2025-08-08",
+    "vencimento": "2026-08-07",
+    "dataLimite": "2027-07-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MATHEUS DUMAS OLIVEIRA",
+    "admissao": "2024-12-04",
+    "periodoAquisitivo": "2025-12-04",
+    "vencimento": "2026-12-03",
+    "dataLimite": "2027-11-04",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "TIAGO DE BARROS MEIRELES",
+    "admissao": "2025-01-20",
+    "periodoAquisitivo": "2025-01-20",
+    "vencimento": "2026-01-19",
+    "dataLimite": "2026-12-21",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "HANAH PASSOS CARNEIRO",
+    "admissao": "2025-02-20",
+    "periodoAquisitivo": "2025-02-20",
+    "vencimento": "2026-02-19",
+    "dataLimite": "2027-01-21",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JOAO ALEXANDRE NASCIMENTO PINTO",
+    "admissao": "2023-04-14",
+    "periodoAquisitivo": "2025-04-14",
+    "vencimento": "2026-04-13",
+    "dataLimite": "2027-03-15",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "SUELISON DOS SANTOS ROSA",
+    "admissao": "2024-10-14",
+    "periodoAquisitivo": "2025-10-14",
+    "vencimento": "2026-10-13",
+    "dataLimite": "2027-09-14",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "CAUA VITORIO TOSTA DE LIMA",
+    "admissao": "2025-02-10",
+    "periodoAquisitivo": "2026-02-10",
+    "vencimento": "2027-02-09",
+    "dataLimite": "2028-01-11",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "WILLIAN SILVA SOUZA",
+    "admissao": "2025-05-27",
+    "periodoAquisitivo": "2026-05-27",
+    "vencimento": "2027-05-26",
+    "dataLimite": "2028-04-27",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "DANIEL SOUZA DE OLIVEIRA",
+    "admissao": "2024-10-01",
+    "periodoAquisitivo": "2024-10-01",
+    "vencimento": "2025-09-30",
+    "dataLimite": "2026-09-01",
+    "saldo": 25,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JORGE ASSIS DE SANTANA JUNIOR",
+    "admissao": "2015-10-01",
+    "periodoAquisitivo": "2024-10-01",
+    "vencimento": "2025-09-30",
+    "dataLimite": "2026-09-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "CLECIA DIAS SANTOS MARQUES SILVA",
+    "admissao": "2023-10-03",
+    "periodoAquisitivo": "2024-10-03",
+    "vencimento": "2025-10-02",
+    "dataLimite": "2026-09-03",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JACKSON SANTOS NASCIMENTO",
+    "admissao": "2021-10-04",
+    "periodoAquisitivo": "2024-10-04",
+    "vencimento": "2025-10-03",
+    "dataLimite": "2026-09-04",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ANDERSON LUIS SANTOS SILVA",
+    "admissao": "2024-10-25",
+    "periodoAquisitivo": "2024-10-25",
+    "vencimento": "2025-10-24",
+    "dataLimite": "2026-09-25",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GERIEL DOS SANTOS CASTRO SOARES",
+    "admissao": "2021-11-22",
+    "periodoAquisitivo": "2024-11-22",
+    "vencimento": "2025-11-21",
+    "dataLimite": "2026-10-23",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "WILLMS SANTOS SILVA",
+    "admissao": "2021-12-01",
+    "periodoAquisitivo": "2024-12-01",
+    "vencimento": "2025-11-30",
+    "dataLimite": "2026-11-01",
+    "saldo": 5,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MURILLO BATISTA FERNANDES",
+    "admissao": "2023-12-04",
+    "periodoAquisitivo": "2024-12-04",
+    "vencimento": "2025-12-03",
+    "dataLimite": "2026-11-04",
+    "saldo": 5,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MAYANA LIMA DOS SANTOS",
+    "admissao": "2024-12-12",
+    "periodoAquisitivo": "2024-12-12",
+    "vencimento": "2025-12-11",
+    "dataLimite": "2026-11-12",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MABIANE ANDRADE DE SOUZA",
+    "admissao": "2021-12-13",
+    "periodoAquisitivo": "2024-12-13",
+    "vencimento": "2025-12-12",
+    "dataLimite": "2026-11-13",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "RAFAELA OLIVEIRA DE ARAUJO",
+    "admissao": "2020-12-17",
+    "periodoAquisitivo": "2024-12-17",
+    "vencimento": "2025-12-16",
+    "dataLimite": "2026-11-17",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARIANA BOMFIM ARAUJO SILVA",
+    "admissao": "2025-01-07",
+    "periodoAquisitivo": "2025-01-07",
+    "vencimento": "2026-01-06",
+    "dataLimite": "2026-12-08",
+    "saldo": 10,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ISRAEL DOS SANTOS XAVIER",
+    "admissao": "2021-01-18",
+    "periodoAquisitivo": "2025-01-18",
+    "vencimento": "2026-01-17",
+    "dataLimite": "2026-12-19",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "FERNANDO LIMA RODRIGUES",
+    "admissao": "2021-01-22",
+    "periodoAquisitivo": "2025-01-22",
+    "vencimento": "2026-01-21",
+    "dataLimite": "2026-12-23",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARIANA MACEDO FIGUEIREDO",
+    "admissao": "2023-02-01",
+    "periodoAquisitivo": "2025-02-01",
+    "vencimento": "2026-01-31",
+    "dataLimite": "2027-01-02",
+    "saldo": 10,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LUCIANO SANTOS SANTANA",
+    "admissao": "2024-02-01",
+    "periodoAquisitivo": "2025-02-01",
+    "vencimento": "2026-01-31",
+    "dataLimite": "2027-01-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LOURINALDO SILVA CORDEIRO DE PONTES",
+    "admissao": "2022-02-21",
+    "periodoAquisitivo": "2025-02-21",
+    "vencimento": "2026-02-20",
+    "dataLimite": "2027-01-22",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "EWERTON FONTES DA HORA SILVA",
+    "admissao": "2020-03-26",
+    "periodoAquisitivo": "2025-03-26",
+    "vencimento": "2026-03-25",
+    "dataLimite": "2027-02-24",
+    "saldo": 15,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ALAN ROBSON DE BARROS JUNIOR",
+    "admissao": "2022-04-05",
+    "periodoAquisitivo": "2025-04-05",
+    "vencimento": "2026-04-04",
+    "dataLimite": "2027-03-06",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MILENA DE ANDRADE",
+    "admissao": "2023-05-02",
+    "periodoAquisitivo": "2025-05-02",
+    "vencimento": "2026-05-01",
+    "dataLimite": "2027-04-02",
+    "saldo": 5,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "NAIARA DIOGENS SANTOS DA SILVA",
+    "admissao": "2024-05-02",
+    "periodoAquisitivo": "2025-05-02",
+    "vencimento": "2026-05-01",
+    "dataLimite": "2027-04-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JERONIMO SOARES CHAVES",
+    "admissao": "2010-05-03",
+    "periodoAquisitivo": "2025-05-03",
+    "vencimento": "2026-05-02",
+    "dataLimite": "2027-04-03",
+    "saldo": 10,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LEONARDO SOUSA FRAGA SANTOS",
+    "admissao": "2022-05-09",
+    "periodoAquisitivo": "2025-05-09",
+    "vencimento": "2026-05-08",
+    "dataLimite": "2027-04-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARINEIDE DE JESUS SILVA",
+    "admissao": "2022-05-20",
+    "periodoAquisitivo": "2025-05-20",
+    "vencimento": "2026-05-19",
+    "dataLimite": "2027-04-20",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "VIRLANNE GOMES DE ANDRADE",
+    "admissao": "2023-06-01",
+    "periodoAquisitivo": "2025-06-01",
+    "vencimento": "2026-05-31",
+    "dataLimite": "2027-05-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ADRIELLE DOS SANTOS NASCIMENTO",
+    "admissao": "2024-06-12",
+    "periodoAquisitivo": "2025-06-12",
+    "vencimento": "2026-06-11",
+    "dataLimite": "2027-05-13",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "CAMILA SANTOS REIS",
+    "admissao": "2022-07-22",
+    "periodoAquisitivo": "2025-07-22",
+    "vencimento": "2026-07-21",
+    "dataLimite": "2027-06-22",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ANDERSON PEREIRA BATISTA",
+    "admissao": "2022-08-08",
+    "periodoAquisitivo": "2025-08-08",
+    "vencimento": "2026-08-07",
+    "dataLimite": "2027-07-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "BEATRIZ PAULINA PEREIRA RABELO",
+    "admissao": "2025-09-22",
+    "periodoAquisitivo": "2025-09-22",
+    "vencimento": "2026-09-21",
+    "dataLimite": "2027-08-23",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "CAUA GOES FARIAS",
+    "admissao": "2025-09-22",
+    "periodoAquisitivo": "2025-09-22",
+    "vencimento": "2026-09-21",
+    "dataLimite": "2027-08-23",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ARNALDO DE LIRO LOPES",
+    "admissao": "2025-10-06",
+    "periodoAquisitivo": "2025-10-06",
+    "vencimento": "2026-10-05",
+    "dataLimite": "2027-09-06",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "YAN FREIRE DA SILVA CERQUEIRA",
+    "admissao": "2023-10-09",
+    "periodoAquisitivo": "2025-10-09",
+    "vencimento": "2026-10-08",
+    "dataLimite": "2027-09-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GABRIEL SOUZA DA SILVA",
+    "admissao": "2023-10-09",
+    "periodoAquisitivo": "2025-10-09",
+    "vencimento": "2026-10-08",
+    "dataLimite": "2027-09-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "TIAGO DE AMORIM DIAS",
+    "admissao": "2025-10-28",
+    "periodoAquisitivo": "2025-10-28",
+    "vencimento": "2026-10-27",
+    "dataLimite": "2027-09-28",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "FELIPE GONCALVES DE OLIVEIRA NETO",
+    "admissao": "2021-11-09",
+    "periodoAquisitivo": "2025-11-09",
+    "vencimento": "2026-11-08",
+    "dataLimite": "2027-10-10",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "NADJA ALINE SOARES LARANJEIRA",
+    "admissao": "2021-11-19",
+    "periodoAquisitivo": "2025-11-19",
+    "vencimento": "2026-11-18",
+    "dataLimite": "2027-10-20",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "WASHINGTON LUIZ ALVES",
+    "admissao": "2010-01-02",
+    "periodoAquisitivo": "2026-01-02",
+    "vencimento": "2027-01-01",
+    "dataLimite": "2027-12-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "FRANCISCO CARLOS BARRETO CARDOSO",
+    "admissao": "2026-01-05",
+    "periodoAquisitivo": "2026-01-05",
+    "vencimento": "2027-01-04",
+    "dataLimite": "2027-12-06",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "RHUAN DE OLIVEIRA COSTA",
+    "admissao": "2026-01-28",
+    "periodoAquisitivo": "2026-01-28",
+    "vencimento": "2027-01-27",
+    "dataLimite": "2027-12-29",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "TIAGO CAMBRAINHA ARAUJO",
+    "admissao": "2026-01-28",
+    "periodoAquisitivo": "2026-01-28",
+    "vencimento": "2027-01-27",
+    "dataLimite": "2027-12-29",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "HUGO CHAGAS DOS SANTOS MIGUEL",
+    "admissao": "2026-02-19",
+    "periodoAquisitivo": "2026-02-19",
+    "vencimento": "2027-02-18",
+    "dataLimite": "2028-01-20",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "LARISSA ALVES MENEZES",
+    "admissao": "2026-02-19",
+    "periodoAquisitivo": "2026-02-19",
+    "vencimento": "2027-02-18",
+    "dataLimite": "2028-01-20",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ELTON ALMEIDA DE JESUS",
+    "admissao": "2025-03-06",
+    "periodoAquisitivo": "2026-03-06",
+    "vencimento": "2027-03-05",
+    "dataLimite": "2028-02-05",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JOSE EDUARDO DOS SANTOS NUNES",
+    "admissao": "2022-03-15",
+    "periodoAquisitivo": "2026-03-15",
+    "vencimento": "2027-03-14",
+    "dataLimite": "2028-02-14",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "THIAGO KELLYSSON BARROS DA ROCHA SILVA",
+    "admissao": "2010-04-05",
+    "periodoAquisitivo": "2026-04-05",
+    "vencimento": "2027-04-04",
+    "dataLimite": "2028-03-06",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARCO ANTONIO OLIVEIRA RIBEIRO",
+    "admissao": "2023-05-22",
+    "periodoAquisitivo": "2025-05-22",
+    "vencimento": "2026-05-21",
+    "dataLimite": "2027-04-22",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "NELSON REGINALDO DE BARROS FILHO",
+    "admissao": "2022-10-24",
+    "periodoAquisitivo": "2025-10-24",
+    "vencimento": "2026-10-23",
+    "dataLimite": "2027-09-24",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "DIEGO NOVAES DOS ANJOS",
+    "admissao": "2024-11-06",
+    "periodoAquisitivo": "2025-11-06",
+    "vencimento": "2026-11-05",
+    "dataLimite": "2027-10-07",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ADRIANO BORGES COSTA",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2024-11-01",
+    "vencimento": "2025-10-31",
+    "dataLimite": "2026-10-02",
+    "saldo": 5,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GEORGE DIAS PEREIRA",
+    "admissao": "2024-04-16",
+    "periodoAquisitivo": "2025-04-16",
+    "vencimento": "2026-04-15",
+    "dataLimite": "2027-03-17",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ERIK DE MORAES PINA DE CARVALHO",
+    "admissao": "2024-07-03",
+    "periodoAquisitivo": "2025-07-03",
+    "vencimento": "2026-07-02",
+    "dataLimite": "2027-06-03",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ALAELSON DE JESUS SANTOS JUNIOR",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ANDRE SANTOS NERI",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "DANILO DE SOUZA FARIAS",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "PETERSON SOUZA ALBUQUERQUE",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "NEILTON COSTA MAIA",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "RICARDO DE QUEIROZ RIGUEIRA",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JORGE DE MORAES",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GRIMALDO TOSTENBERG SILVA",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ROBSON ANTONIO OLIVEIRA DE SOUZA",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JAVIER RODRIGUEZ PEREZ",
+    "admissao": "2023-11-01",
+    "periodoAquisitivo": "2025-11-01",
+    "vencimento": "2026-10-31",
+    "dataLimite": "2027-10-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JACSON ARAUJO DE JESUS SILVA",
+    "admissao": "2025-12-01",
+    "periodoAquisitivo": "2025-12-01",
+    "vencimento": "2026-11-30",
+    "dataLimite": "2027-11-01",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARCEL DE OLIVEIRA SOUZA",
+    "admissao": "2024-12-18",
+    "periodoAquisitivo": "2025-12-18",
+    "vencimento": "2026-12-17",
+    "dataLimite": "2027-11-18",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARCOS GABRIEL SANTANA DOS SANTOS",
+    "admissao": "2023-12-04",
+    "periodoAquisitivo": "2024-12-04",
+    "vencimento": "2025-12-03",
+    "dataLimite": "2026-11-04",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "JOSE PERICLES MONTEIRO GOMES JUNIOR",
+    "admissao": "2025-05-13",
+    "periodoAquisitivo": "2025-05-13",
+    "vencimento": "2026-05-12",
+    "dataLimite": "2027-04-13",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "CAUAN SILVA JESUS",
+    "admissao": "2024-06-03",
+    "periodoAquisitivo": "2025-06-03",
+    "vencimento": "2026-06-02",
+    "dataLimite": "2027-05-04",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "SAMELE BIAGGI PARENTE",
+    "admissao": "2023-08-01",
+    "periodoAquisitivo": "2025-08-01",
+    "vencimento": "2026-07-31",
+    "dataLimite": "2027-07-02",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "EDSON ALEXANDRINO DOS SANTOS JUNIOR",
+    "admissao": "2023-08-15",
+    "periodoAquisitivo": "2025-08-15",
+    "vencimento": "2026-08-14",
+    "dataLimite": "2027-07-16",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GABRIEL BOMFIM DE OLIVEIRA",
+    "admissao": "2025-08-19",
+    "periodoAquisitivo": "2025-08-19",
+    "vencimento": "2026-08-18",
+    "dataLimite": "2027-07-20",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "RICARDO TRINDADE LUZ",
+    "admissao": "2025-08-20",
+    "periodoAquisitivo": "2025-08-20",
+    "vencimento": "2026-08-19",
+    "dataLimite": "2027-07-21",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "GLEDSON SANTIAGO DOS SANTOS",
+    "admissao": "2025-09-22",
+    "periodoAquisitivo": "2025-09-22",
+    "vencimento": "2026-09-21",
+    "dataLimite": "2027-08-23",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "VIVIANNE GOMES DE ANDRADE",
+    "admissao": "2025-10-09",
+    "periodoAquisitivo": "2025-10-09",
+    "vencimento": "2026-10-08",
+    "dataLimite": "2027-09-09",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "VITOR BERLINK SANTOS",
+    "admissao": "2025-11-12",
+    "periodoAquisitivo": "2025-11-12",
+    "vencimento": "2026-11-11",
+    "dataLimite": "2027-10-13",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "RONALDO SANTOS SACRAMENTO",
+    "admissao": "2025-11-12",
+    "periodoAquisitivo": "2025-11-12",
+    "vencimento": "2026-11-11",
+    "dataLimite": "2027-10-13",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "MARCELO SILVA SANTOS",
+    "admissao": "2025-04-10",
+    "periodoAquisitivo": "2026-04-10",
+    "vencimento": "2027-04-09",
+    "dataLimite": "2028-03-11",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "ERE BARBOSA DE FREITAS MATOS",
+    "admissao": "2026-05-26",
+    "periodoAquisitivo": "2026-05-26",
+    "vencimento": "2027-05-25",
+    "dataLimite": "2028-04-26",
+    "saldo": 30,
+    "diasDireito": 30
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "284",
+    "admissao": "284",
+    "periodoAquisitivo": "24/02/2025      23/02/2026          25/01/2027       0                   4.053,20",
+    "vencimento": null,
+    "dataLimite": null,
+    "saldo": null,
+    "diasDireito": null
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "QUANTIDADE :  1",
+    "admissao": "Quantidade :  1",
+    "periodoAquisitivo": null,
+    "vencimento": null,
+    "dataLimite": null,
+    "saldo": null,
+    "diasDireito": null
+  },
+  {
+    "empresa": "SUDOESTE",
+    "nome": "QUANTIDADE GERAL :    150",
+    "admissao": "Quantidade Geral :    150",
+    "periodoAquisitivo": null,
+    "vencimento": null,
+    "dataLimite": null,
+    "saldo": null,
+    "diasDireito": null
+  }
+]
