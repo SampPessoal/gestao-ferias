@@ -248,11 +248,11 @@ export async function createColaborador(data: {
     codigo: data.codigo ?? null,
     empresaId: data.empresaId ?? null,
     setorId: data.setorId ?? null,
-    // Usa T12:00:00 para evitar bug de timezone (UTC midnight -> dia anterior em GMT-3)
-    admissao: data.admissao ? new Date(data.admissao + "T12:00:00") : null,
-    periodoAquisitivo: data.periodoAquisitivo ? new Date(data.periodoAquisitivo + "T12:00:00") : null,
-    vencimento: data.vencimento ? new Date(data.vencimento + "T12:00:00") : null,
-    dataLimite: data.dataLimite ? new Date(data.dataLimite + "T12:00:00") : null,
+    // Passa string YYYY-MM-DD diretamente para colunas date() do Drizzle/PostgreSQL
+    admissao: data.admissao ?? null,
+    periodoAquisitivo: data.periodoAquisitivo ?? null,
+    vencimento: data.vencimento ?? null,
+    dataLimite: data.dataLimite ?? null,
     diasDireito: data.diasDireito ?? 30,
     saldo: data.saldo ?? 30,
     observacoes: data.observacoes ?? null,
@@ -263,7 +263,7 @@ export async function createColaborador(data: {
     valorVT: data.valorVT != null ? String(data.valorVT) : null,
     cpf: data.cpf ?? null,
     rg: data.rg ?? null,
-    dataNascimento: data.dataNascimento ? new Date(data.dataNascimento + "T12:00:00") : null,
+    dataNascimento: data.dataNascimento ?? null,
     cargo: data.cargo ?? null,
     celular: data.celular ?? null,
     telefone: data.telefone ?? null,
@@ -279,7 +279,7 @@ export async function createColaborador(data: {
     nomeMae: data.nomeMae ?? null,
     contatoEmergenciaNome: data.contatoEmergenciaNome ?? null,
     contatoEmergenciaTelefone: data.contatoEmergenciaTelefone ?? null,
-    rgExpedicao: data.rgExpedicao ? new Date(data.rgExpedicao + "T12:00:00") : null,
+    rgExpedicao: data.rgExpedicao ?? null,
     rgOrgaoExpedidor: data.rgOrgaoExpedidor ?? null,
     enderecoLogradouro: data.enderecoLogradouro ?? null,
     enderecoNumero: data.enderecoNumero ?? null,
@@ -558,15 +558,9 @@ export async function updateColaborador(
 ) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Converte campos de data para Date com T12:00:00 para evitar bug de timezone (UTC midnight -> dia anterior em GMT-3)
-  const toDate = (s: string | null | undefined) => s ? new Date(s + "T12:00:00") : null;
+  // Passa strings YYYY-MM-DD diretamente para colunas date() do PostgreSQL
   const updateData: Record<string, any> = { ...data };
-  if ('admissao' in data) updateData.admissao = toDate(data.admissao as string | null);
-  if ('periodoAquisitivo' in data) updateData.periodoAquisitivo = toDate(data.periodoAquisitivo as string | null);
-  if ('vencimento' in data) updateData.vencimento = toDate(data.vencimento as string | null);
-  if ('dataLimite' in data) updateData.dataLimite = toDate(data.dataLimite as string | null);
-  if ('dataNascimento' in data) updateData.dataNascimento = toDate(data.dataNascimento as string | null);
-  if ('rgExpedicao' in data) updateData.rgExpedicao = toDate(data.rgExpedicao as string | null);
+  // Campos de data já vêm como string YYYY-MM-DD e são passados diretamente
   // planejamento1/2/3 são campos varchar (texto livre), não datas — não converter
   await db.update(colaboradores).set(updateData as any).where(eq(colaboradores.id, id));
 }
@@ -574,9 +568,9 @@ export async function updateColaborador(
 export async function toggleStatusColaborador(id: number, novoStatus: "ativo" | "inativo", dataDemissao?: string | null) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Usa T12:00:00 para evitar bug de timezone
+  // Passa string YYYY-MM-DD diretamente para coluna date()
   const demissaoDate = novoStatus === "inativo" && dataDemissao
-    ? new Date(dataDemissao + "T12:00:00")
+    ? dataDemissao
     : null;
   await db.update(colaboradores)
     .set({ status: novoStatus, dataDemissao: demissaoDate } as any)
@@ -3791,7 +3785,7 @@ export async function createMovimentacaoSeguroVida(data: {
     nomeColaborador: data.nomeColaborador,
     empresa: data.empresa as any,
     tipo: data.tipo,
-    data: new Date(data.data + "T12:00:00") as any,
+    data: data.data as any,
     observacao: data.observacao,
     createdByUserId: data.createdByUserId,
     createdByNome: data.createdByNome,
@@ -3811,7 +3805,7 @@ export async function updateMovimentacaoSeguroVida(id: number, data: {
   if (!db) return;
   const set: any = {};
   if (data.tipo !== undefined) set.tipo = data.tipo;
-  if (data.data !== undefined) set.data = new Date(data.data + "T12:00:00") as any;
+  if (data.data !== undefined) set.data = data.data;
   if (data.observacao !== undefined) set.observacao = data.observacao;
   if (Object.keys(set).length > 0) await db.update(movimentacaoSeguroVida).set(set).where(eq(movimentacaoSeguroVida.id, id));
 }
@@ -3845,7 +3839,7 @@ export async function createMovimentacaoAuxilioNotebook(data: {
     nomeColaborador: data.nomeColaborador,
     empresa: data.empresa as any,
     tipo: data.tipo,
-    dataInicio: new Date(data.dataInicio + "T12:00:00") as any,
+    dataInicio: data.dataInicio as any,
     valor: data.valor != null ? String(data.valor) : "150.00",
     observacao: data.observacao,
     createdByUserId: data.createdByUserId,
@@ -3866,7 +3860,7 @@ export async function updateMovimentacaoAuxilioNotebook(id: number, data: {
   if (!db) return;
   const set: any = {};
   if (data.tipo !== undefined) set.tipo = data.tipo;
-  if (data.dataInicio !== undefined) set.dataInicio = new Date(data.dataInicio + "T12:00:00") as any;
+  if (data.dataInicio !== undefined) set.dataInicio = data.dataInicio;
   if (data.valor !== undefined) set.valor = String(data.valor);
   if (data.observacao !== undefined) set.observacao = data.observacao;
   if (Object.keys(set).length > 0) await db.update(movimentacaoAuxilioNotebook).set(set).where(eq(movimentacaoAuxilioNotebook.id, id));
@@ -3905,7 +3899,7 @@ export async function createMovimentacaoPlanoSaude(data: {
     tipo: data.tipo,
     tipoPlano: data.tipoPlano,
     categoria: data.categoria ?? "titular",
-    dataNascimento: data.dataNascimento ? new Date(data.dataNascimento + "T12:00:00") as any : undefined,
+    dataNascimento: data.dataNascimento ?? undefined,
     valor: data.valor != null ? String(data.valor) : undefined,
     valorEmpresa: data.valorEmpresa != null ? String(data.valorEmpresa) : undefined,
     valorColaborador: data.valorColaborador != null ? String(data.valorColaborador) : undefined,
@@ -3934,7 +3928,7 @@ export async function updateMovimentacaoPlanoSaude(id: number, data: {
   if (data.tipo !== undefined) set.tipo = data.tipo;
   if (data.tipoPlano !== undefined) set.tipoPlano = data.tipoPlano;
   if (data.categoria !== undefined) set.categoria = data.categoria;
-  if (data.dataNascimento !== undefined) set.dataNascimento = new Date(data.dataNascimento + "T12:00:00") as any;
+  if (data.dataNascimento !== undefined) set.dataNascimento = data.dataNascimento;
   if (data.valor !== undefined) set.valor = String(data.valor);
   if (data.valorEmpresa !== undefined) set.valorEmpresa = String(data.valorEmpresa);
   if (data.valorColaborador !== undefined) set.valorColaborador = String(data.valorColaborador);
@@ -4029,7 +4023,7 @@ export async function createMovimentacaoAuxilioCreche(data: {
     empresa: data.empresa as any,
     tipo: data.tipo,
     nomeFilho: data.nomeFilho,
-    dataNascimentoFilho: data.dataNascimentoFilho ? new Date(data.dataNascimentoFilho + "T12:00:00") as any : undefined,
+    dataNascimentoFilho: data.dataNascimentoFilho ?? undefined,
     valor: data.valor != null ? String(data.valor) : undefined,
     observacao: data.observacao,
     competenciaMes: data.competenciaMes,
@@ -4054,7 +4048,7 @@ export async function updateMovimentacaoAuxilioCreche(id: number, data: {
   const set: any = {};
   if (data.tipo !== undefined) set.tipo = data.tipo;
   if (data.nomeFilho !== undefined) set.nomeFilho = data.nomeFilho;
-  if (data.dataNascimentoFilho !== undefined) set.dataNascimentoFilho = new Date(data.dataNascimentoFilho + "T12:00:00") as any;
+  if (data.dataNascimentoFilho !== undefined) set.dataNascimentoFilho = data.dataNascimentoFilho;
   if (data.valor !== undefined) set.valor = String(data.valor);
   if (data.observacao !== undefined) set.observacao = data.observacao;
   if (Object.keys(set).length > 0) await db.update(movimentacaoAuxilioCreche).set(set).where(eq(movimentacaoAuxilioCreche.id, id));
@@ -4100,9 +4094,9 @@ export async function createMovimentacaoBonusIndicacao(data: {
     indicadoId: data.indicadoId,
     nomeIndicado: data.nomeIndicado,
     empresa: data.empresa as any,
-    dataAdmissaoIndicado: new Date(data.dataAdmissaoIndicado + "T12:00:00") as any,
-    dataPagamentoPrevisto: dataPagamentoPrevisto ? new Date(dataPagamentoPrevisto + "T12:00:00") as any : undefined,
-    dataPagamentoEfetivo: data.dataPagamentoEfetivo ? new Date(data.dataPagamentoEfetivo + "T12:00:00") as any : undefined,
+    dataAdmissaoIndicado: data.dataAdmissaoIndicado as any,
+    dataPagamentoPrevisto: dataPagamentoPrevisto ?? undefined,
+    dataPagamentoEfetivo: data.dataPagamentoEfetivo ?? undefined,
     valorBonus: data.valorBonus != null ? String(data.valorBonus) : "1000.00",
     status: data.status ?? "pendente",
     observacao: data.observacao,
@@ -4123,7 +4117,7 @@ export async function updateMovimentacaoBonusIndicacao(id: number, data: {
   await db.update(movimentacaoBonusIndicacao)
     .set({
       status: data.status,
-      dataPagamentoEfetivo: data.dataPagamentoEfetivo ? new Date(data.dataPagamentoEfetivo + "T12:00:00") as any : undefined,
+      dataPagamentoEfetivo: data.dataPagamentoEfetivo ?? undefined,
       observacao: data.observacao,
     })
     .where(eq(movimentacaoBonusIndicacao.id, id));

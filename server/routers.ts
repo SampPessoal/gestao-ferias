@@ -505,10 +505,10 @@ export const appRouter = router({
       const { dataFim, ...rest } = input;
       return createHistoricoFerias({
         ...rest,
-        // Usa T12:00:00 para evitar bug de timezone UTC midnight -> dia anterior em GMT-3
-        dataSaida: new Date(input.dataSaida + "T12:00:00") as any,
-        ...(dataFim ? { dataFim: new Date(dataFim + "T12:00:00") as any } : {}),
-        dataRetorno: new Date(input.dataRetorno + "T12:00:00") as any,
+        // Passa string YYYY-MM-DD diretamente para colunas date() do PostgreSQL
+        dataSaida: input.dataSaida as any,
+        ...(dataFim ? { dataFim: dataFim as any } : {}),
+        dataRetorno: input.dataRetorno as any,
         diasVendidos: input.diasVendidos ?? 0,
         createdByUserId: ctx.systemUser?.id ?? null,
         createdByNome: ctx.systemUser?.nome ?? null,
@@ -536,9 +536,9 @@ export const appRouter = router({
       const { id, dataSaida, dataFim, dataRetorno, ...rest } = input;
       return updateHistoricoFerias(id, {
         ...rest,
-        ...(dataSaida ? { dataSaida: new Date(dataSaida + "T12:00:00") as any } : {}),
-        ...(dataFim !== undefined ? { dataFim: dataFim ? new Date(dataFim + "T12:00:00") as any : null } : {}),
-        ...(dataRetorno ? { dataRetorno: new Date(dataRetorno + "T12:00:00") as any } : {}),
+        ...(dataSaida ? { dataSaida: dataSaida as any } : {}),
+        ...(dataFim !== undefined ? { dataFim: dataFim ? dataFim as any : null } : {}),
+        ...(dataRetorno ? { dataRetorno: dataRetorno as any } : {}),
       });
     }),
 
@@ -608,9 +608,9 @@ export const appRouter = router({
         }
         return createAbono({
           ...rest,
-          // Usa T12:00:00 para evitar bug de timezone UTC midnight -> dia anterior em GMT-3
-          dataAbono: new Date(dataAbono + "T12:00:00") as any,
-          ...(dataAbono2 ? { dataAbono2: new Date(dataAbono2 + "T12:00:00") as any } : {}),
+          // Passa string YYYY-MM-DD diretamente para colunas date() do PostgreSQL
+          dataAbono: dataAbono as any,
+          ...(dataAbono2 ? { dataAbono2: dataAbono2 as any } : {}),
           createdByUserId: ctx.systemUser?.id ?? null,
           createdByNome: ctx.systemUser?.nome ?? null,
         });
@@ -648,9 +648,9 @@ export const appRouter = router({
         }
         return updateAbono(id, {
           ...rest,
-          ...(dataAbono ? { dataAbono: new Date(dataAbono + "T12:00:00") as any } : {}),
+          ...(dataAbono ? { dataAbono: dataAbono as any } : {}),
           // Só atualiza dataAbono2 se foi explicitamente enviada (undefined = não alterar, null = apagar)
-          ...(dataAbono2 !== undefined ? { dataAbono2: dataAbono2 ? new Date(dataAbono2 + "T12:00:00") as any : null } : {}),
+          ...(dataAbono2 !== undefined ? { dataAbono2: dataAbono2 ? dataAbono2 as any : null } : {}),
         });
       }),
 
@@ -711,8 +711,8 @@ export const appRouter = router({
         const { dataInicio, dataFim, ...rest } = input;
         return createAtestado({
           ...rest,
-          dataInicio: new Date(dataInicio + "T12:00:00") as any,
-          dataFim: new Date(dataFim + "T12:00:00") as any,
+          dataInicio: dataInicio as any,
+          dataFim: dataFim as any,
           createdByUserId: ctx.systemUser?.id ?? null,
           createdByNome: ctx.systemUser?.nome ?? null,
         });
@@ -735,8 +735,8 @@ export const appRouter = router({
         const { id, dataInicio, dataFim, ...rest } = input;
         return updateAtestado(id, {
           ...rest,
-          ...(dataInicio ? { dataInicio: new Date(dataInicio + "T12:00:00") as any } : {}),
-          ...(dataFim ? { dataFim: new Date(dataFim + "T12:00:00") as any } : {}),
+          ...(dataInicio ? { dataInicio: dataInicio as any } : {}),
+          ...(dataFim ? { dataFim: dataFim as any } : {}),
         });
       }),
 
@@ -985,7 +985,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         return createFeriado({
-          data: new Date(input.data + 'T12:00:00Z') as any,
+          data: input.data as any,
           nome: input.nome,
           tipo: input.tipo,
           recorrente: input.recorrente,
@@ -1009,7 +1009,7 @@ export const appRouter = router({
         const { id, data, ...rest } = input;
         await updateFeriado(id, {
           ...rest,
-          ...(data ? { data: new Date(data + 'T12:00:00Z') as any } : {}),
+          ...(data ? { data: data as any } : {}),
         });
         return { ok: true };
       }),
