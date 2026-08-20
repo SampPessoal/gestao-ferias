@@ -1274,9 +1274,9 @@ export async function recalcularSaldoColaborador(colaboradorId: number): Promise
   const { vencimento, dataLimite } = calcDatas(periodoCorreto);
 
   await db.update(colaboradores).set({
-    periodoAquisitivo: periodoCorreto,
-    vencimento,
-    dataLimite,
+    periodoAquisitivo: toStr(periodoCorreto),
+    vencimento: toStr(vencimento),
+    dataLimite: toStr(dataLimite),
     saldo: saldoCorreto,
   } as any).where(eq(colaboradores.id, colaboradorId));
 }
