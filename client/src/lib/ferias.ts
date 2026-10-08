@@ -196,3 +196,42 @@ export function diasRestantes(dataLimite: Date | string | null | undefined): num
     return null;
   }
 }
+
+// ─── Janela de saída antecipada e penalidade ──────────────────────────────────
+// Regra da contabilidade: o colaborador pode sair até 1 mês ANTES do vencimento
+// do período aquisitivo, mas perde dias:
+//   • 30 dias corridos ............. perde 2 dias
+//   • 20 dias + venda de 10 ........ perde 1 dia
+//   • férias fracionadas ........... perde 1 dia no total
+// Saída no próprio dia do vencimento (ou depois) não tem penalidade.
+// Saída com mais de 1 mês de antecedência é bloqueada.
+
+/** Mesmo dia do mês anterior; se não existir (ex.: 31/03 → 31/02), usa o último dia do mês. */
+export function umMesAntes(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const ultimoDiaMesAnterior = new Date(Date.UTC(y, m - 1, 0)).getUTCDate();
+  const dia = Math.min(d, ultimoDiaMesAnterior);
+  const ref = new Date(Date.UTC(y, m - 2, dia));
+  return `${ref.getUTCFullYear()}-${String(ref.getUTCMonth() + 1).padStart(2, "0")}-${String(ref.getUTCDate()).padStart(2, "0")}`;
+}
+
+export type SituacaoSaida = "bloqueada" | "com_penalidade" | "normal";
+
+/** Classifica a data de saída em relação ao vencimento (datas em YYYY-MM-DD). */
+export function situacaoSaida(saidaIso: string, vencimentoIso: string): SituacaoSaida {
+  if (saidaIso >= vencimentoIso) return "normal";
+  if (saidaIso >= umMesAntes(vencimentoIso)) return "com_penalidade";
+  return "bloqueada";
+}
+
+/** Dias perdidos quando a saída cai dentro do mês anterior ao vencimento. */
+export function diasPerdidosPenalidade(opts: {
+  venda10: boolean;
+  diasGozados: number;
+  diasDireito?: number;
+}): { dias: number; motivo: "venda" | "fracionada" | "corridos" } {
+  const direito = opts.diasDireito ?? 30;
+  if (opts.venda10) return { dias: 1, motivo: "venda" };
+  if (opts.diasGozados < direito) return { dias: 1, motivo: "fracionada" };
+  return { dias: 2, motivo: "corridos" };
+}
