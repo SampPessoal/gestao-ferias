@@ -34,7 +34,7 @@ import { Plus, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronRight, T
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortableTableHead } from "@/components/SortableHeader";
 import { NomeColaborador } from "@/components/NomeColaborador";
-import { toDateStr, formatDateBR } from "@/lib/ferias";
+import { toDateStr, formatDateBR, situacaoSaida, umMesAntes, diasPerdidosPenalidade } from "@/lib/ferias";
 
 const MESES = [
   { value: "1", label: "Janeiro" },
@@ -422,7 +422,7 @@ export default function RelacaoFerias() {
    */
   /**
    * Verifica se a data de saída está dentro do período elegivel do colaborador.
-   * Bloqueia se a saída for ANTES do vencimento ou DEPOIS da data limite.
+   * Bloqueia se a saída for mais de 1 mês ANTES do vencimento ou DEPOIS da data limite.
    * Retorna mensagem de erro ou null se está dentro do período.
    */
   function calcularAvisoForaPeriodo(): string | null {
@@ -444,11 +444,10 @@ export default function RelacaoFerias() {
       if (vencStr) {
         const [vy, vm, vd] = vencStr.split("-").map(Number);
         if (vy && vm && vd) {
-          const msVenc = Date.UTC(vy, vm - 1, vd);
-          if (msSaida < msVenc) {
+          if (situacaoSaida(saidaStr, vencStr) === "bloqueada") {
             const vencBR = `${String(vd).padStart(2,'0')}/${String(vm).padStart(2,'0')}/${vy}`;
-            const diasRestantes = Math.round((msVenc - msSaida) / (1000 * 60 * 60 * 24));
-            return `Bloqueado: o colaborador só pode sair de férias a partir de ${vencBR} (faltam ${diasRestantes} dia${diasRestantes !== 1 ? 's' : ''} para o vencimento do período aquisitivo).`;
+            const [iy, im, id] = umMesAntes(vencStr).split("-");
+            return `Bloqueado: a saída pode ser no máximo 1 mês antes do vencimento (${vencBR}), ou seja, a partir de ${id}/${im}/${iy}.`;
           }
         }
       }
@@ -479,36 +478,31 @@ export default function RelacaoFerias() {
 
   function calcularAvisoPenalidade(): string | null {
     if (!colabInfo || !form.dataSaida) return null;
-    // Só aplica penalidade quando NÃO há venda de 10 dias
-    if (form.venda10 === "SIM") return null;
-    // Penalidade é calculada em relação ao VENCIMENTO (não à data limite)
     const vencimentoRaw = colabInfo.vencimento;
     if (!vencimentoRaw) return null;
-    // Normaliza vencimento para string YYYY-MM-DD
     const vencimentoStr = typeof vencimentoRaw === "string"
       ? vencimentoRaw.split("T")[0]
       : (vencimentoRaw instanceof Date
           ? `${vencimentoRaw.getUTCFullYear()}-${String(vencimentoRaw.getUTCMonth()+1).padStart(2,'0')}-${String(vencimentoRaw.getUTCDate()).padStart(2,'0')}`
           : null);
     if (!vencimentoStr) return null;
-    // Normaliza dataSaida para string YYYY-MM-DD
     const dataSaidaStr = form.dataSaida.includes("T") ? form.dataSaida.split("T")[0] : form.dataSaida;
     if (dataSaidaStr.length !== 10) return null;
-    // Calcula diferença em dias entre dataSaida e vencimento
-    const [vy, vm, vd] = vencimentoStr.split("-").map(Number);
-    const [sy, sm, sd] = dataSaidaStr.split("-").map(Number);
-    if (!vy || !vm || !vd || !sy || !sm || !sd) return null;
-    const msVenc = Date.UTC(vy, vm - 1, vd);
-    const msSaida = Date.UTC(sy, sm - 1, sd);
-    const diasAntesDoVenc = Math.round((msVenc - msSaida) / (1000 * 60 * 60 * 24));
-    // Se a saída é no mesmo dia ou após o vencimento — sem penalidade
-    if (diasAntesDoVenc <= 0) return null;
-    // Penalidade: saída dentro de 30 dias antes do vencimento (1 a 30 dias de antecedência)
-    if (diasAntesDoVenc <= 30) {
-      const vencBR = `${String(vd).padStart(2,'0')}/${String(vm).padStart(2,'0')}/${vy}`;
-      return `Atenção: esta saída está a ${diasAntesDoVenc} dia${diasAntesDoVenc !== 1 ? 's' : ''} antes do vencimento (${vencBR}). Conforme CLT, o colaborador perde 2 dias do período de gozo. Para evitar a penalidade, marque "Venda 10 dias" como SIM.`;
-    }
-    return null;
+    // Penalidade só na janela de 1 mês antes do vencimento
+    if (situacaoSaida(dataSaidaStr, vencimentoStr) !== "com_penalidade") return null;
+
+    const { dias, motivo } = diasPerdidosPenalidade({
+      venda10: form.venda10 === "SIM",
+      diasGozados: parseInt(form.diasGozados) || 0,
+      diasDireito: colabInfo.diasDireito ?? 30,
+    });
+    const [vy, vm, vd] = vencimentoStr.split("-");
+    const vencBR = `${vd}/${vm}/${vy}`;
+    const explicacao =
+      motivo === "venda" ? "20 dias com venda de 10" :
+      motivo === "fracionada" ? "férias fracionadas, 1 dia no total" :
+      "30 dias corridos";
+    return `Atenção: saída antes do vencimento (${vencBR}). O colaborador perde ${dias} dia${dias !== 1 ? "s" : ""} (${explicacao}). Para não ter penalidade, a saída deve ser a partir de ${vencBR}.`;
   }
 
   function handleSalvar() {
@@ -1095,7 +1089,7 @@ export default function RelacaoFerias() {
                   <span>{calcularAvisoForaPeriodo()}</span>
                 </div>
               )}
-              {/* Aviso de penalidade de 2 dias (não bloqueante) */}
+              {/* Aviso de penalidade por saída antecipada (não bloqueante) */}
               {!calcularAvisoForaPeriodo() && calcularAvisoPenalidade() && (
                 <div className="mt-1.5 px-2.5 py-2 rounded border border-blue-300 bg-blue-50 text-xs text-blue-800 flex items-start gap-1.5">
                   <span className="shrink-0 mt-0.5">⚠️</span>
@@ -1249,13 +1243,13 @@ export default function RelacaoFerias() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Tem certeza que deseja cancelar este registro de férias? O saldo do colaborador será revertido automaticamente.</p>
+            <p className="text-sm text-muted-foreground">Tem certeza que deseja cancelar este registro de férias? O período aquisitivo, o vencimento, a data limite e o saldo do colaborador voltam a ser os de antes deste lançamento.</p>
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Motivo do cancelamento <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <Label className="text-sm font-medium">Motivo do cancelamento <span className="text-destructive">*</span></Label>
               <Textarea
                 value={motivoCancelamento}
                 onChange={(e) => setMotivoCancelamento(e.target.value)}
-                placeholder="Ex: Colaborador adiou as férias por necessidade da empresa..."
+                placeholder="Ex: Férias canceladas por controle de projeto"
                 className="resize-none text-sm"
                 rows={3}
               />
@@ -1265,8 +1259,8 @@ export default function RelacaoFerias() {
             <Button variant="outline" onClick={() => { setConfirmDelete(null); setMotivoCancelamento(""); }}>Voltar</Button>
             <Button
               variant="destructive"
-              onClick={() => confirmDelete !== null && deleteMutation.mutate({ id: confirmDelete, motivo: motivoCancelamento || undefined })}
-              disabled={deleteMutation.isPending}
+              onClick={() => confirmDelete !== null && deleteMutation.mutate({ id: confirmDelete, motivo: motivoCancelamento.trim() })}
+              disabled={deleteMutation.isPending || motivoCancelamento.trim().length < 3}
             >
               {deleteMutation.isPending ? "Excluindo..." : "Confirmar Cancelamento"}
             </Button>

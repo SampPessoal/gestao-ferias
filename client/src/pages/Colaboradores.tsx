@@ -387,7 +387,7 @@ export default function Colaboradores() {
             <div className="relative flex-1 min-w-52">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nome..."
+                placeholder="Buscar por nome ou CPF..."
                 value={busca}
                 onChange={e => { setBusca(e.target.value); setPage(1); }}
                 className="pl-9 h-9 bg-background border-border/60"
