@@ -70,22 +70,50 @@ export async function withTimeout<T>(promise: Promise<T>, ms = DB_QUERY_TIMEOUT_
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer!));
 }
 
-export async function getDb() {
-  if (!_db) {
-    const url = process.env.DATABASE_URL;
-    if (!url) {
-      console.error("[Database] DATABASE_URL not set");
-      return null;
-    }
-    try {
-      _client = postgres(url, { max: 10, idle_timeout: 60, connect_timeout: 8 });
-      _db = drizzle(_client);
-      console.log("[Database] Connected to PostgreSQL");
-    } catch (error) {
-      console.error("[Database] Connection failed:", (error as Error).message);
-    }
+/**
+ * Cria, se ainda não existirem, as colunas adicionadas em versões novas.
+ * É idempotente (ADD COLUMN IF NOT EXISTS), então roda com segurança a cada início.
+ */
+async function garantirColunasNovas(client: ReturnType<typeof postgres>) {
+  try {
+    await client.unsafe(`
+      ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "periodoAquisitivoAnterior" date;
+      ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "vencimentoAnterior" date;
+      ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "dataLimiteAnterior" date;
+      ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "saldoAnterior" integer;
+    `);
+  } catch (error) {
+    console.error("[Database] Falha ao garantir colunas novas:", (error as Error).message);
   }
-  return _db;
+}
+
+let _initPromise: Promise<ReturnType<typeof drizzle> | null> | null = null;
+
+export async function getDb() {
+  if (_db) return _db;
+  if (!_initPromise) {
+    _initPromise = (async () => {
+      const url = process.env.DATABASE_URL;
+      if (!url) {
+        console.error("[Database] DATABASE_URL not set");
+        return null;
+      }
+      try {
+        const client = postgres(url, { max: 10, idle_timeout: 60, connect_timeout: 8 });
+        await garantirColunasNovas(client);
+        _client = client;
+        _db = drizzle(client);
+        console.log("[Database] Connected to PostgreSQL");
+        return _db;
+      } catch (error) {
+        console.error("[Database] Connection failed:", (error as Error).message);
+        return null;
+      } finally {
+        _initPromise = null;
+      }
+    })();
+  }
+  return _initPromise;
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -350,7 +378,17 @@ export async function getColaboradores(filtros: ColaboradorFiltros = {}) {
   if (empresaId) conditions.push(eq(colaboradores.empresaId, empresaId) as any);
   if (setorId) conditions.push(eq(colaboradores.setorId, setorId) as any);
   if (busca) {
-    conditions.push(sql`LOWER(${colaboradores.nome}) LIKE ${`%${busca.toLowerCase()}%`}` as any);
+    const termo = busca.trim();
+    const nomeCond = sql`LOWER(${colaboradores.nome}) LIKE ${`%${termo.toLowerCase()}%`}`;
+    // Busca por CPF: compara só os dígitos, aceitando "123.456.789-00" ou "12345678900"
+    const digitos = termo.replace(/\D/g, "");
+    const pareceCpf = digitos.length >= 3 && /^[\d.\-\s]+$/.test(termo);
+    if (pareceCpf) {
+      const cpfCond = sql`REGEXP_REPLACE(COALESCE(${colaboradores.cpf}, ''), '[^0-9]', '', 'g') LIKE ${`%${digitos}%`}`;
+      conditions.push(or(nomeCond, cpfCond) as any);
+    } else {
+      conditions.push(nomeCond as any);
+    }
   }
 
   const statusCond = buildStatusFeriasCondition(statusFerias);
@@ -1208,6 +1246,12 @@ export async function recalcularSaldoColaborador(colaboradorId: number): Promise
     }
   }
 
+  // Período aquisitivo atual gravado no cadastro: a partir dele, nenhum período
+  // é pulado, mesmo já terminado e sem lançamentos (as férias ainda são devidas).
+  // Períodos ANTERIORES a ele sem lançamentos são considerados já gozados
+  // (histórico importado das planilhas).
+  const pisoStr = toStr(colab.periodoAquisitivo as Date | string | null);
+
   // Itera períodos desde a admissão até encontrar o período com saldo > 0
   let periodoCorreto: Date = admissao;
   let saldoCorreto: number = diasDireito;
@@ -1237,7 +1281,8 @@ export async function recalcularSaldoColaborador(colaboradorId: number): Promise
       ));
       const periodoJaTerminou = hoje > paEnd;
 
-      if (consumido > 0 || !periodoJaTerminou) {
+      const naoPodePular = !!pisoStr && paStartStr >= pisoStr;
+      if (consumido > 0 || !periodoJaTerminou || naoPodePular) {
         // Período com lançamentos OU período atual/futuro: este é o correto
         periodoCorreto = paStart;
         saldoCorreto = saldo;
@@ -1284,7 +1329,24 @@ export async function recalcularSaldoColaborador(colaboradorId: number): Promise
 export async function createHistoricoFerias(data: InsertHistoricoFerias) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-  const result = await db.insert(historicoFerias).values(data);
+  // Guarda o estado do colaborador antes do lançamento, para restaurar se for cancelado
+  const [antes] = await db
+    .select({
+      periodoAquisitivo: colaboradores.periodoAquisitivo,
+      vencimento: colaboradores.vencimento,
+      dataLimite: colaboradores.dataLimite,
+      saldo: colaboradores.saldo,
+    })
+    .from(colaboradores)
+    .where(eq(colaboradores.id, data.colaboradorId))
+    .limit(1);
+  const result = await db.insert(historicoFerias).values({
+    ...data,
+    periodoAquisitivoAnterior: (antes?.periodoAquisitivo ?? null) as any,
+    vencimentoAnterior: (antes?.vencimento ?? null) as any,
+    dataLimiteAnterior: (antes?.dataLimite ?? null) as any,
+    saldoAnterior: antes?.saldo ?? null,
+  });
   // Recalcula saldo do colaborador após lançamento
   await recalcularSaldoColaborador(data.colaboradorId);
   return result;
@@ -1341,10 +1403,27 @@ export async function deleteHistoricoFerias(id: number, canceladoPorUserId?: num
       diasGozados: historicoFerias.diasGozados,
       diasVendidos: historicoFerias.diasVendidos,
       periodoRef: historicoFerias.periodoRef,
+      periodoAquisitivoAnterior: historicoFerias.periodoAquisitivoAnterior,
+      vencimentoAnterior: historicoFerias.vencimentoAnterior,
+      dataLimiteAnterior: historicoFerias.dataLimiteAnterior,
+      saldoAnterior: historicoFerias.saldoAnterior,
     })
     .from(historicoFerias)
     .where(eq(historicoFerias.id, id))
     .limit(1);
+
+  // Só dá para restaurar com segurança o lançamento MAIS RECENTE do colaborador:
+  // se houver outro lançado depois, restaurar apagaria o efeito dele.
+  let podeRestaurar = false;
+  if (registro?.periodoAquisitivoAnterior) {
+    const [maisRecente] = await db
+      .select({ id: historicoFerias.id })
+      .from(historicoFerias)
+      .where(eq(historicoFerias.colaboradorId, registro.colaboradorId))
+      .orderBy(desc(historicoFerias.id))
+      .limit(1);
+    podeRestaurar = maisRecente?.id === id;
+  }
 
   if (registro) {
     // Busca o nome do colaborador
@@ -1372,9 +1451,19 @@ export async function deleteHistoricoFerias(id: number, canceladoPorUserId?: num
 
   await db.delete(historicoFerias).where(eq(historicoFerias.id, id));
 
-  // Recalcula saldo e folhaMes após exclusão
+  // Volta o colaborador ao estado de antes do lançamento (sem recalcular).
+  // Lançamentos antigos (sem estado guardado) ou fora de ordem usam o recálculo.
   if (registro) {
-    await recalcularSaldoColaborador(registro.colaboradorId);
+    if (podeRestaurar) {
+      await db.update(colaboradores).set({
+        periodoAquisitivo: registro.periodoAquisitivoAnterior,
+        vencimento: registro.vencimentoAnterior,
+        dataLimite: registro.dataLimiteAnterior,
+        saldo: registro.saldoAnterior ?? 30,
+      } as any).where(eq(colaboradores.id, registro.colaboradorId));
+    } else {
+      await recalcularSaldoColaborador(registro.colaboradorId);
+    }
     const mesesAfetados = getMesesAfetadosPorFerias(registro.dataSaida, registro.dataRetorno);
     await recalcularFolhaMesColaborador(registro.colaboradorId, mesesAfetados);
   }
