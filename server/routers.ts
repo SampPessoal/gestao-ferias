@@ -543,7 +543,10 @@ export const appRouter = router({
     }),
 
     delete: protectedProcedure
-    .input(z.object({ id: z.number(), motivo: z.string().optional() }))
+    .input(z.object({
+      id: z.number(),
+      motivo: z.string().trim().min(3, "Informe o motivo do cancelamento"),
+    }))
     .mutation(async ({ input, ctx }) => {
       return deleteHistoricoFerias(input.id, ctx.user?.id ?? undefined, ctx.user?.name ?? undefined, input.motivo);
     }),

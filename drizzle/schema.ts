@@ -218,6 +218,11 @@ export const historicoFerias = pgTable("historicoFerias", {
   // Período aquisitivo referente
   periodoRef: varchar("periodoRef", { length: 50 }),
   observacao: text("observacao"),
+  // Estado do colaborador ANTES deste lançamento (restaurado ao cancelar)
+  periodoAquisitivoAnterior: date("periodoAquisitivoAnterior"),
+  vencimentoAnterior: date("vencimentoAnterior"),
+  dataLimiteAnterior: date("dataLimiteAnterior"),
+  saldoAnterior: integer("saldoAnterior"),
   // Auditoria: quem registrou
   createdByUserId: integer("createdByUserId"),
   createdByNome: varchar("createdByNome", { length: 200 }),
