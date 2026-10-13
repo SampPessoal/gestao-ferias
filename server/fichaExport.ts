@@ -10,6 +10,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import { getColaboradorById } from "./db";
+import { escolherModelo, preencherModelo, desenharFichaPdf } from "./fichaRegistro";
+import { carregarDadosFichaRegistro, montarMapaFichaRegistro } from "./fichaRegistro/dados";
 import {
   montarFichaColaborador,
   nomeArquivoFicha,
@@ -289,9 +291,21 @@ export function registerFichaExportRoutes(
       const empresa = colaborador.empresaNome ?? "";
       const arquivo = nomeArquivoFicha(colaborador.nome);
 
-      const buffer = formato === "pdf"
-        ? await gerarFichaPdf(colaborador.nome, empresa, secoes, emissao)
-        : await gerarFichaExcel(colaborador.nome, empresa, secoes, emissao);
+      let buffer: Buffer;
+      if (formato === "pdf") {
+        // PDF: Ficha de Registro no modelo oficial da empresa do colaborador
+        // (FREIRE, JOANES, SOLAR ou SUDOESTE). Outra empresa usa a ficha padrão.
+        const escolha = escolherModelo(colaborador.empresaNome);
+        const dados = escolha ? await carregarDadosFichaRegistro(id) : null;
+        buffer = escolha && dados
+          ? await desenharFichaPdf(
+              preencherModelo(escolha.modelo, montarMapaFichaRegistro(dados, emissao.dataIso)),
+              `Ficha de Registro — ${colaborador.nome}`,
+            )
+          : await gerarFichaPdf(colaborador.nome, empresa, secoes, emissao);
+      } else {
+        buffer = await gerarFichaExcel(colaborador.nome, empresa, secoes, emissao);
+      }
 
       res.setHeader("Content-Type", formato === "pdf"
         ? "application/pdf"
