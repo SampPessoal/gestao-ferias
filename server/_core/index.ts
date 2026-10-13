@@ -6,7 +6,8 @@ import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
-import { registerStorageProxy } from "./storageProxy";
+import { registerFichaExportRoutes } from "../fichaExport";
+import { registerStorageProxy, requireAuth } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -115,6 +116,9 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "2mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  // Download da ficha cadastral (PDF/Excel) — exige login, com limite de requisições
+  app.use("/api/colaboradores", generalLimiter);
+  registerFichaExportRoutes(app, requireAuth);
 
   // Scheduled: alertas de férias por empresa (a cada 15 dias)
   app.post("/api/scheduled/alertas-ferias", alertasFeriasHandler);

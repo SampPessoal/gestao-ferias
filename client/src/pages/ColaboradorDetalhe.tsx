@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, Edit2, Save, X, Building2, UserX, UserCheck, Trash2,
-  User, Phone, FileText, Briefcase, AlertTriangle, CalendarDays, MapPin, Baby
+  User, Phone, FileText, Briefcase, AlertTriangle, CalendarDays, MapPin, Baby,
+  FileDown, FileSpreadsheet,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -216,6 +217,39 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
   });
 
   const [editingFicha, setEditingFicha] = useState(false);
+  const [baixandoFicha, setBaixandoFicha] = useState<null | "pdf" | "xlsx">(null);
+
+  // Baixa a ficha gerada no servidor com os dados atuais do cadastro (PDF ou Excel)
+  async function baixarFicha(formato: "pdf" | "xlsx") {
+    setBaixandoFicha(formato);
+    try {
+      const headers: Record<string, string> = {};
+      const token = localStorage.getItem("gf_sys_token");
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const resp = await fetch(`/api/colaboradores/${id}/ficha?formato=${formato}`, {
+        credentials: "include", headers, cache: "no-store",
+      });
+      if (!resp.ok) {
+        const msg = resp.status === 401 ? "Sua sessão expirou. Entre novamente."
+          : resp.status === 404 ? "Colaborador não encontrado."
+          : "Não foi possível gerar a ficha.";
+        throw new Error(msg);
+      }
+      const blob = await resp.blob();
+      const disp = resp.headers.get("Content-Disposition") ?? "";
+      const nome = /filename="([^"]+)"/.exec(disp)?.[1] ?? `Ficha.${formato}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = nome;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      toast.success(formato === "pdf" ? "Ficha em PDF baixada." : "Ficha em Excel baixada.");
+    } catch (e) {
+      toast.error((e as Error).message || "Não foi possível gerar a ficha.");
+    } finally {
+      setBaixandoFicha(null);
+    }
+  }
   const [fichaForm, setFichaForm] = useState<Record<string, any>>({});
 
   function startEditFicha() {
@@ -397,9 +431,19 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
           </Button>
         </Link>
         {/* Ações rápidas no topo */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {!editingFicha ? (
             <>
+              <Button size="sm" variant="outline" className="gap-1.5 border-red-200 text-red-700 hover:bg-red-50"
+                disabled={baixandoFicha !== null} onClick={() => baixarFicha("pdf")}
+                title="Baixar a ficha cadastral em PDF">
+                <FileDown className="w-4 h-4" /> {baixandoFicha === "pdf" ? "Gerando..." : "Baixar ficha em PDF"}
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                disabled={baixandoFicha !== null} onClick={() => baixarFicha("xlsx")}
+                title="Baixar a ficha cadastral em Excel">
+                <FileSpreadsheet className="w-4 h-4" /> {baixandoFicha === "xlsx" ? "Gerando..." : "Baixar ficha em Excel"}
+              </Button>
               {isInativo ? (
                 <>
                   <Button size="sm" variant="outline" className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50"
