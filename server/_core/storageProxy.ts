@@ -4,7 +4,7 @@ import { sdk } from "./sdk";
 import { getSystemUserFromRequest } from "../systemUsersRouter";
 
 // Middleware que exige autenticação antes de servir arquivos do storage
-async function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
     const user = await sdk.authenticateRequest(req).catch(() => null);
     if (user) return next();
