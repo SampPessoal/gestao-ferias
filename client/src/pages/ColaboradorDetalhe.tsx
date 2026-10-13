@@ -6,6 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -13,7 +17,7 @@ import {
 import {
   ArrowLeft, Edit2, Save, X, Building2, UserX, UserCheck, Trash2,
   User, Phone, FileText, Briefcase, AlertTriangle, CalendarDays, MapPin, Baby,
-  FileDown, FileSpreadsheet,
+  FileDown, FileSpreadsheet, Download, ChevronDown,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -434,16 +438,45 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
         <div className="flex flex-wrap items-center justify-end gap-2">
           {!editingFicha ? (
             <>
-              <Button size="sm" variant="outline" className="gap-1.5 border-red-200 text-red-700 hover:bg-red-50"
-                disabled={baixandoFicha !== null} onClick={() => baixarFicha("pdf")}
-                title="Baixar a ficha cadastral em PDF">
-                <FileDown className="w-4 h-4" /> {baixandoFicha === "pdf" ? "Gerando..." : "Baixar ficha em PDF"}
-              </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                disabled={baixandoFicha !== null} onClick={() => baixarFicha("xlsx")}
-                title="Baixar a ficha cadastral em Excel">
-                <FileSpreadsheet className="w-4 h-4" /> {baixandoFicha === "xlsx" ? "Gerando..." : "Baixar ficha em Excel"}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" disabled={baixandoFicha !== null}
+                    className="gap-2 pl-2.5 pr-2 font-medium text-foreground/80 shadow-sm hover:bg-muted/60 hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground">
+                    {baixandoFicha ? (
+                      <><Spinner className="size-4 text-muted-foreground" /> Gerando {baixandoFicha === "pdf" ? "PDF" : "Excel"}…</>
+                    ) : (
+                      <><Download className="w-4 h-4 text-muted-foreground" /> Exportar ficha
+                        <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" /></>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={6} className="w-80 p-1.5 shadow-lg">
+                  <DropdownMenuLabel className="px-2 pt-1.5 pb-2 text-xs font-normal text-muted-foreground">
+                    Ficha cadastral com os dados salvos agora
+                  </DropdownMenuLabel>
+                  {([
+                    { formato: "pdf", titulo: "Documento PDF", detalhe: "Para imprimir e arquivar",
+                      Icone: FileDown, tom: "oklch(0.58 0.19 25)", fundo: "oklch(0.96 0.03 25)" },
+                    { formato: "xlsx", titulo: "Planilha Excel", detalhe: "Para consultar e editar",
+                      Icone: FileSpreadsheet, tom: "oklch(0.52 0.13 155)", fundo: "oklch(0.96 0.03 155)" },
+                  ] as const).map(({ formato, titulo, detalhe, Icone, tom, fundo }) => (
+                    <DropdownMenuItem key={formato} onSelect={() => baixarFicha(formato)}
+                      className="group gap-3 rounded-md px-2 py-2 cursor-pointer focus:bg-muted data-[highlighted]:bg-muted focus:text-foreground data-[highlighted]:text-foreground">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ring-black/5 transition-transform duration-150 group-hover:scale-105"
+                        style={{ background: fundo, color: tom }}>
+                        <Icone className="size-[18px]" style={{ color: tom }} />
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-sm font-medium text-foreground">{titulo}</span>
+                        <span className="text-xs text-muted-foreground">{detalhe}</span>
+                      </span>
+                      <span className="rounded border border-border/70 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                        .{formato}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               {isInativo ? (
                 <>
                   <Button size="sm" variant="outline" className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50"
