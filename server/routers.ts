@@ -23,6 +23,7 @@ import { ENV } from "./_core/env";
 import { parse as parseCookie } from "cookie";
 import { createHeartbeatJob, deleteHeartbeatJob } from "./_core/heartbeat";
 import { systemUsersRouter } from "./systemUsersRouter";
+import { registroEmpregadoRouter } from "./registroEmpregado";
 import {
   createColaborador,
   createEmpresa,
@@ -151,6 +152,7 @@ import { movimentacaoAuxilioNotebook, movimentacaoAuxilioCreche } from "../drizz
 export const appRouter = router({
   system: systemRouter,
   systemUsers: systemUsersRouter,
+  registroEmpregado: registroEmpregadoRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

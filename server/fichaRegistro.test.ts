@@ -107,3 +107,74 @@ describe("PDF", () => {
     });
   }
 });
+
+describe("Registro de Empregado (campos complementares)", () => {
+  const comRegistro = {
+    ...colab,
+    valorVT: null,
+    registro: {
+      campos: {
+        raca: "parda", nacionalidadePai: "Brasileira", nacionalidadeMae: "Portuguesa", ctpsUf: "BA",
+        cnhNumero: "01234567890", cnhCategoria: "AB", cnhValidade: "2030-10-10", emailPessoal: "maria@gmail.com",
+        vinculo: "clt", primeiroTrabalho: "nao", contratoExperiencia: "45_45", cbo: "2521-05", remuneracao: "3500.00",
+        jornadaEntrada: "08:00", jornadaSaida: "17:48", jornadaIntervalo: "1",
+        supervisorNome: "Carlos Lima", supervisorCpf: "12345678909", supervisorFuncao: "Coordenador",
+        grauInstrucao: "graduacao", situacaoCurso: "em_andamento", curso: "Administração", semestre: "5",
+        instituicaoEnsino: "UFBA", instituicaoCnpj: "15180714000104", periodoEstagio: "nao_se_aplica",
+        empresaEstagio: "nao_se_aplica", apoliceSeguro: null, sindicato: "sindados", contribuicaoSindical: "nao",
+        motivoSemVT: "home_office", descontoVT: "opcao_nao", planoOdontologico: "sim", totalpass: "na",
+      },
+      dependentes: [
+        { id: 1, nome: "PEDRO SOUZA", parentesco: "conjuge", dataNascimento: "1989-01-15", cpf: "12345678909", rg: "998877", dependenteIR: true },
+        { id: 2, nome: "ANA SOUZA", parentesco: "filha", dataNascimento: "2015-02-20", cpf: null, rg: null, dependenteIR: true },
+      ],
+      notebook: { ativo: true, valor: "150.00", desde: "2025-01-01" },
+    },
+  } as unknown as DadosFichaRegistro;
+
+  for (const empresa of Object.keys(MODELOS)) {
+    it(`${empresa}: campos complementares saem preenchidos`, () => {
+      const m = preencherModelo(MODELOS[empresa], montarMapaFichaRegistro(comRegistro, "2026-10-13"));
+      const f = campos(m);
+      const sem = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const texto = (rot: string) => {
+        const chave = [...f.keys()].find(k => sem(k) === sem(rot));
+        return (chave ? f.get(chave)! : "").replace(/\s+/g, " ");
+      };
+      expect(texto("RAÇA:") || texto("RAÇA")).toMatch(/PARDA \(X\)/);
+      expect(texto("RAÇA:") || texto("RAÇA")).not.toMatch(/PRETA \(X\)/);
+      expect(texto("CTPS — SÉRIE / UF")).toContain("0001234 / 00012 / BA");
+      expect(texto("CNH")).toContain("01234567890 — Cat. AB — Val. 10/10/2030");
+      expect(texto("E-MAIL PESSOAL")).toContain("maria@gmail.com");
+      expect(texto("CBO")).toContain("2521-05");
+      expect(texto("REMUNERAÇÃO")).toContain("3.500,00");
+      expect(texto("1º TRABALHO")).toMatch(/\(X\) NÃO/);
+      expect(texto("GRAU DE INSTRUÇÃO")).toMatch(/\(X\) GRADUAÇÃO/);
+      expect(texto("GRAU DE INSTRUÇÃO")).not.toMatch(/\(X\) PÓS/);
+      expect(texto("SITUAÇÃO")).toMatch(/\(X\) EM ANDAMENTO/);
+      expect(texto("CURSO")).toContain("Administração");
+      expect(texto("SEMESTRE")).toMatch(/\(X\) 5º SEMESTRE/);
+      expect(texto("VCT EXPERIÊNCIA")).toMatch(/\(X\) 45 \+ 45 DIAS/);
+      expect(texto("VÍNCULO")).toMatch(/\(X\) CLT/);
+      expect(texto("SINDICATO")).toMatch(/\(X\) SINDADOS/);
+      expect(texto("CONT. SINDICAL?")).toMatch(/\(X\) NÃO/);
+      expect(texto("VALE TRANSPORTE")).toMatch(/\(X\) NÃO SE APLICA EM REGIME HOME OFFICE/);
+      expect(texto("PLANO ODONTOLÓGICO")).toMatch(/\(X\) SIM/);
+      expect(texto("TOTALPASS \\ GINASTICA LABORAL")).toMatch(/\(X\) N\/A/);
+      expect(texto("DESCONTO VALE TRANSPORTE")).toMatch(/OPÇÃO NÃO \(X\)/);
+      expect(texto("AUXÍLIO NOTEBOOK")).toContain("150,00");
+      expect(texto("AUXÍLIO NOTEBOOK")).toMatch(/\(X\) SIM/);
+      expect(texto("PERÍODO DE ESTÁGIO")).toMatch(/\(X\) NÃO SE APLICA/);
+      expect(texto("CONJUGE")).toContain("PEDRO SOUZA");
+      expect(texto("CONJUGE")).toContain("RG: 998877");
+      expect(texto("FILHOS (AS))")).toContain("ANA SOUZA");
+      // campos reescritos: mesmo formato nos quatro modelos
+      const todo = JSON.stringify(m);
+      expect(todo).toContain("NOME: Carlos Lima     CPF: 123.456.789-09\\nFUNÇÃO: Coordenador");
+      expect(todo).toContain("DAS 08:00  ÀS 17:48\\n\\nC/ 1 H DE INTERVALO");
+      expect(todo).toContain("UFBA\\n\\nCNPJ: 15.180.714/0001-04");
+      // Dep. p/ IR fica na faixa de título da seção
+      expect(todo).toMatch(/DEP\. P\/ IR  \(","b":true[^}]*\},\{"t":"X\) SIM/);
+    });
+  }
+});
