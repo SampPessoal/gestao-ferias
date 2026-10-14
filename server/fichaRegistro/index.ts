@@ -45,7 +45,17 @@ export type Preenchimento = {
    * ele é trocado pelo valor do cadastro. Sem valor no cadastro, fica o do modelo.
    */
   valorMonetario?: boolean;
+  /** Trocas de texto feitas antes de tudo: [expressão regular, flags, texto novo]. */
+  substituir?: [string, string, string][];
+  /**
+   * Reescreve o campo inteiro (abaixo do rótulo) com este texto. Usado em campos
+   * cujo formato muda entre os modelos (supervisor, jornada, instituição).
+   */
+  reescrever?: string;
 };
+
+/** Rótulos que alguns modelos escrevem com texto extra em negrito (Joanes: "SUPERVISOR / CPF NOME: CPF: FUNÇÃO"). */
+const ROTULOS_POR_PREFIXO = ["SUPERVISOR / CPF"];
 
 /** Mapa rótulo do campo (normalizado) → preenchimento. Rótulos repetidos usam "ROTULO#2", "#3"... */
 export type MapaPreenchimento = Record<string, Preenchimento>;
@@ -65,6 +75,7 @@ function opcaoConfere(opcao: string, alvo: string): boolean {
 
 function aplicar(texto: string, p: Preenchimento): string {
   let out = texto;
+  for (const [padrao, flags, novo] of p.substituir ?? []) out = out.replace(new RegExp(padrao, flags), novo);
   if (p.marcar?.length) {
     out = out.replace(RE_CAIXA, (inteiro, esp: string, opcao: string) =>
       p.marcar!.some(a => opcaoConfere(opcao, a)) ? `(X)${esp}${opcao}` : inteiro);
@@ -100,6 +111,23 @@ function separarRotulo(p: Paragrafo): { rotulo: string; nRotulo: number } {
   return { rotulo: normalizar(rotulo.replace(/\n/g, " ")), nRotulo: n };
 }
 
+/** "DEPENDENTES  DEP. P/ IR (  ) SIM (  ) NÃO (  ) N/A" fica na faixa de título da seção. */
+function marcarDependenteIR(celula: Celula, p: Preenchimento | undefined) {
+  const alvo = p?.marcar?.[0];
+  if (!alvo) return;
+  for (const par of celula.paras) {
+    const i = par.runs.findIndex(r => /DEP\. P\/ IR/.test(r.t));
+    if (i < 0) continue;
+    // A caixa do "SIM" começa no rótulo em negrito ("(") e fecha no texto seguinte ("  ) SIM")
+    for (let j = i + 1; j < par.runs.length; j++) {
+      const r = par.runs[j];
+      if (normalizar(alvo) === "SIM") r.t = r.t.replace(/^\s*\)/, "X)");
+      else r.t = r.t.replace(RE_CAIXA, (inteiro, esp: string, opcao: string) => opcaoConfere(opcao, alvo) ? `(X)${esp}${opcao}` : inteiro);
+    }
+    return;
+  }
+}
+
 /** Devolve uma cópia do modelo com os campos preenchidos. */
 export function preencherModelo(modelo: ModeloFicha, mapa: MapaPreenchimento): ModeloFicha {
   const copia: ModeloFicha = JSON.parse(JSON.stringify(modelo));
@@ -108,18 +136,35 @@ export function preencherModelo(modelo: ModeloFicha, mapa: MapaPreenchimento): M
     if (bloco.type !== "table") continue;
     for (const linha of bloco.rows) {
       for (const celula of linha.cells) {
-        if (ehCabecalhoDeSecao(celula)) continue;
-        for (const p of celula.paras) {
+        if (ehCabecalhoDeSecao(celula)) {
+          marcarDependenteIR(celula, mapa["DEP. P/ IR"]);
+          continue;
+        }
+        for (let ip = 0; ip < celula.paras.length; ip++) {
+          const p: Paragrafo = celula.paras[ip];
           const { rotulo, nRotulo } = separarRotulo(p);
           if (!rotulo) continue;
           const n = (ocorrencias.get(rotulo) ?? 0) + 1;
           ocorrencias.set(rotulo, n);
-          const preench = mapa[n > 1 ? `${rotulo}#${n}` : rotulo];
+          const prefixo = ROTULOS_POR_PREFIXO.find(r => rotulo.startsWith(r));
+          const preench = mapa[n > 1 ? `${rotulo}#${n}` : rotulo] ?? (prefixo ? mapa[prefixo] : undefined);
           if (!preench) continue;
+          if (preench.reescrever) {
+            // Mantém só a primeira linha do rótulo (em negrito) e escreve o campo de novo
+            const cab = p.runs[0];
+            const titulo = p.runs.slice(0, nRotulo).map((r: Run) => r.t).join("").split("\n")[0].trimEnd();
+            const estiloResto = p.runs.slice(nRotulo).find((r: Run) => r.t.trim()) ?? { sz: cab.sz, c: "24323A" };
+            p.runs = [
+              { t: titulo, b: true, sz: cab.sz, c: cab.c },
+              { t: `\n${preench.reescrever}`, b: false, sz: estiloResto.sz, c: estiloResto.c },
+            ];
+            celula.paras.splice(ip + 1); // o restante do campo (linhas soltas em alguns modelos)
+            break;
+          }
           const resto = p.runs.slice(nRotulo);
           if (!resto.length) continue;
-          const estilo = resto.find(r => r.t.trim()) ?? resto[0];
-          const texto = resto.map(r => r.t).join("");
+          const estilo = resto.find((r: Run) => r.t.trim()) ?? resto[0];
+          const texto = resto.map((r: Run) => r.t).join("");
           const novo = aplicar(texto, preench);
           if (novo === texto) continue;
           p.runs = [...p.runs.slice(0, nRotulo), { t: novo, b: false, sz: estilo.sz, c: estilo.c }];

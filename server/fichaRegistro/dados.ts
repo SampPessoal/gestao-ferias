@@ -6,6 +6,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { colaboradores, planoSaude } from "../../drizzle/schema";
 import { getColaboradorById, getDb } from "../db";
 import type { MapaPreenchimento } from "./index";
+import { lerRegistroEmpregado } from "../registroEmpregado";
 
 export type DadosFichaRegistro = NonNullable<Awaited<ReturnType<typeof getColaboradorById>>> & {
   valorVR: string | null;
@@ -14,8 +15,10 @@ export type DadosFichaRegistro = NonNullable<Awaited<ReturnType<typeof getColabo
   auxilioVeiculoFolha: string | null;
   auxilioCelularFolha: string | null;
   planoSaude: { titular: boolean; conjuge?: Dependente; filhos: Dependente[] } | null;
+  /** Registro de Empregado: campos complementares, dependentes e auxílio notebook */
+  registro?: Awaited<ReturnType<typeof lerRegistroEmpregado>>;
 };
-type Dependente = { nome: string; nascimento: string | null; cpf: string | null };
+type Dependente = { nome: string; nascimento: string | null; cpf: string | null; rg?: string | null };
 
 /** Lê do banco, na hora, tudo o que a ficha precisa (sem cache). */
 export async function carregarDadosFichaRegistro(id: number): Promise<DadosFichaRegistro | null> {
@@ -67,7 +70,8 @@ export async function carregarDadosFichaRegistro(id: number): Promise<DadosFicha
     };
   }
 
-  return { ...base, ...(extra ?? {}), planoSaude: plano } as DadosFichaRegistro;
+  const registro = await lerRegistroEmpregado(id);
+  return { ...base, ...(extra ?? {}), planoSaude: plano, registro } as DadosFichaRegistro;
 }
 
 // ─── Formatação ──────────────────────────────────────────────────────────────
@@ -93,6 +97,14 @@ function moeda(v: unknown): string | undefined {
   const n = Number(v);
   if (!isFinite(n) || n <= 0) return undefined;
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** CNPJ → 00.000.000/0000-00 (mantém como está se não tiver 14 dígitos). */
+function cnpjFmt(v: unknown): string | undefined {
+  const s = txt(v);
+  if (!s) return undefined;
+  const d = s.replace(/\D/g, "");
+  return d.length === 14 ? `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}` : s;
 }
 
 /** CPF só com dígitos → 000.000.000-00 (mantém como está se não tiver 11 dígitos). */
@@ -152,9 +164,39 @@ export function montarMapaFichaRegistro(c: DadosFichaRegistro, hojeIso: string):
   const vr = moeda(c.valorVR);
 
   const plano = c.planoSaude;
-  const conj = plano?.conjuge;
-  const filho = plano?.filhos[0];
-  const outrosFilhos = (plano?.filhos.length ?? 0) - 1;
+  const r = c.registro?.campos ?? {};
+  const deps = c.registro?.dependentes ?? [];
+  // Dependentes: cadastro próprio; quem ainda não tem, usa os do plano de saúde
+  const depConj = deps.find(d => d.parentesco === "conjuge");
+  const depFilhos = deps.filter(d => ["filho", "filha", "enteado"].includes(d.parentesco));
+  const conj: Dependente | undefined = depConj
+    ? { nome: depConj.nome, nascimento: depConj.dataNascimento, cpf: depConj.cpf, rg: depConj.rg }
+    : plano?.conjuge;
+  const filhos: Dependente[] = depFilhos.length
+    ? depFilhos.map(d => ({ nome: d.nome, nascimento: d.dataNascimento, cpf: d.cpf, rg: d.rg }))
+    : plano?.filhos ?? [];
+  const filho = filhos[0];
+  const outrosFilhos = filhos.length - 1;
+
+  const op = (chave: string, mapa: Record<string, string>) => (r[chave] ? [mapa[r[chave]!]].filter(Boolean) : []);
+  const remuneracao = moeda(r.remuneracao);
+  const cnh = txt(r.cnhNumero)
+    ? [txt(r.cnhNumero), r.cnhCategoria && `Cat. ${r.cnhCategoria}`, dataBR(r.cnhValidade) && `Val. ${dataBR(r.cnhValidade)}`].filter(Boolean).join(" — ")
+    : undefined;
+  const supervisor = [r.supervisorNome, r.supervisorCpf, r.supervisorFuncao].some(v => txt(v))
+    ? `NOME: ${txt(r.supervisorNome) ?? "…"}     CPF: ${cpfFmt(r.supervisorCpf) ?? "…"}\nFUNÇÃO: ${txt(r.supervisorFuncao) ?? "…"}`
+    : undefined;
+  const instituicao = txt(r.instituicaoEnsino) || txt(r.instituicaoCnpj)
+    ? `${txt(r.instituicaoEnsino) ?? "…"}\n\nCNPJ: ${cnpjFmt(r.instituicaoCnpj) ?? "… / … - …"}`
+    : undefined;
+  const jornada = txt(r.jornadaEntrada) || txt(r.jornadaSaida) || txt(r.jornadaIntervalo)
+    ? `DAS ${txt(r.jornadaEntrada) ?? "… : …"}  ÀS ${txt(r.jornadaSaida) ?? "… : …"}\n\nC/ ${txt(r.jornadaIntervalo) ?? "…"} H DE INTERVALO`
+    : undefined;
+  const semestreNum = r.semestre && /^\d+$/.test(r.semestre) ? r.semestre : null;
+  const nb = c.registro?.notebook;
+  const nbValor = nb?.ativo ? moeda(nb.valor) : undefined;
+  const depIR = deps.length ? (deps.some(d => d.dependenteIR) ? "SIM" : "NÃO") : undefined;
+  const RACA: Record<string, string> = { preta: "PRETA", branca: "BRANCA", parda: "PARDA", amarela: "AMARELA", indigena: "INDIGENA" };
 
   const mapa: MapaPreenchimento = {
     "NOME COMPLETO": { valores: [txt(c.nome)] },
@@ -173,9 +215,40 @@ export function montarMapaFichaRegistro(c: DadosFichaRegistro, hojeIso: string):
     "CEDULA DE IDENTIDADE / RG": { valores: [txt(c.rg)] },
     "EXPEDICAO RG": { valores: [expedicao] },
     "CPF / CIC": { valores: [txt(c.cpf)] },
-    "CTPS — SERIE / UF": { valores: [ctps] },
+    "CTPS — SERIE / UF": { valores: [[ctps, txt(r.ctpsUf)].filter(Boolean).join(" / ") || undefined] },
     "TITULO DE ELEITOR — ZONA / SECAO": { valores: [titulo] },
     "PIS": { valores: [txt(c.pis)] },
+    "CNH": { valores: [cnh] },
+    "RACA": r.raca ? { substituir: [[`\\b(${RACA[r.raca]})\\s*\\(\\s*\\)`, "", "$1 (X)"]] } : {},
+    "NACIONALIDADE": { valores: [txt(r.nacionalidadePai)] },
+    "NACIONALIDADE#2": { valores: [txt(r.nacionalidadeMae)] },
+    "E-MAIL PESSOAL": { valores: [txt(r.emailPessoal)] },
+    "CBO": { valores: [txt(r.cbo)] },
+    "REMUNERACAO": { valorMonetario: true, valores: [remuneracao] },
+    "SUPERVISOR / CPF": supervisor ? { reescrever: supervisor } : {},
+    "PERIODO DE ESTAGIO": { marcar: op("periodoEstagio", { sim: "SIM", nao_se_aplica: "NÃO SE APLICA" }) },
+    "EMPRESA": { marcar: op("empresaEstagio", { a3_estagios: "A3 ESTÁGIOS", sudoeste: "SUDOESTE", nao_se_aplica: "NÃO SE APLICA" }) },
+    "APOLICE DE SEGURO": txt(r.apoliceSeguro) ? { reescrever: `(  ) NÃO SE APLICA\nApólice nº ${txt(r.apoliceSeguro)}` } : {},
+    "1º TRABALHO": { marcar: op("primeiroTrabalho", { sim: "SIM", nao: "NÃO", estagio: "ESTÁGIO" }) },
+    "GRAU DE INSTRUCAO": { marcar: op("grauInstrucao", { ensino_medio: "ENSINO MÉDIO", graduacao: "GRADUAÇÃO", pos_graduacao: "PÓS-GRADUAÇÃO", mestrado: "MESTRADO" }) },
+    "SITUACAO": { marcar: op("situacaoCurso", { em_andamento: "EM ANDAMENTO", concluida: "CONCLUÍDA", trancada: "TRANCADA" }) },
+    "INSTITUICAO / CNPJ": instituicao ? { reescrever: instituicao } : {},
+    "CURSO": { valores: [txt(r.curso)] },
+    "SEMESTRE": semestreNum
+      ? { substituir: [["\\(\\s*\\)\\s*SEMESTRE", "", `(X) ${semestreNum}º SEMESTRE`]] }
+      : { marcar: r.semestre === "nao_se_aplica" ? ["NÃO SE APLICA"] : [] },
+    "JORNADA": jornada ? { reescrever: jornada } : {},
+    "VCT EXPERIENCIA": { marcar: op("contratoExperiencia", { "45_45": "45 + 45 DIAS", "01_ano": "01 ANO", nao_se_aplica: "NÃO SE APLICA" }) },
+    "VINCULO": { marcar: op("vinculo", { clt: "CLT", estagio: "ESTÁGIO" }) },
+    "SINDICATO": { marcar: op("sindicato", { sindados: "SINDADOS", a3_estagios: "A3 ESTÁGIOS" }) },
+    "CONT. SINDICAL": { marcar: op("contribuicaoSindical", { sim: "SIM", nao: "NÃO", nao_se_aplica: "NÃO SE APLICA" }) },
+    "AUXILIO NOTEBOOK": nb ? { valorMonetario: true, valores: [nbValor], marcar: [nb.ativo ? "SIM" : "NÃO"] } : {},
+    "PLANO ODONTOLOGICO": { marcar: op("planoOdontologico", { sim: "SIM", nao: "NÃO", na: "N/A" }) },
+    "TOTALPASS \\ GINASTICA LABORAL": { marcar: op("totalpass", { sim: "SIM", nao: "NÃO", na: "N/A" }) },
+    "DESCONTO VALE TRANSPORTE": r.descontoVT === "sim" ? { substituir: [["\\(\\s*\\)(\\s*SIM)", "", "(X)$1"]] }
+      : r.descontoVT === "opcao_nao" ? { substituir: [["(OPÇÃO NÃO\\s*)\\(\\s*\\)", "", "$1(X)"]] }
+      : r.descontoVT === "na" ? { marcar: ["N/A"] } : {},
+    "DEP. P/ IR": { marcar: depIR ? [depIR] : [] },
     "ENDERECO RESIDENCIAL": { valores: [endereco] },
     "CEP": { valores: [txt(c.enderecoCep)] },
     "TELEFONE DE EMERGENCIA": { valores: [emergencia] },
@@ -189,12 +262,14 @@ export function montarMapaFichaRegistro(c: DadosFichaRegistro, hojeIso: string):
     "DEPARTAMENTO": { valores: [txt(c.setorNome)] },
     "AUXILIO TELEFONIA": { valorMonetario: true, valores: [auxTel], marcar: auxTel ? ["SIM"] : [] },
     "AUXILIO VEICULO": { valorMonetario: true, valores: [auxVeic], marcar: auxVeic ? ["SIM"] : [] },
-    "VALE TRANSPORTE": { valorMonetario: true, valores: [vt], marcar: vt ? ["R$*"] : [] },
+    "VALE TRANSPORTE": { valorMonetario: true, valores: [vt], marcar: vt ? ["R$*"]
+      : r.motivoSemVT === "home_office" ? ["NÃO SE APLICA EM REGIME HOME OFFICE"]
+      : r.motivoSemVT === "opcao_nao" ? ["OPÇÃO POR NÃO"] : [] },
     "VALE REFEICAO": { valorMonetario: true, valores: [vr] },
     "OBSERVACAO FUNCIONAL": { valores: [txt(c.observacoes)] },
     "PLANO DE SAUDE": { marcar: plano?.titular ? ["SIM"] : [] },
     "SEGURO DE VIDA": { marcar: c.temSeguroVida === true ? ["SIM"] : c.temSeguroVida === false ? ["NÃO"] : [] },
-    "CONJUGE": conj ? { valores: [txt(conj.nome), dataBR(conj.nascimento), cpfFmt(conj.cpf)] } : {},
+    "CONJUGE": conj ? { valores: [txt(conj.nome), dataBR(conj.nascimento), cpfFmt(conj.cpf), txt(conj.rg)] } : {},
     "FILHOS (AS))": filho
       ? { valores: [`${filho.nome}${outrosFilhos > 0 ? ` (+${outrosFilhos})` : ""}`, dataBR(filho.nascimento), cpfFmt(filho.cpf)] }
       : {},
