@@ -187,6 +187,41 @@ export const colaboradores = pgTable("colaboradores", {
   bancoTipoConta: varchar("bancoTipoConta", { length: 20 }), // "corrente" | "poupanca"
   bancoChavePix: varchar("bancoChavePix", { length: 150 }), // chave PIX (CPF, e-mail, tel, aleatória)
   bancoTipoChavePix: varchar("bancoTipoChavePix", { length: 20 }), // "cpf" | "email" | "telefone" | "aleatoria"
+  // ── Registro de Empregado (campos complementares da Ficha de Registro; ver shared/registroEmpregado.ts)
+  raca: varchar("raca", { length: 40 }),
+  nacionalidadePai: varchar("nacionalidadePai", { length: 60 }),
+  nacionalidadeMae: varchar("nacionalidadeMae", { length: 60 }),
+  ctpsUf: varchar("ctpsUf", { length: 40 }),
+  cnhNumero: varchar("cnhNumero", { length: 20 }),
+  cnhCategoria: varchar("cnhCategoria", { length: 40 }),
+  cnhValidade: date("cnhValidade"),
+  emailPessoal: varchar("emailPessoal", { length: 200 }),
+  vinculo: varchar("vinculo", { length: 40 }),
+  primeiroTrabalho: varchar("primeiroTrabalho", { length: 40 }),
+  contratoExperiencia: varchar("contratoExperiencia", { length: 40 }),
+  cbo: varchar("cbo", { length: 10 }),
+  remuneracao: decimal("remuneracao", { precision: 12, scale: 2 }),
+  jornadaEntrada: varchar("jornadaEntrada", { length: 40 }),
+  jornadaSaida: varchar("jornadaSaida", { length: 40 }),
+  jornadaIntervalo: varchar("jornadaIntervalo", { length: 10 }),
+  supervisorNome: varchar("supervisorNome", { length: 200 }),
+  supervisorCpf: varchar("supervisorCpf", { length: 14 }),
+  supervisorFuncao: varchar("supervisorFuncao", { length: 100 }),
+  grauInstrucao: varchar("grauInstrucao", { length: 40 }),
+  situacaoCurso: varchar("situacaoCurso", { length: 40 }),
+  curso: varchar("curso", { length: 200 }),
+  semestre: varchar("semestre", { length: 40 }),
+  instituicaoEnsino: varchar("instituicaoEnsino", { length: 200 }),
+  instituicaoCnpj: varchar("instituicaoCnpj", { length: 18 }),
+  periodoEstagio: varchar("periodoEstagio", { length: 40 }),
+  empresaEstagio: varchar("empresaEstagio", { length: 40 }),
+  apoliceSeguro: varchar("apoliceSeguro", { length: 50 }),
+  sindicato: varchar("sindicato", { length: 40 }),
+  contribuicaoSindical: varchar("contribuicaoSindical", { length: 40 }),
+  motivoSemVT: varchar("motivoSemVT", { length: 40 }),
+  descontoVT: varchar("descontoVT", { length: 40 }),
+  planoOdontologico: varchar("planoOdontologico", { length: 40 }),
+  totalpass: varchar("totalpass", { length: 40 }),
   createdByUserId: integer("createdByUserId"),
   createdByNome: varchar("createdByNome", { length: 200 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -721,3 +756,17 @@ export const cancelamentoFerias = pgTable("cancelamentoFerias", {
 ]);
 export type CancelamentoFerias = typeof cancelamentoFerias.$inferSelect;
 export type InsertCancelamentoFerias = typeof cancelamentoFerias.$inferInsert;
+
+// ─── Dependentes do colaborador (Ficha de Registro: cônjuge, filhos, dependente para IR) ───
+export const dependentes = pgTable("dependentes", {
+  id: serial("id").primaryKey(),
+  colaboradorId: integer("colaboradorId").notNull().references(() => colaboradores.id, { onDelete: "cascade" }),
+  nome: varchar("nome", { length: 200 }).notNull(),
+  parentesco: varchar("parentesco", { length: 20 }).notNull(),
+  dataNascimento: date("dataNascimento"),
+  cpf: varchar("cpf", { length: 14 }),
+  rg: varchar("rg", { length: 20 }),
+  dependenteIR: boolean("dependenteIR").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => [index("idx_dependentes_colab").on(t.colaboradorId)]);
+export type DependenteRow = typeof dependentes.$inferSelect;
