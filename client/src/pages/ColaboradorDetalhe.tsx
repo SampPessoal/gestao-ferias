@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import RegistroEmpregado from "@/components/RegistroEmpregado";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -1048,6 +1049,9 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
           </div>
         )}
       </SectionBlock>
+
+      {/* ── Registro de Empregado: campos complementares da Ficha de Registro ── */}
+      <RegistroEmpregado colaboradorId={id} />
 
       {/* ── Dialog de confirmação de desligamento ── */}
       <AlertDialog open={confirmDesligar} onOpenChange={setConfirmDesligar}>
