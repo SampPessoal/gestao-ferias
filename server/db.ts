@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, gte, isNotNull, isNull, lte, or, sql, sum, inArray, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { CAMPOS_REGISTRO, tipoSql } from "../shared/registroEmpregado";
 import { InsertUser, SystemUser, colaboradores, empresas, setores, users, historicoFerias, InsertHistoricoFerias, abonos, InsertAbono, atestados, InsertAtestado, systemUsers, eventosCalendario, InsertEventoCalendario, EventoCalendario, feriados, Feriado, InsertFeriado, ausenciasVRVT, AusenciaVRVT, InsertAusenciaVRVT, diasCustomVRVT, planilhasGeradas, examesPeriodicos, planoSaude, tabelaPrecos, coparticipacaoPlanoSaude, folhaMes, folhaMesExcecoes, movimentacaoSeguroVida, movimentacaoAuxilioNotebook, movimentacaoPlanoSaude, movimentacaoValeTransporte, movimentacaoAuxilioCreche, movimentacaoBonusIndicacao, cancelamentoFerias } from "../drizzle/schema";
 import bcrypt from "bcryptjs";
 import { ENV } from "./_core/env";
@@ -81,6 +82,25 @@ async function garantirColunasNovas(client: ReturnType<typeof postgres>) {
       ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "vencimentoAnterior" date;
       ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "dataLimiteAnterior" date;
       ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "saldoAnterior" integer;
+    `);
+    // Registro de Empregado: campos complementares da Ficha de Registro
+    const colunas = CAMPOS_REGISTRO
+      .map(c => `ALTER TABLE "colaboradores" ADD COLUMN IF NOT EXISTS "${c.chave}" ${tipoSql(c)};`)
+      .join("\n");
+    await client.unsafe(colunas);
+    await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS "dependentes" (
+        "id" serial PRIMARY KEY,
+        "colaboradorId" integer NOT NULL REFERENCES "colaboradores"("id") ON DELETE CASCADE,
+        "nome" varchar(200) NOT NULL,
+        "parentesco" varchar(20) NOT NULL,
+        "dataNascimento" date,
+        "cpf" varchar(14),
+        "rg" varchar(20),
+        "dependenteIR" boolean DEFAULT false NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "idx_dependentes_colab" ON "dependentes" ("colaboradorId");
     `);
   } catch (error) {
     console.error("[Database] Falha ao garantir colunas novas:", (error as Error).message);
