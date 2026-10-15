@@ -368,7 +368,6 @@ export function formRegistroParaEnvio(f: FormRegistro) {
 }
 
 const cartoesRegistro: { titulo: string; icone: React.ElementType; cor: string; chaves: string[] }[] = [
-  { titulo: "Dados Complementares", icone: User, cor: "#8b5cf6", chaves: ["raca", "nacionalidadePai", "nacionalidadeMae", "emailPessoal"] },
   { titulo: "Habilitação e CTPS", icone: IdCard, cor: "#f59e0b", chaves: ["cnhNumero", "cnhCategoria", "cnhValidade", "ctpsUf"] },
   { titulo: "Contrato de Trabalho", icone: Briefcase, cor: "#3b82f6", chaves: ["vinculo", "primeiroTrabalho", "contratoExperiencia", "cbo", "remuneracao"] },
   { titulo: "Jornada", icone: Clock, cor: "#06b6d4", chaves: ["jornadaEntrada", "jornadaSaida", "jornadaIntervalo"] },
@@ -430,15 +429,14 @@ export default function RegistroEmpregado({ colaboradorId, editando, form, setFo
     <div className="space-y-4">
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
       <div className="space-y-4">
-        {cartao("Dados Complementares")}
+        {cartao("Habilitação e CTPS")}
         {cartao("Jornada")}
-        {cartao("Estágio")}
         {cartao("Sindicato")}
       </div>
       <div className="space-y-4">
-        {cartao("Habilitação e CTPS")}
         {cartao("Supervisor")}
         {cartao("Formação")}
+        {cartao("Estágio")}
       </div>
       <div className="space-y-4">
       {cartao("Contrato de Trabalho")}
