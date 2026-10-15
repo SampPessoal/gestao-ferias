@@ -192,6 +192,10 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
   const { data: registroDados } = trpc.registroEmpregado.get.useQuery({ colaboradorId: id });
   const [registroForm, setRegistroForm] = useState<FormRegistro>({});
   const salvarRegistro = trpc.registroEmpregado.salvar.useMutation();
+  // Campos do registro exibidos dentro de cartões que já existiam (raça, nacionalidades, e-mail pessoal)
+  const RACAS: Record<string, string> = { preta: "Preta", branca: "Branca", parda: "Parda", amarela: "Amarela", indigena: "Indígena" };
+  const reg = (chave: string) => registroDados?.campos?.[chave] ?? null;
+  const setReg = (chave: string, valor: string) => setRegistroForm(f => ({ ...f, [chave]: valor }));
 
   const updateMutation = trpc.colaboradores.update.useMutation({
     onSuccess: () => {
@@ -630,6 +634,15 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
                     </SelectContent>
                   </Select>
                 </EditField>
+                <EditField label="Raça">
+                  <Select value={registroForm.raca || "__vazio"} onValueChange={v => setReg("raca", v === "__vazio" ? "" : v)}>
+                    <SelectTrigger className="h-8 text-sm" aria-label="Raça"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__vazio">Não informado</SelectItem>
+                      {Object.entries(RACAS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </EditField>
                 <EditField label="Tem Filhos?">
                   <Select value={fichaForm.temFilhos ? "sim" : "nao"} onValueChange={v => setFichaForm({ ...fichaForm, temFilhos: v === "sim", qtdFilhos: v === "nao" ? 0 : fichaForm.qtdFilhos })}>
                     <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
@@ -654,6 +667,7 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
                 <InfoRow label="Idade" value={calcularIdade(toDateStr(c.dataNascimento))} icon={User} />
                 <InfoRow label="Sexo" value={c.sexo ? SEXOS[c.sexo] : null} icon={User} />
                 <InfoRow label="Estado Civil" value={c.estadoCivil ? ESTADOS_CIVIS[c.estadoCivil] : null} icon={User} />
+                <InfoRow label="Raça" value={reg("raca") ? RACAS[reg("raca")!] ?? reg("raca") : null} icon={User} />
                 <InfoRow label="Filhos" value={c.temFilhos ? `Sim — ${c.qtdFilhos ?? 0} filho(s)` : "Não"} icon={Baby} />
                 <InfoRow label="Idade na Admissão" value={c.idadeAdmissao != null ? `${c.idadeAdmissao} anos` : undefined} icon={User} />
               </div>
@@ -738,12 +752,16 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
                 <EditField label="E-mail Corporativo">
                   <Input type="email" className="h-8 text-sm" value={fichaForm.emailCorporativo} onChange={e => setFichaForm({ ...fichaForm, emailCorporativo: e.target.value })} placeholder="nome@empresa.com.br" />
                 </EditField>
+                <EditField label="E-mail Pessoal">
+                  <Input type="email" className="h-8 text-sm" aria-label="E-mail Pessoal" value={registroForm.emailPessoal ?? ""} onChange={e => setReg("emailPessoal", e.target.value)} placeholder="nome@exemplo.com" />
+                </EditField>
               </div>
             ) : (
               <div>
                 <InfoRow label="Telefone" value={c.telefone} icon={Phone} />
                 <InfoRow label="Celular" value={c.celular} icon={Phone} />
                 <InfoRow label="E-mail Corporativo" value={c.emailCorporativo} icon={Phone} />
+                <InfoRow label="E-mail Pessoal" value={reg("emailPessoal")} icon={Phone} />
               </div>
             )}
           </SectionBlock>
@@ -803,14 +821,22 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
                 <EditField label="Nome do Pai">
                   <Input className="h-8 text-sm" value={fichaForm.nomePai} onChange={e => setFichaForm({ ...fichaForm, nomePai: e.target.value })} placeholder="Nome completo do pai" />
                 </EditField>
+                <EditField label="Nacionalidade do Pai">
+                  <Input className="h-8 text-sm" aria-label="Nacionalidade do Pai" value={registroForm.nacionalidadePai ?? ""} maxLength={60} onChange={e => setReg("nacionalidadePai", e.target.value)} placeholder="Ex.: Brasileira" />
+                </EditField>
                 <EditField label="Nome da Mãe">
                   <Input className="h-8 text-sm" value={fichaForm.nomeMae} onChange={e => setFichaForm({ ...fichaForm, nomeMae: e.target.value })} placeholder="Nome completo da mãe" />
+                </EditField>
+                <EditField label="Nacionalidade da Mãe">
+                  <Input className="h-8 text-sm" aria-label="Nacionalidade da Mãe" value={registroForm.nacionalidadeMae ?? ""} maxLength={60} onChange={e => setReg("nacionalidadeMae", e.target.value)} placeholder="Ex.: Brasileira" />
                 </EditField>
               </div>
             ) : (
               <div>
                 <InfoRow label="Nome do Pai" value={c.nomePai} icon={User} />
+                <InfoRow label="Nacionalidade do Pai" value={reg("nacionalidadePai")} icon={User} />
                 <InfoRow label="Nome da Mãe" value={c.nomeMae} icon={User} />
+                <InfoRow label="Nacionalidade da Mãe" value={reg("nacionalidadeMae")} icon={User} />
               </div>
             )}
           </SectionBlock>
