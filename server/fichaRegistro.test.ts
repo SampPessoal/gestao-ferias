@@ -178,3 +178,13 @@ describe("Registro de Empregado (campos complementares)", () => {
     });
   }
 });
+
+describe("PDF ocupa a página inteira e nunca passa de duas páginas", () => {
+  it("mesmo com uma observação muito longa", async () => {
+    const longo = { ...colab, observacoes: "Observação extensa sobre o histórico funcional do colaborador. ".repeat(120) } as DadosFichaRegistro;
+    for (const empresa of Object.keys(MODELOS)) {
+      const buf = await desenharFichaPdf(preencherModelo(MODELOS[empresa], montarMapaFichaRegistro(longo, "2026-10-13")), "teste");
+      expect(buf.toString("latin1").match(/\/Type \/Page\b/g)?.length).toBe(2);
+    }
+  });
+});
