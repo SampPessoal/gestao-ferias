@@ -12,7 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Pencil, Plus, Trash2, Users, Laptop, Check, X } from "lucide-react";
+import {
+  Pencil, Plus, Trash2, Users, Laptop, User, IdCard, Briefcase, Clock, UserCheck, GraduationCap,
+  BookOpen, Landmark, Gift, Bus, Utensils, HeartPulse, ShieldCheck, Smile, Dumbbell,
+} from "lucide-react";
 import {
   CAMPOS_REGISTRO, GRUPOS_REGISTRO, PARENTESCOS, rotuloOpcao,
   type CampoRegistro, type Dependente, type GrupoRegistro,
@@ -27,7 +30,7 @@ const ABAS: { id: GrupoRegistro | "dependentes"; titulo: string }[] = [
 const soDigitos = (v: string) => v.replace(/\D/g, "");
 
 /** Mensagem legível de um erro do servidor (a validação devolve uma lista em JSON). */
-function msgErro(e: { message?: string }, padrao: string): string {
+export function msgErro(e: { message?: string }, padrao: string): string {
   const m = e.message ?? "";
   if (m.trim().startsWith("[")) {
     try {
@@ -38,7 +41,7 @@ function msgErro(e: { message?: string }, padrao: string): string {
   }
   return m || padrao;
 }
-const fmtCpf = (v: string) => {
+export const fmtCpf = (v: string) => {
   const d = soDigitos(v).slice(0, 11);
   return d.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 };
@@ -72,7 +75,7 @@ function exibir(c: CampoRegistro, v: string | null | undefined): string {
 
 // ─── Entrada de um campo ─────────────────────────────────────────────────────
 
-function Segmentado({ campo, valor, onChange }: { campo: CampoRegistro; valor: string; onChange: (v: string) => void }) {
+export function Segmentado({ campo, valor, onChange }: { campo: CampoRegistro; valor: string; onChange: (v: string) => void }) {
   return (
     <div role="radiogroup" aria-label={campo.rotulo}
       className="inline-flex flex-wrap gap-1 rounded-lg p-1" style={{ background: "oklch(0.965 0.006 255)" }}>
@@ -93,7 +96,7 @@ function Segmentado({ campo, valor, onChange }: { campo: CampoRegistro; valor: s
   );
 }
 
-function Entrada({ campo, valor, onChange }: { campo: CampoRegistro; valor: string; onChange: (v: string) => void }) {
+export function Entrada({ campo, valor, onChange }: { campo: CampoRegistro; valor: string; onChange: (v: string) => void }) {
   if (campo.tipo === "opcao") {
     if (campo.opcoes!.length <= 5) return <Segmentado campo={campo} valor={valor} onChange={onChange} />;
     return (
@@ -123,93 +126,6 @@ function Entrada({ campo, valor, onChange }: { campo: CampoRegistro; valor: stri
       );
     default: return <Input {...comum} maxLength={campo.max} onChange={e => onChange(e.target.value)} />;
   }
-}
-
-// ─── Grupo de campos (leitura e edição) ──────────────────────────────────────
-
-function GrupoCampos({ grupo, campos, colaboradorId, notebook }: {
-  grupo: GrupoRegistro;
-  campos: Record<string, string | null>;
-  colaboradorId: number;
-  notebook: { ativo: boolean; valor: string | null; desde: string | null } | null;
-}) {
-  const utils = trpc.useUtils();
-  const lista = CAMPOS_REGISTRO.filter(c => c.grupo === grupo);
-  const [editando, setEditando] = useState(false);
-  const [form, setForm] = useState<Record<string, string>>({});
-  const salvar = trpc.registroEmpregado.salvar.useMutation({
-    onSuccess: () => {
-      toast.success("Registro de empregado salvo.");
-      utils.registroEmpregado.get.invalidate({ colaboradorId });
-      setEditando(false);
-    },
-    onError: e => toast.error(msgErro(e, "Não foi possível salvar.")),
-  });
-
-  function iniciar() {
-    setForm(Object.fromEntries(lista.map(c => {
-      const v = campos[c.chave] ?? "";
-      return [c.chave, c.tipo === "moeda" && v ? Number(v).toFixed(2).replace(".", ",")
-        : c.tipo === "cpf" ? fmtCpf(v) : c.tipo === "cnpj" ? fmtCnpj(v) : v];
-    })));
-    setEditando(true);
-  }
-
-  return (
-    <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{GRUPOS_REGISTRO.find(g => g.id === grupo)?.descricao}</p>
-        {editando ? (
-          <div className="flex shrink-0 gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setEditando(false)} disabled={salvar.isPending} className="gap-1.5">
-              <X className="h-4 w-4" /> Cancelar
-            </Button>
-            <Button size="sm" disabled={salvar.isPending} className="gap-1.5"
-              onClick={() => salvar.mutate({ colaboradorId, campos: form })}>
-              <Check className="h-4 w-4" /> {salvar.isPending ? "Salvando…" : "Salvar"}
-            </Button>
-          </div>
-        ) : (
-          <Button size="sm" variant="outline" onClick={iniciar} className="shrink-0 gap-1.5">
-            <Pencil className="h-3.5 w-3.5" /> Editar
-          </Button>
-        )}
-      </div>
-
-      <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-        {lista.map(c => {
-          const v = exibir(c, campos[c.chave]);
-          return (
-            <div key={c.chave} className={c.largo ? "sm:col-span-2" : undefined}>
-              <dt className="mb-1 text-[13px] text-muted-foreground">{c.rotulo}</dt>
-              <dd>
-                {editando
-                  ? <Entrada campo={c} valor={form[c.chave] ?? ""} onChange={nv => setForm(f => ({ ...f, [c.chave]: nv }))} />
-                  : v
-                    ? <span className="text-sm font-medium text-foreground">{v}</span>
-                    : <span className="text-sm text-muted-foreground/50">Não informado</span>}
-              </dd>
-            </div>
-          );
-        })}
-      </dl>
-
-      {grupo === "beneficios" && (
-        <div className="mt-5 flex items-center gap-3 rounded-lg border border-dashed border-border px-3.5 py-3">
-          <Laptop className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <p className="text-sm">
-            <span className="font-medium">Auxílio notebook: </span>
-            {notebook
-              ? notebook.ativo
-                ? `ativo desde ${dataBR(notebook.desde)}, ${moedaBR(notebook.valor)} por mês`
-                : `encerrado em ${dataBR(notebook.desde)}`
-              : "sem registro"}
-            <span className="text-muted-foreground"> — vem da Movimentação do Mês</span>
-          </p>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ─── Dependentes ─────────────────────────────────────────────────────────────
@@ -351,86 +267,352 @@ function DependentesLista({ colaboradorId, dependentes }: { colaboradorId: numbe
   );
 }
 
-// ─── Área principal ──────────────────────────────────────────────────────────
+// ─── Cartões no padrão da ficha do colaborador ───────────────────────────────
 
-export default function RegistroEmpregado({ colaboradorId }: { colaboradorId: number }) {
-  const { data, isLoading, isError, refetch } = trpc.registroEmpregado.get.useQuery({ colaboradorId });
-  const [aba, setAba] = useState<GrupoRegistro | "dependentes">("pessoal");
-
-  // Completude por grupo (dependentes contam como preenchido quando há pelo menos um)
-  const progresso = useMemo(() => {
-    if (!data) return null;
-    const porGrupo = GRUPOS_REGISTRO.map(g => {
-      const lista = CAMPOS_REGISTRO.filter(c => c.grupo === g.id);
-      return { id: g.id, total: lista.length, feitos: lista.filter(c => data.campos[c.chave]).length };
-    });
-    const total = porGrupo.reduce((s, g) => s + g.total, 0);
-    const feitos = porGrupo.reduce((s, g) => s + g.feitos, 0);
-    return { porGrupo, total, feitos, pct: Math.round((feitos / total) * 100) };
-  }, [data]);
-
+/** Mesmo visual dos cartões da ficha (SectionBlock / InfoRow / EditField de ColaboradorDetalhe). */
+function Cartao({ titulo, icone: Icone, cor, children }: { titulo: string; icone: React.ElementType; cor: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby="registro-titulo" className="overflow-hidden rounded-xl border border-border/60 bg-card"
-      style={{ boxShadow: "0 1px 4px oklch(0.145 0.03 245 / 0.05)" }}>
-      <header className="flex flex-wrap items-end justify-between gap-4 px-5 pb-4 pt-5">
-        <div>
-          <h2 id="registro-titulo" className="text-lg font-semibold tracking-tight">Registro de Empregado</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">Dados complementares que preenchem a Ficha de Registro em PDF.</p>
+    <div className="rounded-xl border border-border/60 overflow-hidden self-start" style={{ boxShadow: "0 1px 4px oklch(0.145 0.03 245 / 0.05)" }}>
+      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border/60" style={{ background: "oklch(0.975 0.004 245)" }}>
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: cor + "22" }}>
+          <Icone className="w-3.5 h-3.5" style={{ color: cor }} />
         </div>
-        {progresso && (
-          <div className="min-w-[16rem] flex-1 sm:max-w-sm">
-            <div className="mb-1.5 flex items-baseline justify-between text-sm">
-              <span className="text-muted-foreground">Ficha completa</span>
-              <span className="font-semibold tabular-nums" style={{ color: AZUL }}>
-                {progresso.feitos} de {progresso.total} campos
-              </span>
-            </div>
-            {/* Barra dividida por grupo: cada trecho mostra o quanto daquele grupo está preenchido */}
-            <div className="flex h-2 gap-1" role="img" aria-label={`${progresso.pct}% da ficha preenchida`}>
-              {progresso.porGrupo.map(g => (
-                <div key={g.id} className="relative overflow-hidden rounded-full" style={{ flex: g.total, background: "oklch(0.93 0.01 255)" }}
-                  title={`${GRUPOS_REGISTRO.find(x => x.id === g.id)?.titulo}: ${g.feitos} de ${g.total}`}>
-                  <div className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500"
-                    style={{ width: `${(g.feitos / g.total) * 100}%`, background: g.feitos === g.total ? "oklch(0.6 0.13 155)" : AZUL }} />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </header>
+        <h3 className="text-xs font-bold uppercase tracking-wide text-foreground/70">{titulo}</h3>
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
 
-      <nav className="flex gap-1 overflow-x-auto border-b border-border/60 px-3" role="tablist" aria-label="Grupos do registro">
-        {ABAS.map(a => {
-          const g = progresso?.porGrupo.find(x => x.id === a.id);
-          const ativo = aba === a.id;
-          const contador = a.id === "dependentes" ? data?.dependentes.length ?? 0 : g ? `${g.feitos}/${g.total}` : "";
-          return (
-            <button key={a.id} role="tab" aria-selected={ativo} onClick={() => setAba(a.id)}
-              className="relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              style={{ color: ativo ? AZUL : "oklch(0.5 0.02 255)" }}>
-              {a.titulo}
-              <span className="rounded-full px-1.5 text-xs tabular-nums"
-                style={{ background: ativo ? "oklch(0.95 0.03 255)" : "oklch(0.96 0.005 255)" }}>{contador}</span>
-              {ativo && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full" style={{ background: AZUL }} />}
-            </button>
-          );
-        })}
-      </nav>
+function Linha({ rotulo, valor, icone: Icone }: { rotulo: string; valor?: React.ReactNode; icone: React.ElementType }) {
+  return (
+    <div className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
+      <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5" style={{ background: "oklch(0.97 0.005 245)" }}>
+        <Icone className="w-3.5 h-3.5 text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-0.5">{rotulo}</p>
+        <p className="text-sm font-medium text-foreground break-words">
+          {valor || <span className="text-muted-foreground/40 font-normal">—</span>}
+        </p>
+      </div>
+    </div>
+  );
+}
 
-      <div className="p-5" role="tabpanel">
-        {isLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-        ) : isError || !data ? (
-          <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm">
-            Não foi possível carregar o registro de empregado.
-            <Button size="sm" variant="outline" onClick={() => refetch()}>Tentar de novo</Button>
+function CampoEdicao({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{rotulo}</Label>
+      {children}
+    </div>
+  );
+}
+
+/** Entrada no padrão do modo de edição da ficha: seletores e campos de altura h-8. */
+function EntradaFicha({ campo, valor, onChange }: { campo: CampoRegistro; valor: string; onChange: (v: string) => void }) {
+  if (campo.tipo === "opcao") {
+    return (
+      <Select value={valor || "__vazio"} onValueChange={v => onChange(v === "__vazio" ? "" : v)}>
+        <SelectTrigger className="h-8 w-full text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+        <SelectContent className="max-h-64">
+          <SelectItem value="__vazio">Não informado</SelectItem>
+          {campo.opcoes!.map(o => <SelectItem key={o.valor} value={o.valor}>{o.rotulo}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    );
+  }
+  const base = { className: "h-8 text-sm", value: valor, "aria-label": campo.rotulo };
+  switch (campo.tipo) {
+    case "data": return <Input type="date" {...base} onChange={e => onChange(e.target.value)} />;
+    case "hora": return <Input type="time" {...base} onChange={e => onChange(e.target.value)} />;
+    case "email": return <Input type="email" {...base} placeholder="nome@exemplo.com" onChange={e => onChange(e.target.value)} />;
+    case "cpf": return <Input inputMode="numeric" {...base} placeholder="000.000.000-00" onChange={e => onChange(fmtCpf(e.target.value))} />;
+    case "cnpj": return <Input inputMode="numeric" {...base} placeholder="00.000.000/0000-00" onChange={e => onChange(fmtCnpj(e.target.value))} />;
+    case "moeda": return <Input inputMode="decimal" {...base} placeholder="0,00" onChange={e => onChange(e.target.value.replace(/[^\d,]/g, ""))} />;
+    default: return <Input {...base} placeholder={campo.dica} maxLength={campo.max} onChange={e => onChange(e.target.value)} />;
+  }
+}
+
+/** Formulário do modo de edição: campos do registro + benefícios (VR, VT e seguro de vida). */
+export type FormRegistro = Record<string, string>;
+
+/** Valores iniciais do formulário a partir do que está gravado. */
+export function formRegistroInicial(d: { campos: Record<string, string | null>; beneficios: { valorVR: string | null; valorVT: string | null; temSeguroVida: boolean | null; valorSeguroVida: string | null } }): FormRegistro {
+  const f: FormRegistro = {};
+  for (const c of CAMPOS_REGISTRO) {
+    const v = d.campos[c.chave] ?? "";
+    f[c.chave] = c.tipo === "moeda" && v ? Number(v).toFixed(2).replace(".", ",")
+      : c.tipo === "cpf" ? fmtCpf(v) : c.tipo === "cnpj" ? fmtCnpj(v) : v;
+  }
+  const reais = (v: string | null) => (v ? Number(v).toFixed(2).replace(".", ",") : "");
+  f.valorVR = reais(d.beneficios.valorVR);
+  f.valorVT = reais(d.beneficios.valorVT);
+  f.temSeguroVida = d.beneficios.temSeguroVida ? "sim" : d.beneficios.temSeguroVida === false ? "nao" : "";
+  f.valorSeguroVida = d.beneficios.valorSeguroVida ?? "";
+  return f;
+}
+
+/** Converte o formulário no que o servidor espera. */
+export function formRegistroParaEnvio(f: FormRegistro) {
+  const campos = Object.fromEntries(CAMPOS_REGISTRO.map(c => [c.chave, f[c.chave] ?? ""]));
+  return {
+    campos,
+    beneficios: {
+      valorVR: f.valorVR ?? "",
+      valorVT: f.valorVT ?? "",
+      ...(f.temSeguroVida ? { temSeguroVida: f.temSeguroVida === "sim" } : {}),
+      valorSeguroVida: f.temSeguroVida === "sim" ? (f.valorSeguroVida ?? "") : "",
+    },
+  };
+}
+
+const cartoesRegistro: { titulo: string; icone: React.ElementType; cor: string; chaves: string[] }[] = [
+  { titulo: "Dados Complementares", icone: User, cor: "#8b5cf6", chaves: ["raca", "nacionalidadePai", "nacionalidadeMae", "emailPessoal"] },
+  { titulo: "Habilitação e CTPS", icone: IdCard, cor: "#f59e0b", chaves: ["cnhNumero", "cnhCategoria", "cnhValidade", "ctpsUf"] },
+  { titulo: "Contrato de Trabalho", icone: Briefcase, cor: "#3b82f6", chaves: ["vinculo", "primeiroTrabalho", "contratoExperiencia", "cbo", "remuneracao"] },
+  { titulo: "Jornada", icone: Clock, cor: "#06b6d4", chaves: ["jornadaEntrada", "jornadaSaida", "jornadaIntervalo"] },
+  { titulo: "Supervisor", icone: UserCheck, cor: "#6366f1", chaves: ["supervisorNome", "supervisorCpf", "supervisorFuncao"] },
+  { titulo: "Formação", icone: GraduationCap, cor: "#a855f7", chaves: ["grauInstrucao", "situacaoCurso", "curso", "semestre", "instituicaoEnsino", "instituicaoCnpj"] },
+  { titulo: "Estágio", icone: BookOpen, cor: "#f97316", chaves: ["periodoEstagio", "empresaEstagio", "apoliceSeguro"] },
+  { titulo: "Sindicato", icone: Landmark, cor: "#64748b", chaves: ["sindicato", "contribuicaoSindical"] },
+];
+const campoPor = (chave: string) => CAMPOS_REGISTRO.find(c => c.chave === chave)!;
+
+/**
+ * Cartões do Registro de Empregado na ficha do colaborador. Entram no mesmo
+ * "Editar Ficha" da página: em edição, cada linha vira um campo.
+ */
+export default function RegistroEmpregado({ colaboradorId, editando, form, setForm }: {
+  colaboradorId: number;
+  editando: boolean;
+  form: FormRegistro;
+  setForm: (f: FormRegistro) => void;
+}) {
+  const { data, isLoading, isError, refetch } = trpc.registroEmpregado.get.useQuery({ colaboradorId });
+  const muda = (chave: string) => (v: string) => setForm({ ...form, [chave]: v });
+
+  if (isLoading) {
+    return <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}</div>;
+  }
+  if (isError || !data) {
+    return (
+      <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3 text-sm">
+        Não foi possível carregar o registro de empregado.
+        <Button size="sm" variant="outline" onClick={() => refetch()}>Tentar de novo</Button>
+      </div>
+    );
+  }
+
+  const b = data.beneficios;
+  const linhaOuCampo = (chave: string, icone: React.ElementType) => {
+    const c = campoPor(chave);
+    return editando
+      ? <CampoEdicao key={chave} rotulo={c.rotulo}><EntradaFicha campo={c} valor={form[chave] ?? ""} onChange={muda(chave)} /></CampoEdicao>
+      : <Linha key={chave} rotulo={c.rotulo} valor={exibir(c, data.campos[chave])} icone={icone} />;
+  };
+  const simNao = (v: boolean | null) => (v === true ? "Sim" : v === false ? "Não" : "");
+  const nb = data.notebook;
+
+  const cartao = (titulo: string) => {
+    const c = cartoesRegistro.find(x => x.titulo === titulo)!;
+    return (
+      <Cartao key={c.titulo} titulo={c.titulo} icone={c.icone} cor={c.cor}>
+        <div className={editando ? "space-y-3" : undefined}>
+          {c.chaves.map(ch => linhaOuCampo(ch, c.icone))}
+        </div>
+      </Cartao>
+    );
+  };
+
+  // Três colunas empilhadas, como os cartões de cima da ficha (sem espaços vazios entre cartões)
+  return (
+    <div className="space-y-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+      <div className="space-y-4">
+        {cartao("Dados Complementares")}
+        {cartao("Jornada")}
+        {cartao("Estágio")}
+        {cartao("Sindicato")}
+      </div>
+      <div className="space-y-4">
+        {cartao("Habilitação e CTPS")}
+        {cartao("Supervisor")}
+        {cartao("Formação")}
+      </div>
+      <div className="space-y-4">
+      {cartao("Contrato de Trabalho")}
+
+      {/* Benefícios: VR, VT, plano de saúde, seguro de vida, odontológico, TotalPass e notebook */}
+      <Cartao titulo="Benefícios" icone={Gift} cor="#10b981">
+        {editando ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <CampoEdicao rotulo="VR (R$ por dia)">
+                <Input inputMode="decimal" aria-label="VR (R$ por dia)" className="h-8 text-sm" placeholder="0,00" value={form.valorVR ?? ""}
+                  onChange={e => muda("valorVR")(e.target.value.replace(/[^\d,]/g, ""))} />
+              </CampoEdicao>
+              <CampoEdicao rotulo="VT (R$ por dia)">
+                <Input inputMode="decimal" aria-label="VT (R$ por dia)" className="h-8 text-sm" placeholder="0,00" value={form.valorVT ?? ""}
+                  onChange={e => muda("valorVT")(e.target.value.replace(/[^\d,]/g, ""))} />
+              </CampoEdicao>
+            </div>
+            {["motivoSemVT", "descontoVT"].map(ch => linhaOuCampo(ch, Bus))}
+            <div className="grid grid-cols-2 gap-2">
+              <CampoEdicao rotulo="Seguro de vida">
+                <Select value={form.temSeguroVida || "__vazio"} onValueChange={v => muda("temSeguroVida")(v === "__vazio" ? "" : v)}>
+                  <SelectTrigger className="h-8 w-full text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__vazio">Não informado</SelectItem>
+                    <SelectItem value="sim">Sim</SelectItem>
+                    <SelectItem value="nao">Não</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CampoEdicao>
+              <CampoEdicao rotulo="Valor do seguro">
+                <Input aria-label="Valor do seguro" className="h-8 text-sm" placeholder="0,00" disabled={form.temSeguroVida !== "sim"} value={form.valorSeguroVida ?? ""}
+                  onChange={e => muda("valorSeguroVida")(e.target.value)} />
+              </CampoEdicao>
+            </div>
+            {["planoOdontologico", "totalpass"].map(ch => linhaOuCampo(ch, HeartPulse))}
+            <p className="text-[11px] text-muted-foreground">
+              Plano de saúde e auxílio notebook são controlados nas telas Plano de Saúde e Movimentação do Mês.
+            </p>
           </div>
-        ) : aba === "dependentes" ? (
-          <DependentesLista colaboradorId={colaboradorId} dependentes={data.dependentes} />
         ) : (
-          <GrupoCampos key={aba} grupo={aba} campos={data.campos} colaboradorId={colaboradorId} notebook={data.notebook} />
+          <div>
+            <Linha rotulo="Vale-refeição (por dia)" valor={moedaBR(b.valorVR)} icone={Utensils} />
+            <Linha rotulo="Vale-transporte (por dia)" valor={moedaBR(b.valorVT)} icone={Bus} />
+            <Linha rotulo="Sem vale-transporte por" valor={exibir(campoPor("motivoSemVT"), data.campos.motivoSemVT)} icone={Bus} />
+            <Linha rotulo="Desconto de vale-transporte" valor={exibir(campoPor("descontoVT"), data.campos.descontoVT)} icone={Bus} />
+            <Linha rotulo="Plano de saúde" icone={HeartPulse}
+              valor={b.planoSaude ? `Sim — ${b.planoSaude.plano} (competência ${b.planoSaude.competencia})` : "Não"} />
+            <Linha rotulo="Seguro de vida" icone={ShieldCheck}
+              valor={b.temSeguroVida ? `Sim${b.valorSeguroVida ? ` — R$ ${b.valorSeguroVida}` : ""}` : simNao(b.temSeguroVida)} />
+            <Linha rotulo="Plano odontológico" valor={exibir(campoPor("planoOdontologico"), data.campos.planoOdontologico)} icone={Smile} />
+            <Linha rotulo="TotalPass / ginástica laboral" valor={exibir(campoPor("totalpass"), data.campos.totalpass)} icone={Dumbbell} />
+            <Linha rotulo="Auxílio notebook" icone={Laptop}
+              valor={nb ? (nb.ativo ? `Ativo desde ${dataBR(nb.desde)} — ${moedaBR(nb.valor)} por mês` : `Encerrado em ${dataBR(nb.desde)}`) : ""} />
+          </div>
         )}
+      </Cartao>
+      </div>
+    </div>
+
+      {/* Dependentes: lista própria, com incluir, editar e remover */}
+      <Cartao titulo="Dependentes" icone={Users} cor="#ec4899">
+        <DependentesLista colaboradorId={colaboradorId} dependentes={data.dependentes} />
+      </Cartao>
+    </div>
+  );
+}
+
+// ─── Peças usadas no cadastro de colaborador novo ────────────────────────────
+
+/** Campos de todos os grupos do Registro de Empregado, editáveis, para o cadastro novo. */
+export function CamposRegistroNovo({ form, onChange }: {
+  form: Record<string, string>;
+  onChange: (chave: string, valor: string) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      {GRUPOS_REGISTRO.map(g => (
+        <section key={g.id} aria-label={g.titulo}>
+          <h3 className="text-sm font-semibold">{g.titulo}</h3>
+          <p className="mb-3 text-xs text-muted-foreground">{g.descricao}</p>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+            {CAMPOS_REGISTRO.filter(c => c.grupo === g.id).map(c => (
+              <div key={c.chave} className={c.largo || (c.tipo === "opcao" && (c.opcoes?.length ?? 0) > 3 && (c.opcoes?.length ?? 0) <= 5) ? "sm:col-span-2 space-y-1.5" : "space-y-1.5"}>
+                <Label className="text-xs font-medium text-foreground/70">{c.rotulo}</Label>
+                <Entrada campo={c} valor={form[c.chave] ?? ""} onChange={v => onChange(c.chave, v)} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+export type DependenteRascunho = {
+  nome: string; parentesco: string; dataNascimento: string; cpf: string; rg: string; dependenteIR: boolean;
+};
+
+/** Lista de dependentes do cadastro novo (gravada junto com o colaborador). */
+export function DependentesNovo({ lista, onChange }: { lista: DependenteRascunho[]; onChange: (l: DependenteRascunho[]) => void }) {
+  const [form, setForm] = useState<DependenteRascunho>(DEP_VAZIO);
+  const nomeParentesco = (v: string) => PARENTESCOS.find(p => p.valor === v)?.rotulo ?? v;
+  return (
+    <section aria-label="Dependentes">
+      <h3 className="text-sm font-semibold">Dependentes</h3>
+      <p className="mb-3 text-xs text-muted-foreground">Cônjuge e filhos saem na Ficha de Registro; marque quem é dependente para IR.</p>
+
+      {lista.length > 0 && (
+        <ul className="mb-3 divide-y divide-border/60 rounded-lg border border-border/60">
+          {lista.map((d, i) => (
+            <li key={i} className="flex items-center gap-3 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{d.nome}</p>
+                <p className="text-xs text-muted-foreground">
+                  {nomeParentesco(d.parentesco)}{d.dataNascimento && ` · ${dataBR(d.dataNascimento)}`}{d.cpf && ` · ${d.cpf}`}
+                  {d.dependenteIR && " · Dependente IR"}
+                </p>
+              </div>
+              <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-red-600 hover:text-red-700"
+                aria-label={`Remover ${d.nome}`} onClick={() => onChange(lista.filter((_, j) => j !== i))}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-2">
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label className="text-xs font-medium text-foreground/70" htmlFor="novo-dep-nome">Nome completo</Label>
+          <Input id="novo-dep-nome" className="h-9" value={form.nome} maxLength={200} onChange={e => setForm({ ...form, nome: e.target.value })} />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label className="text-xs font-medium text-foreground/70">Parentesco</Label>
+          <Segmentado campo={{ chave: "parentesco", rotulo: "Parentesco", tipo: "opcao", grupo: "pessoal", opcoes: PARENTESCOS }}
+            valor={form.parentesco} onChange={v => setForm({ ...form, parentesco: v || form.parentesco })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-foreground/70" htmlFor="novo-dep-nasc">Data de nascimento</Label>
+          <Input id="novo-dep-nasc" type="date" className="h-9" value={form.dataNascimento} onChange={e => setForm({ ...form, dataNascimento: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-foreground/70" htmlFor="novo-dep-cpf">CPF</Label>
+          <Input id="novo-dep-cpf" inputMode="numeric" className="h-9" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm({ ...form, cpf: fmtCpf(e.target.value) })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-foreground/70" htmlFor="novo-dep-rg">RG</Label>
+          <Input id="novo-dep-rg" className="h-9" value={form.rg} maxLength={20} onChange={e => setForm({ ...form, rg: e.target.value })} />
+        </div>
+        <label className="flex items-center justify-between gap-3 self-end rounded-lg border border-border px-3 py-1.5">
+          <span className="text-sm">Dependente para IR</span>
+          <Switch checked={form.dependenteIR} onCheckedChange={v => setForm({ ...form, dependenteIR: v })} />
+        </label>
+        <div className="sm:col-span-2">
+          <Button type="button" size="sm" variant="outline" className="gap-1.5" disabled={form.nome.trim().length < 2}
+            onClick={() => { onChange([...lista, { ...form, nome: form.nome.trim() }]); setForm(DEP_VAZIO); }}>
+            <Plus className="h-4 w-4" /> Incluir dependente
+          </Button>
+        </div>
       </div>
     </section>
   );
+}
+
+/** Monta o registro para enviar no cadastro; undefined quando nada foi preenchido. */
+export function registroParaEnvio(campos: Record<string, string>, deps: DependenteRascunho[]) {
+  const preenchidos = Object.fromEntries(Object.entries(campos).filter(([, v]) => v && v.trim()));
+  if (!Object.keys(preenchidos).length && !deps.length) return undefined;
+  return {
+    campos: preenchidos,
+    dependentes: deps.map(d => ({
+      nome: d.nome, parentesco: d.parentesco, dataNascimento: d.dataNascimento || null,
+      cpf: d.cpf || null, rg: d.rg || null, dependenteIR: d.dependenteIR,
+    })),
+  };
 }
