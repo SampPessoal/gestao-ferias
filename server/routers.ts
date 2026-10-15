@@ -23,7 +23,7 @@ import { ENV } from "./_core/env";
 import { parse as parseCookie } from "cookie";
 import { createHeartbeatJob, deleteHeartbeatJob } from "./_core/heartbeat";
 import { systemUsersRouter } from "./systemUsersRouter";
-import { registroEmpregadoRouter } from "./registroEmpregado";
+import { registroEmpregadoRouter, registroInicialSchema, salvarRegistroInicial } from "./registroEmpregado";
 import {
   createColaborador,
   createEmpresa,
@@ -423,9 +423,12 @@ export const appRouter = router({
           ctpsSerie: z.string().max(20).optional().nullable(),
           valorVR: z.number().min(0).optional().nullable(),
           valorVT: z.number().min(0).optional().nullable(),
+          // Registro de Empregado (campos complementares e dependentes), validado antes de criar
+          registro: registroInicialSchema.optional(),
         })
       )
-            .mutation(async ({ input, ctx }) => {
+            .mutation(async ({ input: entrada, ctx }) => {
+        const { registro, ...input } = entrada;
         // Calcula automaticamente período aquisitivo, vencimento e data limite
         // se a admissão for informada mas os campos não forem enviados
         // Regra CLT: PA = admissão, vencimento = PA + 1 ano - 1 dia, limite = vencimento + 11 meses + 1 dia
@@ -444,7 +447,7 @@ export const appRouter = router({
           vencimento = calc.vencimento;
           dataLimite = calc.dataLimite;
         }
-        return createColaborador({
+        const novo = await createColaborador({
           ...input,
           periodoAquisitivo,
           vencimento,
@@ -452,6 +455,8 @@ export const appRouter = router({
           createdByUserId: ctx.systemUser?.id ?? null,
           createdByNome: ctx.systemUser?.nome ?? null,
         });
+        if (novo && registro) await salvarRegistroInicial(novo.id, registro);
+        return novo;
       }),
     exportCsv: protectedProcedure
       .input(

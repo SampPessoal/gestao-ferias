@@ -18,6 +18,7 @@ import { SortableHeader } from "@/components/SortableHeader";
 import { NomeColaborador } from "@/components/NomeColaborador";
 import { Link } from "wouter";
 import { toast } from "sonner";
+import { CamposRegistroNovo, DependentesNovo, registroParaEnvio, msgErro, type DependenteRascunho } from "@/components/RegistroEmpregado";
 import { calcPeriodoFerias } from "@/lib/ferias";
 
 type NovoColabForm = {
@@ -166,6 +167,9 @@ export default function Colaboradores() {
   const [page, setPage] = useState(1);
   const [modalAberto, setModalAberto] = useState(false);
   const [novoColab, setNovoColab] = useState<NovoColabForm>(emptyNovoColab);
+  // Registro de Empregado do cadastro novo (campos complementares e dependentes)
+  const [registroNovo, setRegistroNovo] = useState<Record<string, string>>({});
+  const [dependentesNovo, setDependentesNovo] = useState<DependenteRascunho[]>([]);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [errosForm, setErrosForm] = useState<Record<string, string>>({});
   const { sort: sortColab, toggle: toggleSortColab, sortData: sortColabData } = useTableSort<"nome" | "empresaNome" | "setorNome" | "codigo" | "status">("nome", "asc");
@@ -189,13 +193,13 @@ export default function Colaboradores() {
     onSuccess: () => {
       toast.success(`Colaborador "${novoColab.nome}" cadastrado com sucesso!`);
       setModalAberto(false);
-      setNovoColab(emptyNovoColab);
+      setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]);
       utils.colaboradores.list.invalidate();
       utils.dashboard.stats.invalidate();
       utils.dashboard.statusPorEmpresa.invalidate();
       utils.dashboard.statusPorSetor.invalidate();
     },
-    onError: (err) => toast.error("Erro ao cadastrar: " + err.message),
+    onError: (err) => toast.error("Erro ao cadastrar: " + msgErro(err, "verifique os dados informados.")),
   });
 
   const totalPages = data ? Math.ceil(data.total / 50) : 1;
@@ -270,6 +274,7 @@ export default function Colaboradores() {
     }
     const toIso = (br: string) => brToIso(br) || null;
     createMutation.mutate({
+      registro: registroParaEnvio(registroNovo, dependentesNovo) as any,
       nome: novoColab.nome.trim(),
       codigo: novoColab.codigo.trim() || null,
       empresaId: novoColab.empresaId ? Number(novoColab.empresaId) : null,
@@ -345,7 +350,7 @@ export default function Colaboradores() {
                 <p className="text-sm mt-1" style={{ color: "oklch(0.65 0.008 240)" }}>Gerencie perfis, fichas técnicas e histórico de férias</p>
               </div>
             </div>
-            <Button onClick={() => { setNovoColab(emptyNovoColab); setModalAberto(true); }}
+            <Button onClick={() => { setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setModalAberto(true); }}
               className="gap-2 font-semibold"
               style={{ background: "oklch(0.48 0.20 252)", color: "oklch(0.13 0.07 254)", border: "none" }}>
               <Plus className="w-4 h-4" />
@@ -551,7 +556,7 @@ export default function Colaboradores() {
       </div>
 
       {/* ── Modal Novo Colaborador ── */}
-      <Dialog open={modalAberto} onOpenChange={(open) => { if (!open) { setModalAberto(false); setNovoColab(emptyNovoColab); setErrosForm({}); } }}>
+      <Dialog open={modalAberto} onOpenChange={(open) => { if (!open) { setModalAberto(false); setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setErrosForm({}); } }}>
         <DialogContent className="max-w-3xl w-[95vw] p-0 overflow-hidden max-h-[90vh] flex flex-col">
           {/* Header moderno com gradiente sutil */}
           <div className="relative px-6 pt-6 pb-4 border-b border-border/50 bg-gradient-to-r from-background to-muted/20 flex-shrink-0">
@@ -571,7 +576,7 @@ export default function Colaboradores() {
           <Tabs defaultValue="basico" className="w-full flex flex-col flex-1 min-h-0">
             {/* Abas com estilo pill moderno - 2 linhas para caber tudo */}
             <div className="px-5 pt-4 pb-0 flex-shrink-0">
-              <TabsList className="grid grid-cols-3 w-full h-auto p-1 gap-1 bg-muted/50 rounded-xl">
+              <TabsList className="grid grid-cols-4 w-full h-auto p-1 gap-1 bg-muted/50 rounded-xl">
                 {[
                   { value: "basico", label: "Básico", icon: "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" },
                   { value: "pessoal", label: "Pessoal", icon: "M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z" },
@@ -579,6 +584,7 @@ export default function Colaboradores() {
                   { value: "endereco", label: "Endereço", icon: "M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" },
                   { value: "contato", label: "Contato", icon: "M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" },
                   { value: "clt", label: "CLT / Benefícios", icon: "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" },
+                  { value: "registro", label: "Registro", icon: "M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" },
                 ].map(tab => (
                   <TabsTrigger key={tab.value} value={tab.value}
                     className="flex items-center justify-center gap-1.5 h-9 text-xs font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground transition-all px-2">
@@ -1124,13 +1130,22 @@ export default function Colaboradores() {
                 )}
               </div>
             </TabsContent>
+
+            {/* ── ABA REGISTRO: campos complementares da Ficha de Registro ── */}
+            <TabsContent value="registro" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-6">
+              <p className="text-xs text-muted-foreground">
+                Estes dados preenchem a Ficha de Registro em PDF. Todos são opcionais e podem ser completados depois, na ficha do colaborador.
+              </p>
+              <CamposRegistroNovo form={registroNovo} onChange={(k, v) => setRegistroNovo(prev => ({ ...prev, [k]: v }))} />
+              <DependentesNovo lista={dependentesNovo} onChange={setDependentesNovo} />
+            </TabsContent>
           </Tabs>
 
           {/* Footer moderno */}
           <div className="flex flex-col gap-2 px-6 py-4 border-t border-border/50 bg-muted/10 flex-shrink-0 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[11px] text-muted-foreground hidden sm:block">Campos marcados com <span className="text-destructive">*</span> são obrigatórios</p>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Button variant="outline" className="h-9 px-4 flex-1 sm:flex-none" onClick={() => { setModalAberto(false); setNovoColab(emptyNovoColab); setErrosForm({}); }}>
+              <Button variant="outline" className="h-9 px-4 flex-1 sm:flex-none" onClick={() => { setModalAberto(false); setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setErrosForm({}); }}>
                 Cancelar
               </Button>
               <Button className="h-9 px-5 font-semibold flex-1 sm:flex-none whitespace-nowrap" onClick={handleSalvar} disabled={createMutation.isPending}>
