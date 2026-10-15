@@ -88,7 +88,7 @@ export const CAMPOS_REGISTRO: CampoRegistro[] = [
   { chave: "periodoEstagio", rotulo: "Período de estágio", tipo: "opcao", grupo: "formacao", opcoes: [
     { valor: "sim", rotulo: "Sim" }, { valor: "nao_se_aplica", rotulo: "Não se aplica" },
   ] },
-  { chave: "empresaEstagio", rotulo: "Empresa do estágio", tipo: "opcao", grupo: "formacao", opcoes: [
+  { chave: "empresaEstagio", rotulo: "Empresa vinculada", tipo: "opcao", grupo: "formacao", opcoes: [
     { valor: "a3_estagios", rotulo: "A3 Estágios" }, { valor: "sudoeste", rotulo: "Sudoeste" }, { valor: "nao_se_aplica", rotulo: "Não se aplica" },
   ] },
   { chave: "apoliceSeguro", rotulo: "Apólice de seguro (nº)", tipo: "texto", grupo: "formacao", max: 50 },

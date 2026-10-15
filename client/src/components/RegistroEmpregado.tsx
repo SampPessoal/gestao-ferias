@@ -373,7 +373,7 @@ const cartoesRegistro: { titulo: string; icone: React.ElementType; cor: string; 
   { titulo: "Jornada", icone: Clock, cor: "#06b6d4", chaves: ["jornadaEntrada", "jornadaSaida", "jornadaIntervalo"] },
   { titulo: "Supervisor", icone: UserCheck, cor: "#6366f1", chaves: ["supervisorNome", "supervisorCpf", "supervisorFuncao"] },
   { titulo: "Formação", icone: GraduationCap, cor: "#a855f7", chaves: ["grauInstrucao", "situacaoCurso", "curso", "semestre", "instituicaoEnsino", "instituicaoCnpj"] },
-  { titulo: "Estágio", icone: BookOpen, cor: "#f97316", chaves: ["periodoEstagio", "empresaEstagio", "apoliceSeguro"] },
+  { titulo: "Estágio e Empresa Vinculada", icone: BookOpen, cor: "#f97316", chaves: ["periodoEstagio", "empresaEstagio", "apoliceSeguro"] },
   { titulo: "Sindicato", icone: Landmark, cor: "#64748b", chaves: ["sindicato", "contribuicaoSindical"] },
 ];
 const campoPor = (chave: string) => CAMPOS_REGISTRO.find(c => c.chave === chave)!;
@@ -436,7 +436,7 @@ export default function RegistroEmpregado({ colaboradorId, editando, form, setFo
       <div className="space-y-4">
         {cartao("Supervisor")}
         {cartao("Formação")}
-        {cartao("Estágio")}
+        {cartao("Estágio e Empresa Vinculada")}
       </div>
       <div className="space-y-4">
       {cartao("Contrato de Trabalho")}
