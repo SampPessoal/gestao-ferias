@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import RegistroEmpregado from "@/components/RegistroEmpregado";
+import RegistroEmpregado, { formRegistroInicial, formRegistroParaEnvio, msgErro, type FormRegistro } from "@/components/RegistroEmpregado";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -188,6 +188,11 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
   const [setorEmpresaId, setSetorEmpresaId] = useState<number | undefined>(undefined);
   const { data: setores } = trpc.setores.list.useQuery(setorEmpresaId ? { empresaId: setorEmpresaId } : undefined);
 
+  // Registro de Empregado: cartões complementares que entram no mesmo "Editar Ficha"
+  const { data: registroDados } = trpc.registroEmpregado.get.useQuery({ colaboradorId: id });
+  const [registroForm, setRegistroForm] = useState<FormRegistro>({});
+  const salvarRegistro = trpc.registroEmpregado.salvar.useMutation();
+
   const updateMutation = trpc.colaboradores.update.useMutation({
     onSuccess: () => {
       toast.success("Dados atualizados com sucesso!");
@@ -315,10 +320,19 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
       bancoChavePix: c.bancoChavePix ?? "",
       bancoTipoChavePix: c.bancoTipoChavePix ?? "",
     });
+    if (registroDados) setRegistroForm(formRegistroInicial(registroDados));
     setEditingFicha(true);
   }
 
-  function saveFicha() {
+  async function saveFicha() {
+    // Primeiro o registro (é validado: CPF, CNPJ, e-mail, horários, valores); se houver erro, nada é gravado
+    try {
+      await salvarRegistro.mutateAsync({ colaboradorId: id, ...formRegistroParaEnvio(registroForm) });
+      utils.registroEmpregado.get.invalidate({ colaboradorId: id });
+    } catch (e) {
+      toast.error(msgErro(e as { message?: string }, "Erro ao salvar o registro de empregado."));
+      return;
+    }
     updateMutation.mutate({
       id,
       nome: fichaForm.nome || undefined,
@@ -508,8 +522,8 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
             </>
           ) : (
             <>
-              <Button size="sm" onClick={saveFicha} disabled={updateMutation.isPending} className="gap-1.5 shadow-sm">
-                <Save className="w-4 h-4" /> {updateMutation.isPending ? "Salvando..." : "Salvar"}
+              <Button size="sm" onClick={saveFicha} disabled={updateMutation.isPending || salvarRegistro.isPending} className="gap-1.5 shadow-sm">
+                <Save className="w-4 h-4" /> {updateMutation.isPending || salvarRegistro.isPending ? "Salvando..." : "Salvar"}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setEditingFicha(false)} className="gap-1.5">
                 <X className="w-4 h-4" /> Cancelar
@@ -1050,8 +1064,8 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
         )}
       </SectionBlock>
 
-      {/* ── Registro de Empregado: campos complementares da Ficha de Registro ── */}
-      <RegistroEmpregado colaboradorId={id} />
+      {/* ── Registro de Empregado: campos complementares da Ficha de Registro, no mesmo padrão de cartões ── */}
+      <RegistroEmpregado colaboradorId={id} editando={editingFicha} form={registroForm} setForm={setRegistroForm} />
 
       {/* ── Dialog de confirmação de desligamento ── */}
       <AlertDialog open={confirmDesligar} onOpenChange={setConfirmDesligar}>
