@@ -258,11 +258,78 @@ function desenharParagrafo(doc: PDFKit.PDFDocument, p: Paragrafo, linhas: LinhaT
   }
 }
 
+/** Margem de segurança para impressão (pt). O conteúdo ocupa todo o resto da folha. */
+const MARGEM_IMPRESSAO = 14;
+
+type CelulaPronta = { c: Celula; x: number; w: number; ml: number; mr: number; ps: { p: Paragrafo; linhas: LinhaTexto[] }[]; h: number };
+type ItemPagina =
+  | { tipo: "p"; p: Paragrafo; linhas: LinhaTexto[]; h: number }
+  | { tipo: "linha"; celulas: CelulaPronta[]; natural: number; fixa: boolean; altura: number };
+
+/** Parágrafo com letras e espaçamentos multiplicados por fs. */
+function escalarParagrafo(p: Paragrafo, fs: number): Paragrafo {
+  return { ...p, sz: p.sz * fs, before: p.before * fs, after: p.after * fs, runs: p.runs.map(r => ({ ...r, sz: r.sz * fs })) };
+}
+
+const textoDaCelula = (c: Celula) => c.paras.map(p => p.runs.map(r => r.t).join("")).join("").trim();
+
+/**
+ * Monta as páginas com a letra multiplicada por fs. Cada linha da tabela é
+ * esticada na largura para ocupar a folha toda (margem mínima de impressão).
+ * Uma página nova começa em cada cabeçalho "S | EMPRESA | PÁGINA" do modelo.
+ */
+function montarPaginas(doc: PDFKit.PDFDocument, modelo: ModeloFicha, fs: number, larguraUtil: number): ItemPagina[][] {
+  const paginas: ItemPagina[][] = [[]];
+  let primeiroCabecalho = true;
+  for (const bloco of modelo.blocks) {
+    if (bloco.type === "p") {
+      if (!bloco.runs.some(r => r.t.trim())) continue; // parágrafo vazio de espaçamento do Word
+      const p = escalarParagrafo(bloco, fs);
+      const linhas = montarLinhas(doc, p, larguraUtil);
+      paginas[paginas.length - 1].push({ tipo: "p", p, linhas, h: alturaParagrafo(linhas, p) });
+      continue;
+    }
+    for (const linha of (bloco as Tabela).rows) {
+      const ehCabecalhoPagina = textoDaCelula(linha.cells[0] ?? ({ paras: [] } as any)) === "S";
+      if (ehCabecalhoPagina) {
+        if (!primeiroCabecalho) paginas.push([]);
+        primeiroCabecalho = false;
+      }
+      const totalTwips = linha.cells.reduce((s, c) => s + c.w, 0);
+      const kx = larguraUtil / PT(totalTwips); // estica a linha para a largura da folha
+      let x = MARGEM_IMPRESSAO;
+      const celulas: CelulaPronta[] = linha.cells.map(c => {
+        const w = PT(c.w) * kx;
+        // No cabeçalho da página as células são estreitas: margem interna mínima para
+        // "PÁGINA 01 / 02" e o nome da empresa não quebrarem linha
+        const ml = ehCabecalhoPagina ? Math.min(PT(c.mar.left), 2) : PT(c.mar.left);
+        const mr = ehCabecalhoPagina ? Math.min(PT(c.mar.right), 2) : PT(c.mar.right);
+        const inner = w - ml - mr;
+        const ps = c.paras.map(p0 => {
+          const p = escalarParagrafo(p0, fs);
+          return { p, linhas: montarLinhas(doc, p, inner) };
+        });
+        const h = PT(c.mar.top + c.mar.bottom) + ps.reduce((s, q) => s + alturaParagrafo(q.linhas, q.p), 0);
+        const pronta = { c, x, w, ml, mr, ps, h };
+        x += w;
+        return pronta;
+      });
+      const natural = linha.exact ? PT(linha.minH) * fs : Math.max(PT(linha.minH) * fs, ...celulas.map(q => q.h));
+      // Faixas de título de seção e o cabeçalho da página mantêm a altura; as demais linhas crescem
+      const fixa = linha.exact || ehCabecalhoPagina || linha.cells.some(ehCabecalhoDeSecao);
+      paginas[paginas.length - 1].push({ tipo: "linha", celulas, natural, fixa, altura: natural });
+    }
+  }
+  return paginas;
+}
+
+const alturaItem = (it: ItemPagina) => (it.tipo === "p" ? it.h : it.natural);
+
 export function desenharFichaPdf(modelo: ModeloFicha, titulo: string): Promise<Buffer> {
   const pg = modelo.page;
   const doc = new PDFDocument({
     size: [PT(pg.w), PT(pg.h)],
-    margins: { top: PT(pg.top), bottom: PT(pg.bottom), left: PT(pg.left), right: PT(pg.right) },
+    margins: { top: MARGEM_IMPRESSAO, bottom: MARGEM_IMPRESSAO, left: MARGEM_IMPRESSAO, right: MARGEM_IMPRESSAO },
     autoFirstPage: true,
     info: { Title: textoWinAnsi(titulo), Author: "Gestão RH", Creator: "Gestão RH" },
   });
@@ -270,51 +337,42 @@ export function desenharFichaPdf(modelo: ModeloFicha, titulo: string): Promise<B
   doc.on("data", (c: Buffer) => chunks.push(c));
   const fim = new Promise<Buffer>(resolve => doc.on("end", () => resolve(Buffer.concat(chunks))));
 
-  const larguraUtil = PT(pg.w - pg.left - pg.right);
-  const limite = PT(pg.h - pg.bottom);
-  let y = PT(pg.top);
-  let primeiroCabecalho = true;
+  const larguraUtil = PT(pg.w) - 2 * MARGEM_IMPRESSAO;
+  const alturaUtil = PT(pg.h) - 2 * MARGEM_IMPRESSAO;
 
-  for (const bloco of modelo.blocks) {
-    if (bloco.type === "p") {
-      const linhas = montarLinhas(doc, bloco, larguraUtil);
-      const h = alturaParagrafo(linhas, bloco);
-      if (!bloco.runs.some(r => r.t.trim())) { y += Math.min(h, 6); continue; }
-      desenharParagrafo(doc, bloco, linhas, PT(pg.left), y, larguraUtil);
-      y += h;
-      continue;
-    }
-    const tabela = bloco as Tabela;
-    for (const linha of tabela.rows) {
-      const larguraTabela = PT(linha.cells.reduce((s, c) => s + c.w, 0));
-      const x0 = PT(pg.left) + (tabela.align === "center" ? (larguraUtil - larguraTabela) / 2 : 0);
-      // Cabeçalho "S | EMPRESA | PÁGINA" de cada página: começa página nova (exceto o primeiro)
-      const ehCabecalhoPagina = linha.cells[0]?.paras.map(p => p.runs.map(r => r.t).join("")).join("").trim() === "S";
-      const conteudo = linha.cells.map(c => {
-        const inner = PT(c.w - c.mar.left - c.mar.right);
-        const ps = c.paras.map(p => ({ p, linhas: montarLinhas(doc, p, inner) }));
-        const h = PT(c.mar.top + c.mar.bottom) + ps.reduce((s, x) => s + alturaParagrafo(x.linhas, x.p), 0);
-        return { c, ps, h };
-      });
-      const alturaLinha = linha.exact ? PT(linha.minH) : Math.max(PT(linha.minH), ...conteudo.map(x => x.h));
+  // Maior letra (igual nas duas páginas) em que todo o conteúdo cabe na folha;
+  // textos muito longos reduzem a letra em vez de criar uma terceira página.
+  let paginas: ItemPagina[][] = [];
+  for (let fs = 1.4; fs >= 0.55; fs -= 0.025) {
+    paginas = montarPaginas(doc, modelo, fs, larguraUtil);
+    if (paginas.every(itens => itens.reduce((s, it) => s + alturaItem(it), 0) <= alturaUtil)) break;
+  }
 
-      if (ehCabecalhoPagina) {
-        if (!primeiroCabecalho) { doc.addPage(); y = PT(pg.top); }
-        primeiroCabecalho = false;
-      } else if (y + alturaLinha > limite) {
-        doc.addPage();
-        y = PT(pg.top);
+  paginas.forEach((itens, n) => {
+    if (n > 0) doc.addPage();
+    // Distribui o espaço que sobra entre as linhas de campos, para a ficha ocupar a página inteira
+    const natural = itens.reduce((s, it) => s + alturaItem(it), 0);
+    const elasticas = itens.filter(it => it.tipo === "linha" && !it.fixa) as Extract<ItemPagina, { tipo: "linha" }>[];
+    const somaElasticas = elasticas.reduce((s, it) => s + it.natural, 0);
+    const sobra = Math.max(0, alturaUtil - natural);
+    for (const it of elasticas) it.altura = it.natural + (somaElasticas ? sobra * (it.natural / somaElasticas) : 0);
+
+    let y = MARGEM_IMPRESSAO;
+    for (const it of itens) {
+      if (it.tipo === "p") {
+        desenharParagrafo(doc, it.p, it.linhas, MARGEM_IMPRESSAO, y, larguraUtil);
+        y += it.h;
+        continue;
       }
-
-      let x = x0;
-      for (const { c, ps, h } of conteudo) {
-        const w = PT(c.w);
+      const alturaLinha = it.altura;
+      for (const { c, x, w, ml, mr, ps, h } of it.celulas) {
         if (c.fill && c.fill !== "auto") doc.rect(x, y, w, alturaLinha).fill(`#${c.fill}`);
+        // Conteúdo centralizado na altura da linha (o Word alinha ao topo só quando a linha não cresce)
         let yc = y + PT(c.mar.top);
-        if (c.valign === "center") yc += (alturaLinha - h) / 2;
-        else if (c.valign === "bottom") yc += alturaLinha - h;
+        if (c.valign === "bottom") yc += alturaLinha - h;
+        else if (c.valign === "center" || !it.fixa) yc += (alturaLinha - h) / 2;
         for (const { p, linhas } of ps) {
-          desenharParagrafo(doc, p, linhas, x + PT(c.mar.left), yc, PT(c.w - c.mar.left - c.mar.right));
+          desenharParagrafo(doc, p, linhas, x + ml, yc, w - ml - mr);
           yc += alturaParagrafo(linhas, p);
         }
         const lados: [keyof Celula["borders"], number, number, number, number][] = [
@@ -325,11 +383,10 @@ export function desenharFichaPdf(modelo: ModeloFicha, titulo: string): Promise<B
           const b = c.borders[lado];
           if (b) doc.moveTo(x1, y1).lineTo(x2, y2).lineWidth(b.sz / 8).strokeColor(`#${b.c}`).stroke();
         }
-        x += w;
       }
       y += alturaLinha;
     }
-  }
+  });
   doc.end();
   return fim;
 }
