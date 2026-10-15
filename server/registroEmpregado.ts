@@ -7,7 +7,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { colaboradores, dependentes, movimentacaoAuxilioNotebook } from "../drizzle/schema";
+import { colaboradores, dependentes, movimentacaoAuxilioNotebook, planoSaude } from "../drizzle/schema";
 import { CAMPOS_REGISTRO, PARENTESCOS, type CampoRegistro, type Dependente, type RegistroEmpregado } from "../shared/registroEmpregado";
 
 const so = (d: string) => d.replace(/\D/g, "");
@@ -45,7 +45,21 @@ function validador(c: CampoRegistro) {
   return z.preprocess(vazioParaNull, base.nullable()).optional();
 }
 
-const camposSchema = z.object(Object.fromEntries(CAMPOS_REGISTRO.map(c => [c.chave, validador(c)]))).strict();
+/** Valor em R$ digitado ("1.234,56" ou "1234.56") → "1234.56"; vazio = null. */
+const valorReais = (rotulo: string) => z.preprocess(
+  v => (typeof v === "string" ? (v.trim() === "" ? null : v.replace(/\s|R\$/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".")) : v),
+  z.string().regex(/^\d{1,10}(\.\d{1,2})?$/, `${rotulo}: valor inválido`).nullable(),
+).optional();
+
+/** Benefícios que já existiam no cadastro e passam a ser editados no cartão Benefícios. */
+const beneficiosSchema = z.object({
+  valorVR: valorReais("Vale-refeição"),
+  valorVT: valorReais("Vale-transporte"),
+  temSeguroVida: z.boolean().optional(),
+  valorSeguroVida: z.preprocess(v => (v === "" ? null : v), z.string().trim().max(20).nullable()).optional(),
+}).strict();
+
+export const camposSchema = z.object(Object.fromEntries(CAMPOS_REGISTRO.map(c => [c.chave, validador(c)]))).strict();
 
 const dependenteSchema = z.object({
   id: z.number().int().positive().optional(),
@@ -57,6 +71,28 @@ const dependenteSchema = z.object({
   rg: z.preprocess(v => (v === "" ? null : v), z.string().trim().max(20).nullable()),
   dependenteIR: z.boolean(),
 });
+
+/** Dependente informado no cadastro de um colaborador novo (ainda sem id). */
+export const dependenteNovoSchema = dependenteSchema.omit({ id: true, colaboradorId: true });
+
+/** Registro de Empregado enviado junto com o cadastro de um colaborador novo. */
+export const registroInicialSchema = z.object({
+  campos: camposSchema,
+  dependentes: z.array(dependenteNovoSchema).max(20),
+});
+
+/** Grava os campos complementares e os dependentes de um colaborador recém-criado. */
+export async function salvarRegistroInicial(colaboradorId: number, registro: z.infer<typeof registroInicialSchema>) {
+  const db = await dbOuErro();
+  const patch: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(registro.campos)) if (v !== undefined && v !== null) patch[k] = v;
+  if (Object.keys(patch).length) {
+    await db.update(colaboradores).set(patch as any).where(eq(colaboradores.id, colaboradorId));
+  }
+  if (registro.dependentes.length) {
+    await db.insert(dependentes).values(registro.dependentes.map(d => ({ ...d, colaboradorId })) as any);
+  }
+}
 
 async function dbOuErro() {
   const db = await getDb();
@@ -88,8 +124,25 @@ export async function lerRegistroEmpregado(colaboradorId: number) {
     .where(eq(movimentacaoAuxilioNotebook.colaboradorId, colaboradorId))
     .orderBy(desc(movimentacaoAuxilioNotebook.dataInicio), desc(movimentacaoAuxilioNotebook.id))
     .limit(1);
+  // Benefícios que já existiam no cadastro (VR, VT e seguro de vida) e o plano de saúde
+  const [ben] = await db.select({
+    valorVR: colaboradores.valorVR, valorVT: colaboradores.valorVT,
+    temSeguroVida: colaboradores.temSeguroVida, valorSeguroVida: colaboradores.valorSeguroVida,
+  }).from(colaboradores).where(eq(colaboradores.id, colaboradorId)).limit(1);
+  const [plano] = await db.select({ plano: planoSaude.plano, mes: planoSaude.mesReferencia, ano: planoSaude.anoReferencia })
+    .from(planoSaude)
+    .where(and(eq(planoSaude.colaboradorId, colaboradorId), eq(planoSaude.tipo, "T"), eq(planoSaude.ativo, true)))
+    .orderBy(desc(planoSaude.anoReferencia), desc(planoSaude.mesReferencia))
+    .limit(1);
   return {
     campos,
+    beneficios: {
+      valorVR: ben?.valorVR ?? null,
+      valorVT: ben?.valorVT ?? null,
+      temSeguroVida: ben?.temSeguroVida ?? null,
+      valorSeguroVida: ben?.valorSeguroVida ?? null,
+      planoSaude: plano ? { plano: plano.plano, competencia: `${String(plano.mes).padStart(2, "0")}/${plano.ano}` } : null,
+    },
     dependentes: deps.map((d): Dependente => ({
       id: d.id, nome: d.nome, parentesco: d.parentesco, dataNascimento: dataStr(d.dataNascimento),
       cpf: d.cpf, rg: d.rg, dependenteIR: d.dependenteIR,
@@ -108,11 +161,16 @@ export const registroEmpregadoRouter = router({
     }),
 
   salvar: protectedProcedure
-    .input(z.object({ colaboradorId: z.number().int().positive(), campos: camposSchema }))
+    .input(z.object({
+      colaboradorId: z.number().int().positive(),
+      campos: camposSchema,
+      beneficios: beneficiosSchema.optional(),
+    }))
     .mutation(async ({ input }) => {
       const db = await dbOuErro();
       const patch: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(input.campos)) if (v !== undefined) patch[k] = v;
+      for (const [k, v] of Object.entries(input.beneficios ?? {})) if (v !== undefined) patch[k] = v;
       if (!Object.keys(patch).length) return { success: true };
       const r = await db.update(colaboradores).set({ ...patch, updatedAt: new Date() } as any)
         .where(eq(colaboradores.id, input.colaboradorId)).returning({ id: colaboradores.id });
