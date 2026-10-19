@@ -1161,7 +1161,8 @@ export default function Colaboradores() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <CampoRegistroNovo chave="periodoEstagio" form={registroNovo} onChange={setRegistroCampo} />
-                  <CampoRegistroNovo chave="empresaEstagio" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="empresaEstagio" form={registroNovo} onChange={setRegistroCampo}
+                    empresaNome={(empresas ?? []).find((e: any) => String(e.id) === novoColab.empresaId)?.nome} />
                   <CampoRegistroNovo chave="apoliceSeguro" form={registroNovo} onChange={setRegistroCampo} />
                 </div>
               </div>

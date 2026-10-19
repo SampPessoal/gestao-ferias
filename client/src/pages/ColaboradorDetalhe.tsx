@@ -1084,7 +1084,7 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
       </SectionBlock>
 
       {/* ── Registro de Empregado: campos complementares da Ficha de Registro, no mesmo padrão de cartões ── */}
-      <RegistroEmpregado colaboradorId={id} editando={editingFicha} form={registroForm} setForm={setRegistroForm} />
+      <RegistroEmpregado colaboradorId={id} editando={editingFicha} form={registroForm} setForm={setRegistroForm} empresaNome={c.empresaNome} />
 
       </div>
 
