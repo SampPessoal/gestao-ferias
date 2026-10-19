@@ -57,6 +57,8 @@ import {
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 
+import { InputMoeda } from "@/components/InputMoeda";
+import { mascaraCpf, mascaraInteiro } from "@/lib/mascaras";
 const EMPRESAS = ["FREIRE", "JOANES", "SUDOESTE", "SOLAR"] as const;
 const EMPRESA_LABELS: Record<string, string> = {
   FREIRE: "Freire",
@@ -1071,13 +1073,9 @@ function Coparticipacao() {
             {/* Valor */}
             <div className="space-y-1.5">
               <Label>Valor da Coparticipação (R$) <span className="text-red-500">*</span></Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
+              <InputMoeda onValorChange={v => setFormValor(v)}
                 placeholder="0,00"
                 value={formValor}
-                onChange={(e) => setFormValor(e.target.value)}
               />
             </div>
 
@@ -1791,10 +1789,10 @@ function Beneficiarios() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Matrícula funcional</Label>
-                <Input
+                <Input inputMode="numeric"
                   placeholder="Ex: 00123"
                   value={nMatricula}
-                  onChange={(e) => setNMatricula(e.target.value)}
+                  onChange={(e) => setNMatricula(mascaraInteiro(e.target.value, 10))}
                   maxLength={20}
                 />
               </div>
@@ -1841,10 +1839,10 @@ function Beneficiarios() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Nº Beneficiário do Titular</Label>
-                  <Input
+                  <Input inputMode="numeric"
                     placeholder="Nº do titular"
                     value={nTitularNum}
-                    onChange={(e) => setNTitularNum(e.target.value)}
+                    onChange={(e) => setNTitularNum(mascaraInteiro(e.target.value, 10))}
                     maxLength={20}
                   />
                 </div>
@@ -1874,13 +1872,9 @@ function Beneficiarios() {
             {/* Mensalidade */}
             <div className="space-y-1.5">
               <Label>Mensalidade (R$) <span className="text-red-500">*</span></Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
+              <InputMoeda onValorChange={v => setNMensalidade(v)}
                 placeholder="0,00"
                 value={nMensalidade}
-                onChange={(e) => setNMensalidade(e.target.value)}
               />
               {valorAutomatico !== null && (
                 <p className="text-xs" style={{ color: "oklch(0.50 0.12 68)" }}>
@@ -2164,10 +2158,10 @@ function Beneficiarios() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Nº Beneficiário do Titular</Label>
-                  <Input
+                  <Input inputMode="numeric"
                     placeholder="Nº do titular"
                     value={editBenefTitularNum}
-                    onChange={(e) => setEditBenefTitularNum(e.target.value)}
+                    onChange={(e) => setEditBenefTitularNum(mascaraInteiro(e.target.value, 10))}
                     maxLength={20}
                   />
                 </div>
@@ -2180,7 +2174,7 @@ function Beneficiarios() {
                 <Input
                   placeholder="000.000.000-00"
                   value={editBenefCpf}
-                  onChange={(e) => setEditBenefCpf(e.target.value)}
+                  onChange={(e) => setEditBenefCpf(mascaraCpf(e.target.value))}
                   maxLength={14}
                 />
               </div>
@@ -2197,22 +2191,18 @@ function Beneficiarios() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Matrícula funcional</Label>
-                <Input
+                <Input inputMode="numeric"
                   placeholder="Ex: 00123"
                   value={editBenefMatricula}
-                  onChange={(e) => setEditBenefMatricula(e.target.value)}
+                  onChange={(e) => setEditBenefMatricula(mascaraInteiro(e.target.value, 10))}
                   maxLength={20}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label>Mensalidade (R$) <span className="text-red-500">*</span></Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <InputMoeda onValorChange={v => setEditBenefMensalidade(v)}
                   placeholder="0,00"
                   value={editBenefMensalidade}
-                  onChange={(e) => setEditBenefMensalidade(e.target.value)}
                 />
               </div>
             </div>

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+import { InputMoeda } from "@/components/InputMoeda";
 const EMPRESA_COLORS: Record<string, string> = {
   "Freire": "oklch(0.22 0.015 240)",
   "Sudoeste": "oklch(0.48 0.20 252)",
@@ -282,13 +283,8 @@ function ConfiguracaoSeguroVida() {
             {editandoId === emp.id ? (
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <InputMoeda onValorChange={v => setValorTemp(v)}
                     value={valorTemp}
-                    onChange={e => setValorTemp(e.target.value)}
                     className="w-28 pl-8 h-8 text-sm"
                     placeholder="0,00"
                     autoFocus

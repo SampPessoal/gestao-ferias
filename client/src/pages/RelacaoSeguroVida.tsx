@@ -19,6 +19,7 @@ import { NomeColaborador } from "@/components/NomeColaborador";
 import { toast } from "sonner";
 import { formatDate, toDateStr } from "@/lib/ferias";
 
+import { InputMoeda } from "@/components/InputMoeda";
 export default function RelacaoSeguroVida() {
   const utils = trpc.useUtils();
   const [busca, setBusca] = useState("");
@@ -345,9 +346,8 @@ export default function RelacaoSeguroVida() {
               {editForm.temSeguroVida && (
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">Valor descontado na folha (R$)</Label>
-                  <Input
+                  <InputMoeda formato="virgula" onValorChange={v => setEditForm({ ...editForm, valorSeguroVida: v })}
                     value={editForm.valorSeguroVida}
-                    onChange={e => setEditForm({ ...editForm, valorSeguroVida: e.target.value })}
                     placeholder="Ex: 11,90"
                   />
                   <p className="text-xs text-muted-foreground">Digite o valor exato que é descontado mensalmente.</p>
@@ -430,9 +430,8 @@ export default function RelacaoSeguroVida() {
             {novoForm.temSeguroVida && (
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Valor descontado na folha (R$)</Label>
-                <Input
+                <InputMoeda formato="virgula" onValorChange={v => setNovoForm(f => ({ ...f, valorSeguroVida: v }))}
                   value={novoForm.valorSeguroVida}
-                  onChange={e => setNovoForm(f => ({ ...f, valorSeguroVida: e.target.value }))}
                   placeholder="Ex: 11,90"
                 />
               </div>

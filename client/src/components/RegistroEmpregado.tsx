@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InputMoeda } from "@/components/InputMoeda";
+import { mascaraRg } from "@/lib/mascaras";
 import {
   Pencil, Plus, Trash2, Users, Laptop, User, IdCard, Briefcase, Clock, UserCheck, GraduationCap,
   BookOpen, Landmark, Gift, Bus, Utensils, HeartPulse, ShieldCheck, Smile, Dumbbell,
@@ -231,7 +233,7 @@ function DependentesLista({ colaboradorId, dependentes }: { colaboradorId: numbe
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="dep-rg">RG</Label>
-              <Input id="dep-rg" value={form.rg} maxLength={20} onChange={e => setForm({ ...form, rg: e.target.value })} />
+              <Input id="dep-rg" value={form.rg} maxLength={20} onChange={e => setForm({ ...form, rg: mascaraRg(e.target.value) })} />
             </div>
             <label className="flex items-center justify-between gap-3 self-end rounded-lg border border-border px-3 py-2">
               <span className="text-sm">Dependente para IR</span>
@@ -468,8 +470,8 @@ export default function RegistroEmpregado({ colaboradorId, editando, form, setFo
                 </Select>
               </CampoEdicao>
               <CampoEdicao rotulo="Valor do seguro">
-                <Input aria-label="Valor do seguro" className="h-8 text-sm" placeholder="0,00" disabled={form.temSeguroVida !== "sim"} value={form.valorSeguroVida ?? ""}
-                  onChange={e => muda("valorSeguroVida")(e.target.value)} />
+                <InputMoeda formato="virgula" onValorChange={v => muda("valorSeguroVida")(v)} aria-label="Valor do seguro" className="h-8 text-sm" placeholder="0,00" disabled={form.temSeguroVida !== "sim"} value={form.valorSeguroVida ?? ""}
+                   />
               </CampoEdicao>
             </div>
             {["planoOdontologico", "totalpass"].map(ch => linhaOuCampo(ch, HeartPulse))}
@@ -603,7 +605,7 @@ export function DependentesNovo({ lista, onChange }: { lista: DependenteRascunho
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-foreground/70" htmlFor="novo-dep-rg">RG</Label>
-          <Input id="novo-dep-rg" className="h-9" value={form.rg} maxLength={20} onChange={e => setForm({ ...form, rg: e.target.value })} />
+          <Input id="novo-dep-rg" className="h-9" value={form.rg} maxLength={20} onChange={e => setForm({ ...form, rg: mascaraRg(e.target.value) })} />
         </div>
         <label className="flex items-center justify-between gap-3 self-end rounded-lg border border-border px-3 py-1.5">
           <span className="text-sm">Dependente para IR</span>

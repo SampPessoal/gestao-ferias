@@ -14,6 +14,7 @@ import { Link } from "wouter";
 import { toast } from "sonner";
 import { calcularStatus, statusColor, statusLabel, formatDate, diasRestantes, toDateStr, calcPeriodoFerias } from "@/lib/ferias";
 
+import { mascaraInteiro } from "@/lib/mascaras";
 function InfoRow({ label, value, highlight }: { label: string; value: React.ReactNode; highlight?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-2 py-2 border-b border-border/40 last:border-0">
@@ -342,13 +343,13 @@ export default function FeriasDetalhe({ id }: { id: number }) {
             <div className="space-y-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Dias de Direito</Label>
-                <Input type="number" className="h-8 text-sm" value={form.diasDireito}
-                  onChange={e => setForm({ ...form, diasDireito: e.target.value })} min={0} max={30} />
+                <Input type="text" inputMode="numeric" className="h-8 text-sm" value={form.diasDireito}
+                  onChange={e => setForm({ ...form, diasDireito: mascaraInteiro(e.target.value, 2) })} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Saldo de Férias</Label>
-                <Input type="number" className="h-8 text-sm" value={form.saldo}
-                  onChange={e => setForm({ ...form, saldo: e.target.value })} min={0} max={30} />
+                <Input type="text" inputMode="numeric" className="h-8 text-sm" value={form.saldo}
+                  onChange={e => setForm({ ...form, saldo: mascaraInteiro(e.target.value, 3) })} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Venda 10 dias</Label>

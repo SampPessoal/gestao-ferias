@@ -36,6 +36,7 @@ import { SortableTableHead } from "@/components/SortableHeader";
 import { NomeColaborador } from "@/components/NomeColaborador";
 import { toDateStr, formatDateBR, situacaoSaida, umMesAntes, diasPerdidosPenalidade } from "@/lib/ferias";
 
+import { mascaraInteiro, mascaraPeriodo } from "@/lib/mascaras";
 const MESES = [
   { value: "1", label: "Janeiro" },
   { value: "2", label: "Fevereiro" },
@@ -1113,13 +1114,10 @@ export default function RelacaoFerias() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Dias Gozados</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={30}
+                <Input type="text" inputMode="numeric"
                   className="h-8 text-sm"
                   value={form.diasGozados}
-                  onChange={(e) => handleDiasChange(e.target.value)}
+                  onChange={(e) => handleDiasChange(mascaraInteiro(e.target.value, 2))}
                   placeholder="Ex: 20"
                 />
               </div>
@@ -1175,11 +1173,10 @@ export default function RelacaoFerias() {
               {form.venda10 === "SIM" && (
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">Dias vendidos</Label>
-                  <Input
-                    type="number"
+                  <Input type="text" inputMode="numeric"
                     className="h-8 text-sm"
                     value={form.diasVendidos}
-                    onChange={(e) => setForm({ ...form, diasVendidos: e.target.value })}
+                    onChange={(e) => setForm({ ...form, diasVendidos: mascaraInteiro(e.target.value, 2) })}
                     placeholder="10"
                   />
                 </div>
@@ -1192,7 +1189,7 @@ export default function RelacaoFerias() {
               <Input
                 className="h-8 text-sm"
                 value={form.periodoRef}
-                onChange={(e) => setForm({ ...form, periodoRef: e.target.value })}
+                onChange={(e) => setForm({ ...form, periodoRef: mascaraPeriodo(e.target.value) })}
                 placeholder="Ex: 01/01/2024 a 31/12/2024"
               />
             </div>

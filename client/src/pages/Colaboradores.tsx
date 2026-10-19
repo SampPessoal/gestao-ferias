@@ -23,6 +23,8 @@ import { UFS } from "@shared/registroEmpregado";
 import { BANCOS_BR } from "@/lib/bancos";
 import { calcPeriodoFerias } from "@/lib/ferias";
 
+import { InputMoeda } from "@/components/InputMoeda";
+import { mascaraAgencia, mascaraChavePix, mascaraConta, mascaraInteiro, mascaraSerieCtps, mascaraTituloEleitor } from "@/lib/mascaras";
 type NovoColabForm = {
   nome: string; codigo: string; empresaId: string; setorId: string;
   admissao: string; periodoAquisitivo: string; vencimento: string;
@@ -622,8 +624,8 @@ export default function Colaboradores() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Código / Matrícula</Label>
-                    <Input className="h-9" placeholder="Ex: 00123" value={novoColab.codigo}
-                      onChange={e => setNovoColab(prev => ({ ...prev, codigo: e.target.value }))} />
+                    <Input inputMode="numeric" className="h-9" placeholder="Ex: 00123" value={novoColab.codigo}
+                      onChange={e => setNovoColab(prev => ({ ...prev, codigo: mascaraInteiro(e.target.value, 10) }))} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">CPF</Label>
@@ -754,14 +756,14 @@ export default function Colaboradores() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Qtd. Filhos</Label>
-                    <Input className="h-9" type="number" min={1} max={20} placeholder="0" value={novoColab.qtdFilhos}
+                    <Input className="h-9" type="text" inputMode="numeric" placeholder="0" value={novoColab.qtdFilhos}
                       disabled={!novoColab.temFilhos}
-                      onChange={e => setNovoColab(prev => ({ ...prev, qtdFilhos: e.target.value }))} />
+                      onChange={e => setNovoColab(prev => ({ ...prev, qtdFilhos: mascaraInteiro(e.target.value, 2) }))} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Idade na Admissão</Label>
-                    <Input className="h-9" type="number" min={14} max={99} placeholder="Ex: 25" value={novoColab.idadeAdmissao}
-                      onChange={e => setNovoColab(prev => ({ ...prev, idadeAdmissao: e.target.value }))} />
+                    <Input className="h-9" type="text" inputMode="numeric" placeholder="Ex: 25" value={novoColab.idadeAdmissao}
+                      onChange={e => setNovoColab(prev => ({ ...prev, idadeAdmissao: mascaraInteiro(e.target.value, 2) }))} />
                   </div>
                 </div>
               </div>
@@ -904,7 +906,7 @@ export default function Colaboradores() {
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-foreground/70">Série</Label>
                       <Input className="h-9" placeholder="Ex: 0001-BA" value={novoColab.ctpsSerie}
-                        onChange={e => setNovoColab(prev => ({ ...prev, ctpsSerie: e.target.value.toUpperCase() }))} />
+                        onChange={e => setNovoColab(prev => ({ ...prev, ctpsSerie: mascaraSerieCtps(e.target.value) }))} />
                     </div>
                   )}
                   <CampoRegistroNovo chave="ctpsUf" form={registroNovo} onChange={setRegistroCampo} />
@@ -920,7 +922,7 @@ export default function Colaboradores() {
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Número</Label>
                     <Input className="h-9" placeholder="0000 0000 0000" value={novoColab.tituloEleitor}
-                      onChange={e => setNovoColab(prev => ({ ...prev, tituloEleitor: e.target.value }))} />
+                      onChange={e => setNovoColab(prev => ({ ...prev, tituloEleitor: mascaraTituloEleitor(e.target.value) }))} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Zona</Label>
@@ -1123,13 +1125,13 @@ export default function Colaboradores() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Dias de Direito</Label>
-                    <Input className="h-9" type="number" min={1} max={30} value={novoColab.diasDireito}
-                      onChange={e => setNovoColab(prev => ({ ...prev, diasDireito: e.target.value }))} />
+                    <Input className="h-9" type="text" inputMode="numeric" value={novoColab.diasDireito}
+                      onChange={e => setNovoColab(prev => ({ ...prev, diasDireito: mascaraInteiro(e.target.value, 2) }))} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Saldo de Férias</Label>
-                    <Input className="h-9" type="number" min={0} max={30} value={novoColab.saldo}
-                      onChange={e => setNovoColab(prev => ({ ...prev, saldo: e.target.value }))} />
+                    <Input className="h-9" type="text" inputMode="numeric" value={novoColab.saldo}
+                      onChange={e => setNovoColab(prev => ({ ...prev, saldo: mascaraInteiro(e.target.value, 3) }))} />
                   </div>
                 </div>
               </div>
@@ -1175,15 +1177,15 @@ export default function Colaboradores() {
                 <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-foreground/70">VR (R$ por dia)</Label>
-                          <Input className="h-9" type="number" min={0} step={0.01} placeholder="Ex: 39.52"
+                          <InputMoeda onValorChange={v => setNovoColab(prev => ({ ...prev, valorVR: v }))} className="h-9" placeholder="Ex: 39,52"
                             value={novoColab.valorVR}
-                            onChange={e => setNovoColab(prev => ({ ...prev, valorVR: e.target.value }))} />
+                             />
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-foreground/70">VT (R$ por dia)</Label>
-                          <Input className="h-9" type="number" min={0} step={0.01} placeholder="Ex: 10.00"
+                          <InputMoeda onValorChange={v => setNovoColab(prev => ({ ...prev, valorVT: v }))} className="h-9" placeholder="Ex: 10,00"
                             value={novoColab.valorVT}
-                            onChange={e => setNovoColab(prev => ({ ...prev, valorVT: e.target.value }))} />
+                             />
                         </div>
                   <CampoRegistroNovo chave="motivoSemVT" form={registroNovo} onChange={setRegistroCampo} />
                   <CampoRegistroNovo chave="descontoVT" form={registroNovo} onChange={setRegistroCampo} />
@@ -1200,8 +1202,8 @@ export default function Colaboradores() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Valor do seguro</Label>
-                    <Input className="h-9" aria-label="Valor do seguro" placeholder="0,00" disabled={compNovo.temSeguroVida !== "sim"} value={compNovo.valorSeguroVida ?? ""}
-                      onChange={e => setComp("valorSeguroVida", e.target.value)} />
+                    <InputMoeda formato="virgula" onValorChange={v => setComp("valorSeguroVida", v)} className="h-9" aria-label="Valor do seguro" placeholder="0,00" disabled={compNovo.temSeguroVida !== "sim"} value={compNovo.valorSeguroVida ?? ""}
+                       />
                   </div>
                   <CampoRegistroNovo chave="planoOdontologico" form={registroNovo} onChange={setRegistroCampo} />
                   <CampoRegistroNovo chave="totalpass" form={registroNovo} onChange={setRegistroCampo} />
@@ -1257,12 +1259,12 @@ export default function Colaboradores() {
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Agência</Label>
                     <Input className="h-9" aria-label="Agência" placeholder="Ex: 1234-5" value={compNovo.bancoAgencia ?? ""} maxLength={20}
-                      onChange={e => setComp("bancoAgencia", e.target.value)} />
+                      onChange={e => setComp("bancoAgencia", mascaraAgencia(e.target.value))} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Conta</Label>
                     <Input className="h-9" aria-label="Conta" placeholder="Ex: 12345-6" value={compNovo.bancoConta ?? ""} maxLength={30}
-                      onChange={e => setComp("bancoConta", e.target.value)} />
+                      onChange={e => setComp("bancoConta", mascaraConta(e.target.value))} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Tipo de chave PIX</Label>
@@ -1281,7 +1283,7 @@ export default function Colaboradores() {
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Chave PIX</Label>
                     <Input className="h-9" aria-label="Chave PIX" placeholder="Chave PIX" value={compNovo.bancoChavePix ?? ""} maxLength={150}
-                      onChange={e => setComp("bancoChavePix", e.target.value)} />
+                      onChange={e => setComp("bancoChavePix", mascaraChavePix(compNovo.bancoTipoChavePix, e.target.value))} />
                   </div>
                 </div>
               </div>

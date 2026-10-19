@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { formatDate, toDateStr } from "@/lib/ferias";
 import { BANCOS_BR } from "@/lib/bancos";
 
+import { mascaraChavePix, mascaraInteiro, mascaraSerieCtps } from "@/lib/mascaras";
 const ESTADOS_CIVIS: Record<string, string> = {
   solteiro: "Solteiro(a)", casado: "Casado(a)", divorciado: "Divorciado(a)",
   viuvo: "Viúvo(a)", uniao_estavel: "União Estável", outro: "Outro",
@@ -628,11 +629,11 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
                 </EditField>
                 {fichaForm.temFilhos && (
                   <EditField label="Qtd. de Filhos">
-                    <Input type="number" min={1} className="h-8 text-sm" value={fichaForm.qtdFilhos} onChange={e => setFichaForm({ ...fichaForm, qtdFilhos: e.target.value })} />
+                    <Input type="text" inputMode="numeric" className="h-8 text-sm" value={fichaForm.qtdFilhos} onChange={e => setFichaForm({ ...fichaForm, qtdFilhos: mascaraInteiro(e.target.value, 2) })} />
                   </EditField>
                 )}
                 <EditField label="Idade na Admissão">
-                  <Input type="number" min={14} max={80} className="h-8 text-sm" value={fichaForm.idadeAdmissao} onChange={e => setFichaForm({ ...fichaForm, idadeAdmissao: e.target.value })} placeholder="Ex: 25" />
+                  <Input type="text" inputMode="numeric" className="h-8 text-sm" value={fichaForm.idadeAdmissao} onChange={e => setFichaForm({ ...fichaForm, idadeAdmissao: mascaraInteiro(e.target.value, 2) })} placeholder="Ex: 25" />
                 </EditField>
               </div>
             ) : (
@@ -855,7 +856,7 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
                     />
                   </EditField>
                   <EditField label="Série (preenchida automaticamente)">
-                    <Input className="h-8 text-sm" value={fichaForm.ctpsSerie} onChange={e => setFichaForm({ ...fichaForm, ctpsSerie: e.target.value })} placeholder="Ex: 0040-BA" maxLength={15} />
+                    <Input className="h-8 text-sm" value={fichaForm.ctpsSerie} onChange={e => setFichaForm({ ...fichaForm, ctpsSerie: mascaraSerieCtps(e.target.value) })} placeholder="Ex: 0040-BA" maxLength={15} />
                   </EditField>
                 </>
               )}
@@ -1041,7 +1042,7 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
             </EditField>
             {fichaForm.bancoTipoChavePix && fichaForm.bancoTipoChavePix !== "nao_tem" && (
               <EditField label="Chave PIX">
-                <Input className="h-8 text-sm" value={fichaForm.bancoChavePix} onChange={e => setFichaForm({ ...fichaForm, bancoChavePix: e.target.value })} placeholder={
+                <Input className="h-8 text-sm" value={fichaForm.bancoChavePix} onChange={e => setFichaForm({ ...fichaForm, bancoChavePix: mascaraChavePix(fichaForm.bancoTipoChavePix, e.target.value) })} placeholder={
                   fichaForm.bancoTipoChavePix === "cpf" ? "000.000.000-00" :
                   fichaForm.bancoTipoChavePix === "email" ? "email@exemplo.com" :
                   fichaForm.bancoTipoChavePix === "telefone" ? "(00) 9 0000-0000" :

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
+import { mascaraInteiro } from "@/lib/mascaras";
 import {
   Receipt, RefreshCw, Printer, Download, Search,
   Building2, TrendingDown, Wallet, Heart, Shield,
@@ -852,9 +853,8 @@ export default function FolhaMes() {
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-white/60 font-medium">Dias Úteis</span>
-              <Input
-                type="number" min={1} max={31} value={diasUteis}
-                onChange={e => setDiasUteis(Number(e.target.value))}
+              <Input type="text" inputMode="numeric" value={diasUteis}
+                onChange={e => setDiasUteis(Number(mascaraInteiro(e.target.value, 2)))}
                 className="w-20 bg-white/10 border-white/20 text-white h-9"
               />
             </div>
