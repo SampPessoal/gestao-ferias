@@ -19,7 +19,7 @@ import {
   BookOpen, Landmark, Gift, Bus, Utensils, HeartPulse, ShieldCheck, Smile, Dumbbell,
 } from "lucide-react";
 import {
-  CAMPOS_REGISTRO, GRUPOS_REGISTRO, PARENTESCOS, rotuloOpcao,
+  CAMPOS_REGISTRO, GRUPOS_REGISTRO, PARENTESCOS, rotuloOpcao, NAO_SE_APLICA, ehNaoSeAplica, aplicarCampo,
   type CampoRegistro, type Dependente, type GrupoRegistro,
 } from "@shared/registroEmpregado";
 
@@ -67,6 +67,7 @@ const idade = (iso: string | null) => {
 /** Valor de um campo como texto para leitura. */
 function exibir(c: CampoRegistro, v: string | null | undefined): string {
   if (!v) return "";
+  if (ehNaoSeAplica(v)) return "Não se aplica";
   if (c.tipo === "opcao") return rotuloOpcao(c, v);
   if (c.tipo === "data") return dataBR(v);
   if (c.tipo === "moeda") return moedaBR(v);
@@ -312,10 +313,27 @@ function CampoEdicao({ rotulo, children }: { rotulo: string; children: React.Rea
 }
 
 /** Entrada no padrão do modo de edição da ficha: seletores e campos de altura h-8. */
-function EntradaFicha({ campo, valor, onChange, altura = "h-8", nome }: { campo: CampoRegistro; valor: string; onChange: (v: string) => void; altura?: string; nome?: string }) {
+/** Campo do registro; com "naoSeAplica" mostra a caixa "Não se aplica" logo abaixo. */
+function EntradaFicha(props: { campo: CampoRegistro; valor: string; onChange: (v: string) => void; altura?: string; nome?: string; desabilitado?: boolean }) {
+  const { campo, valor, onChange, desabilitado } = props;
+  if (!campo.naoSeAplica) return <EntradaBase {...props} />;
+  const na = ehNaoSeAplica(valor);
+  return (
+    <div className="space-y-1.5">
+      <EntradaBase {...props} valor={na ? "" : valor} desabilitado={desabilitado || na} />
+      <label className="flex w-fit cursor-pointer items-center gap-2 text-xs text-muted-foreground select-none">
+        <input type="checkbox" className="h-3.5 w-3.5 accent-[oklch(0.35_0.09_255)]" checked={na} disabled={desabilitado}
+          onChange={e => onChange(e.target.checked ? NAO_SE_APLICA : "")} />
+        Não se aplica
+      </label>
+    </div>
+  );
+}
+
+function EntradaBase({ campo, valor, onChange, altura = "h-8", nome, desabilitado }: { campo: CampoRegistro; valor: string; onChange: (v: string) => void; altura?: string; nome?: string; desabilitado?: boolean }) {
   if (campo.tipo === "opcao") {
     return (
-      <Select value={valor || "__vazio"} onValueChange={v => onChange(v === "__vazio" ? "" : v)}>
+      <Select value={valor || "__vazio"} disabled={desabilitado} onValueChange={v => onChange(v === "__vazio" ? "" : v)}>
         <SelectTrigger className={`${altura} w-full text-sm`} aria-label={nome ?? campo.rotulo}><SelectValue placeholder="Selecione" /></SelectTrigger>
         <SelectContent className="max-h-64">
           <SelectItem value="__vazio">Não informado</SelectItem>
@@ -324,7 +342,7 @@ function EntradaFicha({ campo, valor, onChange, altura = "h-8", nome }: { campo:
       </Select>
     );
   }
-  const base = { className: `${altura} text-sm`, value: valor, "aria-label": nome ?? campo.rotulo };
+  const base = { className: `${altura} text-sm`, value: valor, "aria-label": nome ?? campo.rotulo, disabled: desabilitado };
   switch (campo.tipo) {
     case "data": return <Input type="date" {...base} onChange={e => onChange(e.target.value)} />;
     case "hora": return <Input type="time" {...base} onChange={e => onChange(e.target.value)} />;
@@ -391,7 +409,7 @@ export default function RegistroEmpregado({ colaboradorId, editando, form, setFo
   setForm: (f: FormRegistro) => void;
 }) {
   const { data, isLoading, isError, refetch } = trpc.registroEmpregado.get.useQuery({ colaboradorId });
-  const muda = (chave: string) => (v: string) => setForm({ ...form, [chave]: v });
+  const muda = (chave: string) => (v: string) => setForm(aplicarCampo(form, chave, v));
 
   if (isLoading) {
     return <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}</div>;
@@ -409,7 +427,7 @@ export default function RegistroEmpregado({ colaboradorId, editando, form, setFo
   const linhaOuCampo = (chave: string, icone: React.ElementType) => {
     const c = campoPor(chave);
     return editando
-      ? <CampoEdicao key={chave} rotulo={c.rotulo}><EntradaFicha campo={c} valor={form[chave] ?? ""} onChange={muda(chave)} /></CampoEdicao>
+      ? <CampoEdicao key={chave} rotulo={c.rotulo}><EntradaFicha campo={c} valor={form[chave] ?? ""} onChange={muda(chave)} desabilitado={!!c.dependeDe && ehNaoSeAplica(form[c.dependeDe])} /></CampoEdicao>
       : <Linha key={chave} rotulo={c.rotulo} valor={exibir(c, data.campos[chave])} icone={icone} />;
   };
   const simNao = (v: boolean | null) => (v === true ? "Sim" : v === false ? "Não" : "");
@@ -547,7 +565,8 @@ export function CampoRegistroNovo({ chave, form, onChange, rotulo, className }: 
   return (
     <div className={`space-y-1.5 ${className ?? ""}`}>
       <Label className="text-xs font-medium text-foreground/70">{rotulo ?? c.rotulo}</Label>
-      <EntradaFicha campo={c} valor={form[chave] ?? ""} onChange={v => onChange(chave, v)} altura="h-9" nome={rotulo ?? c.rotulo} />
+      <EntradaFicha campo={c} valor={form[chave] ?? ""} onChange={v => onChange(chave, v)} altura="h-9" nome={rotulo ?? c.rotulo}
+        desabilitado={!!c.dependeDe && ehNaoSeAplica(form[c.dependeDe])} />
     </div>
   );
 }
