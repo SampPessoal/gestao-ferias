@@ -106,7 +106,7 @@ export const CAMPOS_REGISTRO: CampoRegistro[] = [
     { valor: "sim", rotulo: "Sim" }, { valor: "nao_se_aplica", rotulo: "Não se aplica" },
   ] },
   { chave: "empresaEstagio", rotulo: "Empresa vinculada", tipo: "opcao", grupo: "formacao", opcoes: [
-    { valor: "a3_estagios", rotulo: "A3 Estágios" }, { valor: "sudoeste", rotulo: "Sudoeste" }, { valor: "nao_se_aplica", rotulo: "Não se aplica" },
+    { valor: "a3_estagios", rotulo: "A3 Estágios" }, { valor: "empresa", rotulo: "Própria empresa" }, { valor: "nao_se_aplica", rotulo: "Não se aplica" },
   ] },
   { chave: "apoliceSeguro", rotulo: "Apólice de seguro (nº)", tipo: "texto", grupo: "formacao", max: 50, naoSeAplica: true },
 
@@ -152,3 +152,12 @@ export type Dependente = {
 
 export const rotuloOpcao = (c: CampoRegistro | undefined, valor: string | null | undefined) =>
   (valor && c?.opcoes?.find(o => o.valor === valor)?.rotulo) || valor || "";
+
+/**
+ * Campo do registro com as opções ajustadas ao colaborador: em "Empresa vinculada",
+ * a opção "Própria empresa" mostra o nome da empresa dele (SOLAR, FREIRE...).
+ */
+export function campoParaColaborador(c: CampoRegistro, empresaNome?: string | null): CampoRegistro {
+  if (c.chave !== "empresaEstagio" || !empresaNome) return c;
+  return { ...c, opcoes: c.opcoes!.map(o => (o.valor === "empresa" ? { ...o, rotulo: empresaNome } : o)) };
+}
