@@ -7,7 +7,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { colaboradores, dependentes, movimentacaoAuxilioNotebook, planoSaude } from "../drizzle/schema";
+import { colaboradores, dependentes, movimentacaoAuxilioCreche, movimentacaoAuxilioNotebook, planoSaude } from "../drizzle/schema";
 import { CAMPOS_REGISTRO, PARENTESCOS, UFS, type CampoRegistro, type Dependente, type RegistroEmpregado } from "../shared/registroEmpregado";
 
 const so = (d: string) => d.replace(/\D/g, "");
@@ -146,20 +146,51 @@ export async function lerRegistroEmpregado(colaboradorId: number) {
   const [ben] = await db.select({
     valorVR: colaboradores.valorVR, valorVT: colaboradores.valorVT,
     temSeguroVida: colaboradores.temSeguroVida, valorSeguroVida: colaboradores.valorSeguroVida,
+    auxilioVeiculo: colaboradores.auxilioVeiculo, auxilioVeiculoFolha: colaboradores.auxilioVeiculoFolha,
+    auxilioCelularFolha: colaboradores.auxilioCelularFolha,
   }).from(colaboradores).where(eq(colaboradores.id, colaboradorId)).limit(1);
-  const [plano] = await db.select({ plano: planoSaude.plano, mes: planoSaude.mesReferencia, ano: planoSaude.anoReferencia })
+  const [plano] = await db.select({
+    plano: planoSaude.plano, mes: planoSaude.mesReferencia, ano: planoSaude.anoReferencia,
+    empresa: planoSaude.empresa, numero: planoSaude.numeroBeneficiario,
+  })
     .from(planoSaude)
     .where(and(eq(planoSaude.colaboradorId, colaboradorId), eq(planoSaude.tipo, "T"), eq(planoSaude.ativo, true)))
     .orderBy(desc(planoSaude.anoReferencia), desc(planoSaude.mesReferencia))
     .limit(1);
+  // Dependentes no plano de saúde (mesma competência do titular)
+  let dependentesPlano = 0;
+  if (plano) {
+    const deps = await db.select({ id: planoSaude.id }).from(planoSaude).where(and(
+      eq(planoSaude.empresa, plano.empresa), eq(planoSaude.titularNumeroBeneficiario, plano.numero),
+      eq(planoSaude.tipo, "D"), eq(planoSaude.ativo, true),
+      eq(planoSaude.mesReferencia, plano.mes), eq(planoSaude.anoReferencia, plano.ano),
+    ));
+    dependentesPlano = deps.length;
+  }
+  // Auxílio creche: por filho; ativo quando o último lançamento do filho é uma inclusão
+  const movCreche = await db.select().from(movimentacaoAuxilioCreche)
+    .where(eq(movimentacaoAuxilioCreche.colaboradorId, colaboradorId))
+    .orderBy(movimentacaoAuxilioCreche.competenciaAno, movimentacaoAuxilioCreche.competenciaMes, movimentacaoAuxilioCreche.id);
+  const ultimoPorFilho = new Map<string, typeof movCreche[number]>();
+  for (const m of movCreche) ultimoPorFilho.set(m.nomeFilho.trim().toUpperCase(), m);
+  const crecheAtivos = Array.from(ultimoPorFilho.values()).filter(m => m.tipo === "incluir");
+  const creche = movCreche.length ? {
+    ativo: crecheAtivos.length > 0,
+    filhos: crecheAtivos.length,
+    valor: crecheAtivos.length ? crecheAtivos.reduce((t, m) => t + Number(m.valor ?? 0), 0).toFixed(2) : null,
+  } : null;
   return {
     campos,
     beneficios: {
+      auxilioVeiculo: ben?.auxilioVeiculo ?? null,
+      auxilioVeiculoFolha: ben?.auxilioVeiculoFolha ?? null,
+      auxilioCelularFolha: ben?.auxilioCelularFolha ?? null,
+      creche,
       valorVR: ben?.valorVR ?? null,
       valorVT: ben?.valorVT ?? null,
       temSeguroVida: ben?.temSeguroVida ?? null,
       valorSeguroVida: ben?.valorSeguroVida ?? null,
-      planoSaude: plano ? { plano: plano.plano, competencia: `${String(plano.mes).padStart(2, "0")}/${plano.ano}` } : null,
+      planoSaude: plano ? { plano: plano.plano, competencia: `${String(plano.mes).padStart(2, "0")}/${plano.ano}`, dependentes: dependentesPlano } : null,
     },
     dependentes: deps.map((d): Dependente => ({
       id: d.id, nome: d.nome, parentesco: d.parentesco, dataNascimento: dataStr(d.dataNascimento),
