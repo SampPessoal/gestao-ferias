@@ -205,3 +205,25 @@ describe("Não se aplica (CNH e apólice de seguro)", () => {
     expect(JSON.stringify([...f.values()])).toContain("Apólice nº 123456");
   });
 });
+
+describe("Campo Empresa: nome da própria empresa em cada modelo", () => {
+  const comEmpresa = (empresa: string, valor: string | null) => ({
+    ...colab, empresaNome: empresa, registro: { campos: { empresaEstagio: valor }, dependentes: [], notebook: null },
+  } as unknown as DadosFichaRegistro);
+  const campoEmpresa = (m: ModeloFicha) => {
+    const f = campos(m);
+    const chave = [...f.keys()].find(k => k.replace(/,$/, "").trim() === "EMPRESA")!;
+    return f.get(chave)!.replace(/\s+/g, " ");
+  };
+  for (const empresa of Object.keys(MODELOS)) {
+    it(`${empresa}: mostra ${empresa} e marca quando é a própria empresa`, () => {
+      const vazio = campoEmpresa(preencherModelo(MODELOS[empresa], montarMapaFichaRegistro(comEmpresa(empresa, null), "2026-10-13")));
+      expect(vazio).toContain(`( ) ${empresa}`);
+      if (empresa !== "SUDOESTE") expect(vazio).not.toContain("SUDOESTE");
+      const propria = campoEmpresa(preencherModelo(MODELOS[empresa], montarMapaFichaRegistro(comEmpresa(empresa, "empresa"), "2026-10-13")));
+      expect(propria).toContain(`(X) ${empresa}`);
+      const antigo = campoEmpresa(preencherModelo(MODELOS[empresa], montarMapaFichaRegistro(comEmpresa(empresa, "sudoeste"), "2026-10-13")));
+      expect(antigo).toContain(`(X) ${empresa}`);
+    });
+  }
+});

@@ -102,6 +102,8 @@ async function garantirColunasNovas(client: ReturnType<typeof postgres>) {
       );
       CREATE INDEX IF NOT EXISTS "idx_dependentes_colab" ON "dependentes" ("colaboradorId");
     `);
+    // "Empresa vinculada": a opção que era "Sudoeste" passou a ser "a própria empresa do colaborador"
+    await client.unsafe(`UPDATE "colaboradores" SET "empresaEstagio" = 'empresa' WHERE "empresaEstagio" = 'sudoeste';`);
   } catch (error) {
     console.error("[Database] Falha ao garantir colunas novas:", (error as Error).message);
   }
