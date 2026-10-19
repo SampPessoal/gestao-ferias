@@ -8,7 +8,7 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { colaboradores, dependentes, movimentacaoAuxilioNotebook, planoSaude } from "../drizzle/schema";
-import { CAMPOS_REGISTRO, PARENTESCOS, type CampoRegistro, type Dependente, type RegistroEmpregado } from "../shared/registroEmpregado";
+import { CAMPOS_REGISTRO, PARENTESCOS, UFS, type CampoRegistro, type Dependente, type RegistroEmpregado } from "../shared/registroEmpregado";
 
 const so = (d: string) => d.replace(/\D/g, "");
 
@@ -75,10 +75,27 @@ const dependenteSchema = z.object({
 /** Dependente informado no cadastro de um colaborador novo (ainda sem id). */
 export const dependenteNovoSchema = dependenteSchema.omit({ id: true, colaboradorId: true });
 
+const textoOpcional = (max: number) => z.preprocess(v => (typeof v === "string" && v.trim() === "" ? null : v), z.string().trim().max(max).nullable()).optional();
+
+/** Campos da ficha que o cadastro novo passa a preencher: UF de naturalidade, seguro de vida e dados bancários. */
+const complementosSchema = z.object({
+  estado: z.preprocess(v => (v === "" ? null : v), z.enum(UFS as [string, ...string[]]).nullable()).optional(),
+  temSeguroVida: z.boolean().optional(),
+  valorSeguroVida: textoOpcional(20),
+  bancoCodigo: textoOpcional(10),
+  bancoNome: textoOpcional(100),
+  bancoAgencia: textoOpcional(20),
+  bancoConta: textoOpcional(30),
+  bancoTipoConta: z.preprocess(v => (v === "" ? null : v), z.enum(["corrente", "poupanca"]).nullable()).optional(),
+  bancoChavePix: textoOpcional(150),
+  bancoTipoChavePix: z.preprocess(v => (v === "" ? null : v), z.enum(["cpf", "email", "telefone", "aleatoria", "nao_tem"]).nullable()).optional(),
+}).strict();
+
 /** Registro de Empregado enviado junto com o cadastro de um colaborador novo. */
 export const registroInicialSchema = z.object({
   campos: camposSchema,
   dependentes: z.array(dependenteNovoSchema).max(20),
+  complementos: complementosSchema.optional(),
 });
 
 /** Grava os campos complementares e os dependentes de um colaborador recém-criado. */
@@ -86,6 +103,7 @@ export async function salvarRegistroInicial(colaboradorId: number, registro: z.i
   const db = await dbOuErro();
   const patch: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(registro.campos)) if (v !== undefined && v !== null) patch[k] = v;
+  for (const [k, v] of Object.entries(registro.complementos ?? {})) if (v !== undefined && v !== null) patch[k] = v;
   if (Object.keys(patch).length) {
     await db.update(colaboradores).set(patch as any).where(eq(colaboradores.id, colaboradorId));
   }
