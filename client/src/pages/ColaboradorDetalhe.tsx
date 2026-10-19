@@ -23,6 +23,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { formatDate, toDateStr } from "@/lib/ferias";
+import { BANCOS_BR } from "@/lib/bancos";
 
 const ESTADOS_CIVIS: Record<string, string> = {
   solteiro: "Solteiro(a)", casado: "Casado(a)", divorciado: "Divorciado(a)",
@@ -101,33 +102,6 @@ function getInitials(nome: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 const AVATAR_COLORS = ["#3b82f6","#10b981","#8b5cf6","#f59e0b","#ef4444","#06b6d4","#6366f1","#14b8a6"];
-const BANCOS_BR: { codigo: string; nome: string }[] = [
-  { codigo: "001", nome: "Banco do Brasil" },
-  { codigo: "033", nome: "Santander" },
-  { codigo: "041", nome: "Banrisul" },
-  { codigo: "077", nome: "Inter" },
-  { codigo: "104", nome: "Caixa Econômica Federal" },
-  { codigo: "121", nome: "Agibank" },
-  { codigo: "197", nome: "Stone" },
-  { codigo: "208", nome: "BTG Pactual" },
-  { codigo: "212", nome: "Banco Original" },
-  { codigo: "237", nome: "Bradesco" },
-  { codigo: "260", nome: "Nubank" },
-  { codigo: "290", nome: "PagBank" },
-  { codigo: "318", nome: "BMG" },
-  { codigo: "336", nome: "C6 Bank" },
-  { codigo: "341", nome: "Itaú" },
-  { codigo: "380", nome: "PicPay" },
-  { codigo: "389", nome: "Mercantil do Brasil" },
-  { codigo: "422", nome: "Safra" },
-  { codigo: "633", nome: "Rendimento" },
-  { codigo: "707", nome: "Daycoval" },
-  { codigo: "735", nome: "Neon" },
-  { codigo: "748", nome: "Sicredi" },
-  { codigo: "756", nome: "Sicoob" },
-  { codigo: "999", nome: "Outro" },
-];
-
 const TIPO_CHAVE_PIX_LABEL: Record<string, string> = {
   cpf: "CPF", email: "E-mail", telefone: "Telefone", aleatoria: "Aleatória",
 };

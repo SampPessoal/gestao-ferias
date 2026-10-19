@@ -310,11 +310,11 @@ function CampoEdicao({ rotulo, children }: { rotulo: string; children: React.Rea
 }
 
 /** Entrada no padrão do modo de edição da ficha: seletores e campos de altura h-8. */
-function EntradaFicha({ campo, valor, onChange }: { campo: CampoRegistro; valor: string; onChange: (v: string) => void }) {
+function EntradaFicha({ campo, valor, onChange, altura = "h-8", nome }: { campo: CampoRegistro; valor: string; onChange: (v: string) => void; altura?: string; nome?: string }) {
   if (campo.tipo === "opcao") {
     return (
       <Select value={valor || "__vazio"} onValueChange={v => onChange(v === "__vazio" ? "" : v)}>
-        <SelectTrigger className="h-8 w-full text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+        <SelectTrigger className={`${altura} w-full text-sm`} aria-label={nome ?? campo.rotulo}><SelectValue placeholder="Selecione" /></SelectTrigger>
         <SelectContent className="max-h-64">
           <SelectItem value="__vazio">Não informado</SelectItem>
           {campo.opcoes!.map(o => <SelectItem key={o.valor} value={o.valor}>{o.rotulo}</SelectItem>)}
@@ -322,7 +322,7 @@ function EntradaFicha({ campo, valor, onChange }: { campo: CampoRegistro; valor:
       </Select>
     );
   }
-  const base = { className: "h-8 text-sm", value: valor, "aria-label": campo.rotulo };
+  const base = { className: `${altura} text-sm`, value: valor, "aria-label": nome ?? campo.rotulo };
   switch (campo.tipo) {
     case "data": return <Input type="date" {...base} onChange={e => onChange(e.target.value)} />;
     case "hora": return <Input type="time" {...base} onChange={e => onChange(e.target.value)} />;
@@ -532,6 +532,24 @@ export function CamposRegistroNovo({ form, onChange }: {
   );
 }
 
+/** Um campo do Registro de Empregado no cadastro novo, no visual dos demais campos do cadastro. */
+export function CampoRegistroNovo({ chave, form, onChange, rotulo, className }: {
+  chave: string;
+  form: Record<string, string>;
+  onChange: (chave: string, valor: string) => void;
+  rotulo?: string;
+  className?: string;
+}) {
+  const c = CAMPOS_REGISTRO.find(x => x.chave === chave);
+  if (!c) return null;
+  return (
+    <div className={`space-y-1.5 ${className ?? ""}`}>
+      <Label className="text-xs font-medium text-foreground/70">{rotulo ?? c.rotulo}</Label>
+      <EntradaFicha campo={c} valor={form[chave] ?? ""} onChange={v => onChange(chave, v)} altura="h-9" nome={rotulo ?? c.rotulo} />
+    </div>
+  );
+}
+
 export type DependenteRascunho = {
   nome: string; parentesco: string; dataNascimento: string; cpf: string; rg: string; dependenteIR: boolean;
 };
@@ -603,10 +621,18 @@ export function DependentesNovo({ lista, onChange }: { lista: DependenteRascunho
 }
 
 /** Monta o registro para enviar no cadastro; undefined quando nada foi preenchido. */
-export function registroParaEnvio(campos: Record<string, string>, deps: DependenteRascunho[]) {
+export function registroParaEnvio(campos: Record<string, string>, deps: DependenteRascunho[], complementos: Record<string, string> = {}) {
   const preenchidos = Object.fromEntries(Object.entries(campos).filter(([, v]) => v && v.trim()));
-  if (!Object.keys(preenchidos).length && !deps.length) return undefined;
+  const comp: Record<string, string | boolean> = {};
+  for (const [k, v] of Object.entries(complementos)) {
+    if (!v || !v.trim()) continue;
+    if (k === "temSeguroVida") comp.temSeguroVida = v === "sim";
+    else comp[k] = v.trim();
+  }
+  if (comp.temSeguroVida !== true) delete comp.valorSeguroVida;
+  if (!Object.keys(preenchidos).length && !deps.length && !Object.keys(comp).length) return undefined;
   return {
+    complementos: comp,
     campos: preenchidos,
     dependentes: deps.map(d => ({
       nome: d.nome, parentesco: d.parentesco, dataNascimento: d.dataNascimento || null,

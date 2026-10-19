@@ -18,7 +18,9 @@ import { SortableHeader } from "@/components/SortableHeader";
 import { NomeColaborador } from "@/components/NomeColaborador";
 import { Link } from "wouter";
 import { toast } from "sonner";
-import { CamposRegistroNovo, DependentesNovo, registroParaEnvio, msgErro, type DependenteRascunho } from "@/components/RegistroEmpregado";
+import { CampoRegistroNovo, DependentesNovo, registroParaEnvio, msgErro, type DependenteRascunho } from "@/components/RegistroEmpregado";
+import { UFS } from "@shared/registroEmpregado";
+import { BANCOS_BR } from "@/lib/bancos";
 import { calcPeriodoFerias } from "@/lib/ferias";
 
 type NovoColabForm = {
@@ -170,6 +172,10 @@ export default function Colaboradores() {
   // Registro de Empregado do cadastro novo (campos complementares e dependentes)
   const [registroNovo, setRegistroNovo] = useState<Record<string, string>>({});
   const [dependentesNovo, setDependentesNovo] = useState<DependenteRascunho[]>([]);
+  // Campos da ficha que entram no cadastro: UF de naturalidade, seguro de vida e dados bancários
+  const [compNovo, setCompNovo] = useState<Record<string, string>>({});
+  const setComp = (k: string, v: string) => setCompNovo(prev => ({ ...prev, [k]: v }));
+  const setRegistroCampo = (k: string, v: string) => setRegistroNovo(prev => ({ ...prev, [k]: v }));
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [errosForm, setErrosForm] = useState<Record<string, string>>({});
   const { sort: sortColab, toggle: toggleSortColab, sortData: sortColabData } = useTableSort<"nome" | "empresaNome" | "setorNome" | "codigo" | "status">("nome", "asc");
@@ -193,7 +199,7 @@ export default function Colaboradores() {
     onSuccess: () => {
       toast.success(`Colaborador "${novoColab.nome}" cadastrado com sucesso!`);
       setModalAberto(false);
-      setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]);
+      setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setCompNovo({});
       utils.colaboradores.list.invalidate();
       utils.dashboard.stats.invalidate();
       utils.dashboard.statusPorEmpresa.invalidate();
@@ -274,7 +280,7 @@ export default function Colaboradores() {
     }
     const toIso = (br: string) => brToIso(br) || null;
     createMutation.mutate({
-      registro: registroParaEnvio(registroNovo, dependentesNovo) as any,
+      registro: registroParaEnvio(registroNovo, dependentesNovo, compNovo) as any,
       nome: novoColab.nome.trim(),
       codigo: novoColab.codigo.trim() || null,
       empresaId: novoColab.empresaId ? Number(novoColab.empresaId) : null,
@@ -350,7 +356,7 @@ export default function Colaboradores() {
                 <p className="text-sm mt-1" style={{ color: "oklch(0.65 0.008 240)" }}>Gerencie perfis, fichas técnicas e histórico de férias</p>
               </div>
             </div>
-            <Button onClick={() => { setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setModalAberto(true); }}
+            <Button onClick={() => { setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setCompNovo({}); setModalAberto(true); }}
               className="gap-2 font-semibold"
               style={{ background: "oklch(0.48 0.20 252)", color: "oklch(0.13 0.07 254)", border: "none" }}>
               <Plus className="w-4 h-4" />
@@ -556,7 +562,7 @@ export default function Colaboradores() {
       </div>
 
       {/* ── Modal Novo Colaborador ── */}
-      <Dialog open={modalAberto} onOpenChange={(open) => { if (!open) { setModalAberto(false); setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setErrosForm({}); } }}>
+      <Dialog open={modalAberto} onOpenChange={(open) => { if (!open) { setModalAberto(false); setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setCompNovo({}); setErrosForm({}); } }}>
         <DialogContent className="max-w-3xl w-[95vw] p-0 overflow-hidden max-h-[90vh] flex flex-col">
           {/* Header moderno com gradiente sutil */}
           <div className="relative px-6 pt-6 pb-4 border-b border-border/50 bg-gradient-to-r from-background to-muted/20 flex-shrink-0">
@@ -581,10 +587,11 @@ export default function Colaboradores() {
                   { value: "basico", label: "Básico", icon: "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" },
                   { value: "pessoal", label: "Pessoal", icon: "M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z" },
                   { value: "documentos", label: "Documentos", icon: "M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" },
-                  { value: "endereco", label: "Endereço", icon: "M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" },
-                  { value: "contato", label: "Contato", icon: "M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" },
-                  { value: "clt", label: "CLT / Benefícios", icon: "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" },
-                  { value: "registro", label: "Registro", icon: "M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" },
+                  { value: "endereco", label: "Endereço e Contato", icon: "M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" },
+                  { value: "contrato", label: "Contrato e Jornada", icon: "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" },
+                  { value: "formacao", label: "Formação e Estágio", icon: "M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342" },
+                  { value: "beneficios", label: "Benefícios", icon: "M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" },
+                  { value: "banco", label: "Banco e Dependentes", icon: "M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" },
                 ].map(tab => (
                   <TabsTrigger key={tab.value} value={tab.value}
                     className="flex items-center justify-center gap-1.5 h-9 text-xs font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground transition-all px-2">
@@ -599,13 +606,12 @@ export default function Colaboradores() {
 
             {/* ── ABA BÁSICO ── */}
             <TabsContent value="basico" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
-              {/* Bloco: Identificação */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
                   <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Identificação</span>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Nome completo <span className="text-destructive">*</span></Label>
                     <Input
@@ -619,21 +625,27 @@ export default function Colaboradores() {
                     <Input className="h-9" placeholder="Ex: 00123" value={novoColab.codigo}
                       onChange={e => setNovoColab(prev => ({ ...prev, codigo: e.target.value }))} />
                   </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">CPF</Label>
+                    <Input className="h-9" placeholder="000.000.000-00" value={novoColab.cpf}
+                      maxLength={14}
+                      onChange={e => setNovoColab(prev => ({ ...prev, cpf: maskCPF(e.target.value) }))} />
+                  </div>
+                  <CampoRegistroNovo chave="raca" form={registroNovo} onChange={setRegistroCampo} />
                 </div>
               </div>
 
-              {/* Bloco: Lotação */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Lotação</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Perfil Profissional</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Empresa <span className="text-destructive">*</span></Label>
                     <Select value={novoColab.empresaId || "none"}
                       onValueChange={v => { setNovoColab(prev => ({ ...prev, empresaId: v === "none" ? "" : v, setorId: "" })); setErrosForm(prev => ({ ...prev, empresaId: '' })); }}>
-                      <SelectTrigger className={`h-9 ${errosForm.empresaId ? 'border-destructive' : ''}`}><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+                      <SelectTrigger className={`h-9 w-full ${errosForm.empresaId ? 'border-destructive' : ''}`}><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Selecione a empresa</SelectItem>
                         {(empresas ?? []).map((e: any) => <SelectItem key={e.id} value={String(e.id)}>{e.nome}</SelectItem>)}
@@ -645,22 +657,68 @@ export default function Colaboradores() {
                     <Label className="text-xs font-medium text-foreground/70">Setor</Label>
                     <Select value={novoColab.setorId || "none"}
                       onValueChange={v => setNovoColab(prev => ({ ...prev, setorId: v === "none" ? "" : v }))}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                      <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Selecione o setor</SelectItem>
                         {(setoresFiltradosModal as any[]).map((s: any) => <SelectItem key={s.id} value={String(s.id)}>{s.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="col-span-2 space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Cargo</Label>
                     <Input className="h-9" placeholder="Ex: Auxiliar Administrativo" value={novoColab.cargo}
                       onChange={e => setNovoColab(prev => ({ ...prev, cargo: e.target.value }))} />
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Admissão</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Data de Admissão</Label>
+                    <Input className="h-9" type="text" placeholder="DD/MM/AAAA" maxLength={10} value={novoColab.admissao}
+                      onChange={e => handleAdmissaoChange(e.target.value)} />
+                    <p className="text-[10px] text-muted-foreground/60">Calcula automaticamente período aquisitivo, vencimento e prazo</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Observações</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-xs font-medium text-foreground/70">Observações</Label>
+                <Textarea className="text-sm resize-none" placeholder="Informações adicionais sobre o colaborador..." rows={3} value={novoColab.observacoes}
+                  onChange={e => setNovoColab(prev => ({ ...prev, observacoes: e.target.value }))} />
+              </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── ABA PESSOAL ── */}
+            <TabsContent value="pessoal" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Dados Pessoais</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Data de Nascimento</Label>
+                    <Input className="h-9" type="text" placeholder="DD/MM/AAAA" maxLength={10} value={novoColab.dataNascimento}
+                      onChange={e => setNovoColab(prev => ({ ...prev, dataNascimento: maskDate(e.target.value) }))} />
+                  </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Sexo</Label>
                     <Select value={novoColab.sexo || "none"} onValueChange={v => setNovoColab(prev => ({ ...prev, sexo: v === "none" ? "" : v }))}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Selecione</SelectItem>
                         <SelectItem value="masculino">Masculino</SelectItem>
@@ -669,20 +727,10 @@ export default function Colaboradores() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-              </div>
-
-              {/* Bloco: Dados Pessoais Básicos */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Dados Pessoais</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Estado Civil</Label>
                     <Select value={novoColab.estadoCivil || "none"} onValueChange={v => setNovoColab(prev => ({ ...prev, estadoCivil: v === "none" ? "" : v }))}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Selecione</SelectItem>
                         <SelectItem value="solteiro">Solteiro(a)</SelectItem>
@@ -695,54 +743,9 @@ export default function Colaboradores() {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Data de Nascimento</Label>
-                    <Input className="h-9" type="text" placeholder="DD/MM/AAAA" maxLength={10} value={novoColab.dataNascimento}
-                      onChange={e => setNovoColab(prev => ({ ...prev, dataNascimento: maskDate(e.target.value) }))} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Observações */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground/70">Observações</Label>
-                <Textarea className="text-sm resize-none" placeholder="Informações adicionais sobre o colaborador..." rows={3} value={novoColab.observacoes}
-                  onChange={e => setNovoColab(prev => ({ ...prev, observacoes: e.target.value }))} />
-              </div>
-            </TabsContent>
-
-            {/* ── ABA PESSOAL ── */}
-            <TabsContent value="pessoal" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
-              {/* Origem */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Origem</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Nacionalidade</Label>
-                    <Input className="h-9" placeholder="Ex: Brasileira" value={novoColab.nacionalidade}
-                      onChange={e => setNovoColab(prev => ({ ...prev, nacionalidade: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Naturalidade</Label>
-                    <Input className="h-9" placeholder="Ex: Salvador/BA" value={novoColab.naturalidade}
-                      onChange={e => setNovoColab(prev => ({ ...prev, naturalidade: e.target.value }))} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Família */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Família</span>
-                </div>
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Tem Filhos?</Label>
                     <Select value={novoColab.temFilhos ? "sim" : "nao"} onValueChange={v => setNovoColab(prev => ({ ...prev, temFilhos: v === "sim", qtdFilhos: v === "nao" ? "" : prev.qtdFilhos }))}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="nao">Não</SelectItem>
                         <SelectItem value="sim">Sim</SelectItem>
@@ -761,56 +764,72 @@ export default function Colaboradores() {
                       onChange={e => setNovoColab(prev => ({ ...prev, idadeAdmissao: e.target.value }))} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Naturalidade</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Nome do Pai</Label>
-                    <Input className="h-9" placeholder="Nome completo do pai" value={novoColab.nomePai}
-                      onChange={e => setNovoColab(prev => ({ ...prev, nomePai: e.target.value }))} />
+                    <Label className="text-xs font-medium text-foreground/70">Nacionalidade</Label>
+                    <Input className="h-9" placeholder="Ex: Brasileira" value={novoColab.nacionalidade}
+                      onChange={e => setNovoColab(prev => ({ ...prev, nacionalidade: e.target.value }))} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Nome da Mãe</Label>
-                    <Input className="h-9" placeholder="Nome completo da mãe" value={novoColab.nomeMae}
-                      onChange={e => setNovoColab(prev => ({ ...prev, nomeMae: e.target.value }))} />
+                    <Label className="text-xs font-medium text-foreground/70">Naturalidade</Label>
+                    <Input className="h-9" placeholder="Ex: Salvador/BA" value={novoColab.naturalidade}
+                      onChange={e => setNovoColab(prev => ({ ...prev, naturalidade: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Estado (UF)</Label>
+                    <Select value={compNovo.estado || "none"} onValueChange={v => setComp("estado", v === "none" ? "" : v)}>
+                      <SelectTrigger className="h-9 w-full" aria-label="Estado (UF)"><SelectValue placeholder="UF" /></SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="none">UF</SelectItem>
+                        {UFS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
 
-              {/* Emergência */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 rounded-full bg-destructive/70" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Contato de Emergência</span>
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Filiação</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Nome do Contato</Label>
-                    <Input className="h-9" placeholder="Nome completo" value={novoColab.contatoEmergenciaNome}
-                      onChange={e => setNovoColab(prev => ({ ...prev, contatoEmergenciaNome: e.target.value }))} />
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Nome do Pai</Label>
+                    <Input className="h-9" placeholder="Nome completo do pai" value={novoColab.nomePai}
+                      onChange={e => setNovoColab(prev => ({ ...prev, nomePai: e.target.value }))} />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Telefone de Emergência</Label>
-                    <Input className="h-9" placeholder="(71) 9 8177-0000" value={novoColab.contatoEmergenciaTelefone}
-                      maxLength={16}
-                      onChange={e => setNovoColab(prev => ({ ...prev, contatoEmergenciaTelefone: maskCelular(e.target.value) }))} />
+                  <CampoRegistroNovo chave="nacionalidadePai" form={registroNovo} onChange={setRegistroCampo} rotulo="Nacionalidade do Pai" />
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Nome da Mãe</Label>
+                    <Input className="h-9" placeholder="Nome completo da mãe" value={novoColab.nomeMae}
+                      onChange={e => setNovoColab(prev => ({ ...prev, nomeMae: e.target.value }))} />
                   </div>
+                  <CampoRegistroNovo chave="nacionalidadeMae" form={registroNovo} onChange={setRegistroCampo} rotulo="Nacionalidade da Mãe" />
                 </div>
               </div>
             </TabsContent>
 
             {/* ── ABA DOCUMENTOS ── */}
             <TabsContent value="documentos" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
-              {/* Documentos Principais */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Documentos Principais</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Documentos</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">CPF</Label>
-                    <Input className="h-9" placeholder="000.000.000-00" value={novoColab.cpf}
-                      maxLength={14}
-                      onChange={e => setNovoColab(prev => ({ ...prev, cpf: maskCPF(e.target.value) }))} />
+                    <Label className="text-xs font-medium text-foreground/70">RG</Label>
+                    <Input className="h-9" placeholder="00.000.000-0" value={novoColab.rg}
+                      maxLength={13}
+                      onChange={e => setNovoColab(prev => ({ ...prev, rg: maskRG(e.target.value) }))} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">PIS / PASEP</Label>
@@ -819,13 +838,14 @@ export default function Colaboradores() {
                       onChange={e => setNovoColab(prev => ({ ...prev, pis: maskPIS(e.target.value) }))} />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">RG</Label>
-                    <Input className="h-9" placeholder="00.000.000-0" value={novoColab.rg}
-                      maxLength={13}
-                      onChange={e => setNovoColab(prev => ({ ...prev, rg: maskRG(e.target.value) }))} />
-                  </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Expedição do RG</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Data de Expedição</Label>
                     <Input className="h-9" type="text" placeholder="DD/MM/AAAA" maxLength={10} value={novoColab.rgExpedicao}
@@ -839,17 +859,16 @@ export default function Colaboradores() {
                 </div>
               </div>
 
-              {/* CTPS */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Carteira de Trabalho (CTPS)</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Carteira de Trabalho</span>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Tipo</Label>
                     <Select value={novoColab.ctpsTipo} onValueChange={v => setNovoColab(prev => ({ ...prev, ctpsTipo: v, ctpsNumero: "", ctpsSerie: "" }))}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="fisica">Física</SelectItem>
                         <SelectItem value="digital">Digital</SelectItem>
@@ -888,10 +907,10 @@ export default function Colaboradores() {
                         onChange={e => setNovoColab(prev => ({ ...prev, ctpsSerie: e.target.value.toUpperCase() }))} />
                     </div>
                   )}
+                  <CampoRegistroNovo chave="ctpsUf" form={registroNovo} onChange={setRegistroCampo} />
                 </div>
               </div>
 
-              {/* Título de Eleitor */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
@@ -917,40 +936,28 @@ export default function Colaboradores() {
                   </div>
                 </div>
               </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Habilitação (CNH)</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <CampoRegistroNovo chave="cnhNumero" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="cnhCategoria" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="cnhValidade" form={registroNovo} onChange={setRegistroCampo} />
+                </div>
+              </div>
             </TabsContent>
 
-            {/* ── ABA ENDEREÇO ── */}
+            {/* ── ABA ENDEREÇO E CONTATO ── */}
             <TabsContent value="endereco" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Endereço Residencial</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Endereço</span>
                 </div>
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  <div className="col-span-2 space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Logradouro</Label>
-                    <Input className="h-9" placeholder="Rua, Avenida, Travessa..." value={novoColab.enderecoLogradouro}
-                      onChange={e => setNovoColab(prev => ({ ...prev, enderecoLogradouro: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Número</Label>
-                    <Input className="h-9" placeholder="Ex: 123" value={novoColab.enderecoNumero}
-                      onChange={e => setNovoColab(prev => ({ ...prev, enderecoNumero: e.target.value }))} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Complemento</Label>
-                    <Input className="h-9" placeholder="Apto, Bloco, Casa..." value={novoColab.enderecoComplemento}
-                      onChange={e => setNovoColab(prev => ({ ...prev, enderecoComplemento: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Bairro</Label>
-                    <Input className="h-9" placeholder="Nome do bairro" value={novoColab.enderecoBairro}
-                      onChange={e => setNovoColab(prev => ({ ...prev, enderecoBairro: e.target.value }))} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">CEP</Label>
                     <div className="relative">
@@ -972,6 +979,26 @@ export default function Colaboradores() {
                     </div>
                     <p className="text-[10px] text-muted-foreground">Preencha para buscar o endereço</p>
                   </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Logradouro</Label>
+                    <Input className="h-9" placeholder="Rua, Avenida, Travessa..." value={novoColab.enderecoLogradouro}
+                      onChange={e => setNovoColab(prev => ({ ...prev, enderecoLogradouro: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Número</Label>
+                    <Input className="h-9" placeholder="Ex: 123" value={novoColab.enderecoNumero}
+                      onChange={e => setNovoColab(prev => ({ ...prev, enderecoNumero: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Complemento</Label>
+                    <Input className="h-9" placeholder="Apto, Bloco, Casa..." value={novoColab.enderecoComplemento}
+                      onChange={e => setNovoColab(prev => ({ ...prev, enderecoComplemento: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Bairro</Label>
+                    <Input className="h-9" placeholder="Nome do bairro" value={novoColab.enderecoBairro}
+                      onChange={e => setNovoColab(prev => ({ ...prev, enderecoBairro: e.target.value }))} />
+                  </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Cidade</Label>
                     <Input className="h-9" placeholder="Nome da cidade" value={novoColab.enderecoCidade}
@@ -984,58 +1011,101 @@ export default function Colaboradores() {
                   </div>
                 </div>
               </div>
-            </TabsContent>
 
-            {/* ── ABA CONTATO ── */}
-            <TabsContent value="contato" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Telefones</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Contato</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Celular</Label>
-                    <Input className="h-9" placeholder="(71) 9 8177-0000" value={novoColab.celular}
-                      maxLength={16}
-                      onChange={e => setNovoColab(prev => ({ ...prev, celular: maskCelular(e.target.value) }))} />
-                  </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Telefone Fixo</Label>
                     <Input className="h-9" placeholder="(71) 3177-0000" value={novoColab.telefone}
                       maxLength={14}
                       onChange={e => setNovoColab(prev => ({ ...prev, telefone: maskTelefone(e.target.value) }))} />
                   </div>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">E-mail</span>
-                </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Celular</Label>
+                    <Input className="h-9" placeholder="(71) 9 8177-0000" value={novoColab.celular}
+                      maxLength={16}
+                      onChange={e => setNovoColab(prev => ({ ...prev, celular: maskCelular(e.target.value) }))} />
+                  </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-foreground/70">E-mail Corporativo</Label>
                   <Input className="h-9" type="email" placeholder="nome@empresa.com.br" value={novoColab.emailCorporativo}
                     onChange={e => setNovoColab(prev => ({ ...prev, emailCorporativo: e.target.value }))} />
                 </div>
+                  <CampoRegistroNovo chave="emailPessoal" form={registroNovo} onChange={setRegistroCampo} rotulo="E-mail Pessoal" />
+                </div>
               </div>
-            </TabsContent>
 
-            {/* ── ABA CLT / BENEFÍCIOS ── */}
-            <TabsContent value="clt" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
-              {/* Datas CLT */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Datas CLT</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Contato de Emergência</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground/70">Data de Admissão</Label>
-                    <Input className="h-9" type="text" placeholder="DD/MM/AAAA" maxLength={10} value={novoColab.admissao}
-                      onChange={e => handleAdmissaoChange(e.target.value)} />
-                    <p className="text-[10px] text-muted-foreground/60">Calcula automaticamente período aquisitivo, vencimento e prazo</p>
+                    <Label className="text-xs font-medium text-foreground/70">Nome do Contato</Label>
+                    <Input className="h-9" placeholder="Nome completo" value={novoColab.contatoEmergenciaNome}
+                      onChange={e => setNovoColab(prev => ({ ...prev, contatoEmergenciaNome: e.target.value }))} />
                   </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Telefone de Emergência</Label>
+                    <Input className="h-9" placeholder="(71) 9 8177-0000" value={novoColab.contatoEmergenciaTelefone}
+                      maxLength={16}
+                      onChange={e => setNovoColab(prev => ({ ...prev, contatoEmergenciaTelefone: maskCelular(e.target.value) }))} />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── ABA CONTRATO E JORNADA ── */}
+            <TabsContent value="contrato" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Contrato de Trabalho</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <CampoRegistroNovo chave="vinculo" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="primeiroTrabalho" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="contratoExperiencia" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="cbo" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="remuneracao" form={registroNovo} onChange={setRegistroCampo} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Jornada</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <CampoRegistroNovo chave="jornadaEntrada" form={registroNovo} onChange={setRegistroCampo} rotulo="Entrada" />
+                  <CampoRegistroNovo chave="jornadaSaida" form={registroNovo} onChange={setRegistroCampo} rotulo="Saída" />
+                  <CampoRegistroNovo chave="jornadaIntervalo" form={registroNovo} onChange={setRegistroCampo} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Supervisor</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <CampoRegistroNovo chave="supervisorNome" form={registroNovo} onChange={setRegistroCampo} rotulo="Nome do supervisor" className="col-span-2" />
+                  <CampoRegistroNovo chave="supervisorCpf" form={registroNovo} onChange={setRegistroCampo} rotulo="CPF do supervisor" />
+                  <CampoRegistroNovo chave="supervisorFuncao" form={registroNovo} onChange={setRegistroCampo} rotulo="Função" />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Férias (CLT)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Início do Período Aquisitivo</Label>
                     <Input className="h-9" type="text" placeholder="DD/MM/AAAA" maxLength={10} value={novoColab.periodoAquisitivo}
@@ -1051,8 +1121,6 @@ export default function Colaboradores() {
                     <Input className="h-9" type="text" placeholder="DD/MM/AAAA" maxLength={10} value={novoColab.dataLimite}
                       onChange={e => handleDateField("dataLimite", e.target.value)} />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground/70">Dias de Direito</Label>
                     <Input className="h-9" type="number" min={1} max={30} value={novoColab.diasDireito}
@@ -1065,78 +1133,159 @@ export default function Colaboradores() {
                   </div>
                 </div>
               </div>
+            </TabsContent>
 
-              {/* Benefícios */}
+            {/* ── ABA FORMAÇÃO E ESTÁGIO ── */}
+            <TabsContent value="formacao" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Formação</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <CampoRegistroNovo chave="grauInstrucao" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="situacaoCurso" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="curso" form={registroNovo} onChange={setRegistroCampo} className="col-span-2" />
+                  <CampoRegistroNovo chave="semestre" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="instituicaoCnpj" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="instituicaoEnsino" form={registroNovo} onChange={setRegistroCampo} className="col-span-2" />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Estágio e Empresa Vinculada</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <CampoRegistroNovo chave="periodoEstagio" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="empresaEstagio" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="apoliceSeguro" form={registroNovo} onChange={setRegistroCampo} />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── ABA BENEFÍCIOS ── */}
+            <TabsContent value="beneficios" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
                   <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Benefícios</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {([
-                    { key: "recebeVR", label: "Vale Refeição (VR)", desc: "Benefício diário de alimentação" },
-                    { key: "recebeVT", label: "Vale Transporte (VT)", desc: "Auxílio para deslocamento" },
-                    { key: "recebeSeguroVida", label: "Seguro de Vida", desc: "Cobertura de vida em grupo" },
-                    { key: "receivePlanoSaude", label: "Plano de Saúde", desc: "Assistência médica" },
-                    { key: "recebeNotebook", label: "Auxílio Notebook", desc: "Equipamento de trabalho" },
-                    { key: "recebeCreche", label: "Auxílio Creche", desc: "Suporte para dependentes" },
-                  ] as { key: keyof NovoColabForm; label: string; desc: string }[]).map(({ key, label, desc }) => (
-                    <label key={key} className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
-                      novoColab[key]
-                        ? "border-primary/40 bg-primary/5 shadow-sm"
-                        : "border-border/50 bg-transparent hover:border-border hover:bg-muted/20"
-                    }`}>
-                      <div className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                        novoColab[key] ? "border-primary bg-primary" : "border-muted-foreground/40"
-                      }`}>
-                        {novoColab[key] && (
-                          <svg className="w-2.5 h-2.5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                          </svg>
-                        )}
-                      </div>
-                      <input type="checkbox" className="sr-only"
-                        checked={!!novoColab[key]}
-                        onChange={e => setNovoColab(prev => ({ ...prev, [key]: e.target.checked }))} />
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-foreground leading-tight">{label}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{desc}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                {(novoColab.recebeVR || novoColab.recebeVT) && (
-                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                    <p className="text-[11px] font-semibold text-muted-foreground mb-2.5">Valores dos benefícios</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {novoColab.recebeVR && (
+                <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-foreground/70">Valor VR (R$)</Label>
+                          <Label className="text-xs font-medium text-foreground/70">VR (R$ por dia)</Label>
                           <Input className="h-9" type="number" min={0} step={0.01} placeholder="Ex: 39.52"
                             value={novoColab.valorVR}
                             onChange={e => setNovoColab(prev => ({ ...prev, valorVR: e.target.value }))} />
                         </div>
-                      )}
-                      {novoColab.recebeVT && (
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-foreground/70">Valor VT (R$)</Label>
+                          <Label className="text-xs font-medium text-foreground/70">VT (R$ por dia)</Label>
                           <Input className="h-9" type="number" min={0} step={0.01} placeholder="Ex: 10.00"
                             value={novoColab.valorVT}
                             onChange={e => setNovoColab(prev => ({ ...prev, valorVT: e.target.value }))} />
                         </div>
-                      )}
-                    </div>
+                  <CampoRegistroNovo chave="motivoSemVT" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="descontoVT" form={registroNovo} onChange={setRegistroCampo} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Seguro de vida</Label>
+                    <Select value={compNovo.temSeguroVida || "none"} onValueChange={v => setComp("temSeguroVida", v === "none" ? "" : v)}>
+                      <SelectTrigger className="h-9 w-full" aria-label="Seguro de vida"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="none">Selecione</SelectItem>
+                        <SelectItem value="sim">Sim</SelectItem>
+                        <SelectItem value="nao">Não</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Valor do seguro</Label>
+                    <Input className="h-9" aria-label="Valor do seguro" placeholder="0,00" disabled={compNovo.temSeguroVida !== "sim"} value={compNovo.valorSeguroVida ?? ""}
+                      onChange={e => setComp("valorSeguroVida", e.target.value)} />
+                  </div>
+                  <CampoRegistroNovo chave="planoOdontologico" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="totalpass" form={registroNovo} onChange={setRegistroCampo} />
+                </div>
               </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Sindicato</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <CampoRegistroNovo chave="sindicato" form={registroNovo} onChange={setRegistroCampo} />
+                  <CampoRegistroNovo chave="contribuicaoSindical" form={registroNovo} onChange={setRegistroCampo} />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">Plano de saúde e auxílio notebook continuam nas telas Plano de Saúde e Movimentação do Mês.</p>
             </TabsContent>
 
-            {/* ── ABA REGISTRO: campos complementares da Ficha de Registro ── */}
-            <TabsContent value="registro" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-6">
-              <p className="text-xs text-muted-foreground">
-                Estes dados preenchem a Ficha de Registro em PDF. Todos são opcionais e podem ser completados depois, na ficha do colaborador.
-              </p>
-              <CamposRegistroNovo form={registroNovo} onChange={(k, v) => setRegistroNovo(prev => ({ ...prev, [k]: v }))} />
+            {/* ── ABA BANCO E DEPENDENTES ── */}
+            <TabsContent value="banco" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-5">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Dados Bancários</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Banco</Label>
+                    <Select value={compNovo.bancoCodigo || "none"} onValueChange={v => {
+                      const b = BANCOS_BR.find(x => x.codigo === v);
+                      setCompNovo(prev => ({ ...prev, bancoCodigo: v === "none" ? "" : v, bancoNome: v === "none" ? "" : (b?.nome ?? "") }));
+                    }}>
+                      <SelectTrigger className="h-9 w-full" aria-label="Banco"><SelectValue placeholder="Selecione o banco" /></SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="none">Selecione o banco</SelectItem>
+                        {BANCOS_BR.map(b => <SelectItem key={b.codigo} value={b.codigo}>{b.codigo} – {b.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Tipo de conta</Label>
+                    <Select value={compNovo.bancoTipoConta || "none"} onValueChange={v => setComp("bancoTipoConta", v === "none" ? "" : v)}>
+                      <SelectTrigger className="h-9 w-full" aria-label="Tipo de conta"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="none">Selecione</SelectItem>
+                        <SelectItem value="corrente">Conta Corrente</SelectItem>
+                        <SelectItem value="poupanca">Conta Poupança</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Agência</Label>
+                    <Input className="h-9" aria-label="Agência" placeholder="Ex: 1234-5" value={compNovo.bancoAgencia ?? ""} maxLength={20}
+                      onChange={e => setComp("bancoAgencia", e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Conta</Label>
+                    <Input className="h-9" aria-label="Conta" placeholder="Ex: 12345-6" value={compNovo.bancoConta ?? ""} maxLength={30}
+                      onChange={e => setComp("bancoConta", e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Tipo de chave PIX</Label>
+                    <Select value={compNovo.bancoTipoChavePix || "none"} onValueChange={v => setComp("bancoTipoChavePix", v === "none" ? "" : v)}>
+                      <SelectTrigger className="h-9 w-full" aria-label="Tipo de chave PIX"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="none">Selecione</SelectItem>
+                        <SelectItem value="cpf">CPF</SelectItem>
+                        <SelectItem value="email">E-mail</SelectItem>
+                        <SelectItem value="telefone">Telefone</SelectItem>
+                        <SelectItem value="aleatoria">Chave Aleatória</SelectItem>
+                        <SelectItem value="nao_tem">Não possui PIX</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground/70">Chave PIX</Label>
+                    <Input className="h-9" aria-label="Chave PIX" placeholder="Chave PIX" value={compNovo.bancoChavePix ?? ""} maxLength={150}
+                      onChange={e => setComp("bancoChavePix", e.target.value)} />
+                  </div>
+                </div>
+              </div>
+
               <DependentesNovo lista={dependentesNovo} onChange={setDependentesNovo} />
             </TabsContent>
           </Tabs>
@@ -1145,7 +1294,7 @@ export default function Colaboradores() {
           <div className="flex flex-col gap-2 px-6 py-4 border-t border-border/50 bg-muted/10 flex-shrink-0 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[11px] text-muted-foreground hidden sm:block">Campos marcados com <span className="text-destructive">*</span> são obrigatórios</p>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Button variant="outline" className="h-9 px-4 flex-1 sm:flex-none" onClick={() => { setModalAberto(false); setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setErrosForm({}); }}>
+              <Button variant="outline" className="h-9 px-4 flex-1 sm:flex-none" onClick={() => { setModalAberto(false); setNovoColab(emptyNovoColab); setRegistroNovo({}); setDependentesNovo([]); setCompNovo({}); setErrosForm({}); }}>
                 Cancelar
               </Button>
               <Button className="h-9 px-5 font-semibold flex-1 sm:flex-none whitespace-nowrap" onClick={handleSalvar} disabled={createMutation.isPending}>
