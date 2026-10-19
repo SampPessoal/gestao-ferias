@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { lerReais, formatarReais } from "@/lib/mascaras";
 import {
-  CAMPOS_REGISTRO, GRUPOS_REGISTRO, PARENTESCOS, rotuloOpcao, NAO_SE_APLICA, ehNaoSeAplica, aplicarCampo,
+  CAMPOS_REGISTRO, GRUPOS_REGISTRO, PARENTESCOS, rotuloOpcao, NAO_SE_APLICA, ehNaoSeAplica, aplicarCampo, campoParaColaborador,
   type CampoRegistro, type Dependente, type GrupoRegistro,
 } from "@shared/registroEmpregado";
 
@@ -403,11 +403,12 @@ const campoPor = (chave: string) => CAMPOS_REGISTRO.find(c => c.chave === chave)
  * Cartões do Registro de Empregado na ficha do colaborador. Entram no mesmo
  * "Editar Ficha" da página: em edição, cada linha vira um campo.
  */
-export default function RegistroEmpregado({ colaboradorId, editando, form, setForm }: {
+export default function RegistroEmpregado({ colaboradorId, editando, form, setForm, empresaNome }: {
   colaboradorId: number;
   editando: boolean;
   form: FormRegistro;
   setForm: (f: FormRegistro) => void;
+  empresaNome?: string | null;
 }) {
   const { data, isLoading, isError, refetch } = trpc.registroEmpregado.get.useQuery({ colaboradorId });
   const muda = (chave: string) => (v: string) => setForm(aplicarCampo(form, chave, v));
@@ -426,7 +427,7 @@ export default function RegistroEmpregado({ colaboradorId, editando, form, setFo
 
   const b = data.beneficios;
   const linhaOuCampo = (chave: string, icone: React.ElementType) => {
-    const c = campoPor(chave);
+    const c = campoParaColaborador(campoPor(chave), empresaNome);
     return editando
       ? <CampoEdicao key={chave} rotulo={c.rotulo}><EntradaFicha campo={c} valor={form[chave] ?? ""} onChange={muda(chave)} desabilitado={!!c.dependeDe && ehNaoSeAplica(form[c.dependeDe])} /></CampoEdicao>
       : <Linha key={chave} rotulo={c.rotulo} valor={exibir(c, data.campos[chave])} icone={icone} />;
@@ -554,15 +555,17 @@ export function CamposRegistroNovo({ form, onChange }: {
 }
 
 /** Um campo do Registro de Empregado no cadastro novo, no visual dos demais campos do cadastro. */
-export function CampoRegistroNovo({ chave, form, onChange, rotulo, className }: {
+export function CampoRegistroNovo({ chave, form, onChange, rotulo, className, empresaNome }: {
   chave: string;
   form: Record<string, string>;
   onChange: (chave: string, valor: string) => void;
   rotulo?: string;
   className?: string;
+  empresaNome?: string | null;
 }) {
-  const c = CAMPOS_REGISTRO.find(x => x.chave === chave);
-  if (!c) return null;
+  const base = CAMPOS_REGISTRO.find(x => x.chave === chave);
+  if (!base) return null;
+  const c = campoParaColaborador(base, empresaNome);
   return (
     <div className={`space-y-1.5 ${className ?? ""}`}>
       <Label className="text-xs font-medium text-foreground/70">{rotulo ?? c.rotulo}</Label>
