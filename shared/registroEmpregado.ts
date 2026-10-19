@@ -19,7 +19,24 @@ export type CampoRegistro = {
   dica?: string;
   /** Ocupa a linha inteira no formulário */
   largo?: boolean;
+  /** Mostra a caixa "Não se aplica" ao lado do campo (grava o texto NÃO SE APLICA) */
+  naoSeAplica?: boolean;
+  /** Fica desativado e vazio quando o campo indicado está como "Não se aplica" */
+  dependeDe?: string;
 };
+
+/** Valor gravado quando o campo é marcado como "Não se aplica". */
+export const NAO_SE_APLICA = "NÃO SE APLICA";
+/** Reconhece "NÃO SE APLICA" também quando foi digitado à mão (com ou sem acento). */
+export const ehNaoSeAplica = (v: string | null | undefined) =>
+  !!v && v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim() === "NAO SE APLICA";
+
+/** Atualiza um campo do formulário; marcar "Não se aplica" limpa os campos que dependem dele. */
+export function aplicarCampo<T extends Record<string, string>>(form: T, chave: string, valor: string): T {
+  const novo: Record<string, string> = { ...form, [chave]: valor };
+  if (ehNaoSeAplica(valor)) for (const c of CAMPOS_REGISTRO) if (c.dependeDe === chave) novo[c.chave] = "";
+  return novo as T;
+}
 
 export type GrupoRegistro = "pessoal" | "contrato" | "formacao" | "beneficios";
 
@@ -45,10 +62,10 @@ export const CAMPOS_REGISTRO: CampoRegistro[] = [
   { chave: "nacionalidadePai", rotulo: "Nacionalidade do pai", tipo: "texto", grupo: "pessoal", max: 60, dica: "Ex.: Brasileira" },
   { chave: "nacionalidadeMae", rotulo: "Nacionalidade da mãe", tipo: "texto", grupo: "pessoal", max: 60, dica: "Ex.: Brasileira" },
   { chave: "ctpsUf", rotulo: "UF da CTPS", tipo: "opcao", grupo: "pessoal", opcoes: UFS.map(u => ({ valor: u, rotulo: u })) },
-  { chave: "cnhNumero", rotulo: "CNH — número", tipo: "texto", grupo: "pessoal", max: 20 },
-  { chave: "cnhCategoria", rotulo: "CNH — categoria", tipo: "opcao", grupo: "pessoal", opcoes:
+  { chave: "cnhNumero", rotulo: "CNH — número", tipo: "texto", grupo: "pessoal", max: 20, naoSeAplica: true },
+  { chave: "cnhCategoria", rotulo: "CNH — categoria", tipo: "opcao", grupo: "pessoal", dependeDe: "cnhNumero", opcoes:
     ["A", "B", "AB", "C", "D", "E", "AC", "AD", "AE"].map(c => ({ valor: c, rotulo: c })) },
-  { chave: "cnhValidade", rotulo: "CNH — validade", tipo: "data", grupo: "pessoal" },
+  { chave: "cnhValidade", rotulo: "CNH — validade", tipo: "data", grupo: "pessoal", dependeDe: "cnhNumero" },
   { chave: "emailPessoal", rotulo: "E-mail pessoal", tipo: "email", grupo: "pessoal", max: 200, largo: true },
 
   // ── Contrato e jornada
@@ -91,7 +108,7 @@ export const CAMPOS_REGISTRO: CampoRegistro[] = [
   { chave: "empresaEstagio", rotulo: "Empresa vinculada", tipo: "opcao", grupo: "formacao", opcoes: [
     { valor: "a3_estagios", rotulo: "A3 Estágios" }, { valor: "sudoeste", rotulo: "Sudoeste" }, { valor: "nao_se_aplica", rotulo: "Não se aplica" },
   ] },
-  { chave: "apoliceSeguro", rotulo: "Apólice de seguro (nº)", tipo: "texto", grupo: "formacao", max: 50 },
+  { chave: "apoliceSeguro", rotulo: "Apólice de seguro (nº)", tipo: "texto", grupo: "formacao", max: 50, naoSeAplica: true },
 
   // ── Sindicato e benefícios
   { chave: "sindicato", rotulo: "Sindicato", tipo: "opcao", grupo: "beneficios", opcoes: [

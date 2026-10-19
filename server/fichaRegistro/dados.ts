@@ -7,6 +7,7 @@ import { colaboradores, planoSaude } from "../../drizzle/schema";
 import { getColaboradorById, getDb } from "../db";
 import type { MapaPreenchimento } from "./index";
 import { lerRegistroEmpregado } from "../registroEmpregado";
+import { ehNaoSeAplica } from "../../shared/registroEmpregado";
 
 export type DadosFichaRegistro = NonNullable<Awaited<ReturnType<typeof getColaboradorById>>> & {
   valorVR: string | null;
@@ -180,7 +181,8 @@ export function montarMapaFichaRegistro(c: DadosFichaRegistro, hojeIso: string):
 
   const op = (chave: string, mapa: Record<string, string>) => (r[chave] ? [mapa[r[chave]!]].filter(Boolean) : []);
   const remuneracao = moeda(r.remuneracao);
-  const cnh = txt(r.cnhNumero)
+  const cnh = ehNaoSeAplica(r.cnhNumero) ? "NÃO SE APLICA"
+    : txt(r.cnhNumero)
     ? [txt(r.cnhNumero), r.cnhCategoria && `Cat. ${r.cnhCategoria}`, dataBR(r.cnhValidade) && `Val. ${dataBR(r.cnhValidade)}`].filter(Boolean).join(" — ")
     : undefined;
   const supervisor = [r.supervisorNome, r.supervisorCpf, r.supervisorFuncao].some(v => txt(v))
@@ -228,7 +230,8 @@ export function montarMapaFichaRegistro(c: DadosFichaRegistro, hojeIso: string):
     "SUPERVISOR / CPF": supervisor ? { reescrever: supervisor } : {},
     "PERIODO DE ESTAGIO": { marcar: op("periodoEstagio", { sim: "SIM", nao_se_aplica: "NÃO SE APLICA" }) },
     "EMPRESA": { marcar: op("empresaEstagio", { a3_estagios: "A3 ESTÁGIOS", sudoeste: "SUDOESTE", nao_se_aplica: "NÃO SE APLICA" }) },
-    "APOLICE DE SEGURO": txt(r.apoliceSeguro) ? { reescrever: `(  ) NÃO SE APLICA\nApólice nº ${txt(r.apoliceSeguro)}` } : {},
+    "APOLICE DE SEGURO": ehNaoSeAplica(r.apoliceSeguro) ? { marcar: ["NÃO SE APLICA"] }
+      : txt(r.apoliceSeguro) ? { reescrever: `(  ) NÃO SE APLICA\nApólice nº ${txt(r.apoliceSeguro)}` } : {},
     "1º TRABALHO": { marcar: op("primeiroTrabalho", { sim: "SIM", nao: "NÃO", estagio: "ESTÁGIO" }) },
     "GRAU DE INSTRUCAO": { marcar: op("grauInstrucao", { ensino_medio: "ENSINO MÉDIO", graduacao: "GRADUAÇÃO", pos_graduacao: "PÓS-GRADUAÇÃO", mestrado: "MESTRADO" }) },
     "SITUACAO": { marcar: op("situacaoCurso", { em_andamento: "EM ANDAMENTO", concluida: "CONCLUÍDA", trancada: "TRANCADA" }) },

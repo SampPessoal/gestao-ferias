@@ -19,7 +19,7 @@ import { NomeColaborador } from "@/components/NomeColaborador";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { CampoRegistroNovo, DependentesNovo, registroParaEnvio, msgErro, type DependenteRascunho } from "@/components/RegistroEmpregado";
-import { UFS } from "@shared/registroEmpregado";
+import { UFS, aplicarCampo } from "@shared/registroEmpregado";
 import { BANCOS_BR } from "@/lib/bancos";
 import { calcPeriodoFerias } from "@/lib/ferias";
 
@@ -177,7 +177,7 @@ export default function Colaboradores() {
   // Campos da ficha que entram no cadastro: UF de naturalidade, seguro de vida e dados bancários
   const [compNovo, setCompNovo] = useState<Record<string, string>>({});
   const setComp = (k: string, v: string) => setCompNovo(prev => ({ ...prev, [k]: v }));
-  const setRegistroCampo = (k: string, v: string) => setRegistroNovo(prev => ({ ...prev, [k]: v }));
+  const setRegistroCampo = (k: string, v: string) => setRegistroNovo(prev => aplicarCampo(prev, k, v));
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [errosForm, setErrosForm] = useState<Record<string, string>>({});
   const { sort: sortColab, toggle: toggleSortColab, sortData: sortColabData } = useTableSort<"nome" | "empresaNome" | "setorNome" | "codigo" | "status">("nome", "asc");
