@@ -8,6 +8,7 @@ import { getColaboradorById, getDb } from "../db";
 import type { MapaPreenchimento } from "./index";
 import { lerRegistroEmpregado } from "../registroEmpregado";
 import { ehNaoSeAplica } from "../../shared/registroEmpregado";
+import { escolherModelo } from "./index";
 
 export type DadosFichaRegistro = NonNullable<Awaited<ReturnType<typeof getColaboradorById>>> & {
   valorVR: string | null;
@@ -198,6 +199,7 @@ export function montarMapaFichaRegistro(c: DadosFichaRegistro, hojeIso: string):
   const nb = c.registro?.notebook;
   const nbValor = nb?.ativo ? moeda(nb.valor) : undefined;
   const depIR = deps.length ? (deps.some(d => d.dependenteIR) ? "SIM" : "NÃO") : undefined;
+  const empresaFicha = escolherModelo(c.empresaNome)?.empresa ?? (txt(c.empresaNome) ?? "").toUpperCase();
   const RACA: Record<string, string> = { preta: "PRETA", branca: "BRANCA", parda: "PARDA", amarela: "AMARELA", indigena: "INDIGENA" };
 
   const mapa: MapaPreenchimento = {
@@ -229,7 +231,11 @@ export function montarMapaFichaRegistro(c: DadosFichaRegistro, hojeIso: string):
     "REMUNERACAO": { valorMonetario: true, valores: [remuneracao] },
     "SUPERVISOR / CPF": supervisor ? { reescrever: supervisor } : {},
     "PERIODO DE ESTAGIO": { marcar: op("periodoEstagio", { sim: "SIM", nao_se_aplica: "NÃO SE APLICA" }) },
-    "EMPRESA": { marcar: op("empresaEstagio", { a3_estagios: "A3 ESTÁGIOS", sudoeste: "SUDOESTE", nao_se_aplica: "NÃO SE APLICA" }) },
+    // O modelo traz "SUDOESTE" impresso nas quatro empresas: troca pelo nome da empresa da ficha
+    "EMPRESA": {
+      substituir: [["\\bSUDOESTE\\b", "g", empresaFicha]],
+      marcar: op("empresaEstagio", { a3_estagios: "A3 ESTÁGIOS", empresa: empresaFicha, sudoeste: empresaFicha, nao_se_aplica: "NÃO SE APLICA" }),
+    },
     "APOLICE DE SEGURO": ehNaoSeAplica(r.apoliceSeguro) ? { marcar: ["NÃO SE APLICA"] }
       : txt(r.apoliceSeguro) ? { reescrever: `(  ) NÃO SE APLICA\nApólice nº ${txt(r.apoliceSeguro)}` } : {},
     "1º TRABALHO": { marcar: op("primeiroTrabalho", { sim: "SIM", nao: "NÃO", estagio: "ESTÁGIO" }) },
