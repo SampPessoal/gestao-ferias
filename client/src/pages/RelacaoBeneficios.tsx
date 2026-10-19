@@ -15,6 +15,7 @@ import { SortableHeader } from "@/components/SortableHeader";
 import { NomeColaborador } from "@/components/NomeColaborador";
 import { toast } from "sonner";
 
+import { InputMoeda } from "@/components/InputMoeda";
 function fmtMoeda(val: string | null | undefined): string {
   if (!val || val === "0.00" || val === "0") return "Não recebe";
   const n = parseFloat(val);
@@ -534,7 +535,7 @@ export default function RelacaoBeneficios() {
                   <Label className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                     <Wallet className="w-3 h-3 text-blue-600" /> VR — R$
                   </Label>
-                  <Input className="h-7 text-xs" value={editForm.valorVR} onChange={e => setEditForm({ ...editForm, valorVR: e.target.value })} placeholder="39.52" />
+                  <InputMoeda onValorChange={v => setEditForm({ ...editForm, valorVR: v })} className="h-7 text-xs" value={editForm.valorVR}  placeholder="39,52" />
                 </div>
 
                 {/* VT */}
@@ -542,7 +543,7 @@ export default function RelacaoBeneficios() {
                   <Label className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                     <Bus className="w-3 h-3 text-blue-600" /> VT — R$
                   </Label>
-                  <Input className="h-7 text-xs" value={editForm.valorVT} onChange={e => setEditForm({ ...editForm, valorVT: e.target.value })} placeholder="150.00" />
+                  <InputMoeda onValorChange={v => setEditForm({ ...editForm, valorVT: v })} className="h-7 text-xs" value={editForm.valorVT}  placeholder="150,00" />
                 </div>
 
                 {/* Aux Veículo Caju */}
@@ -550,26 +551,26 @@ export default function RelacaoBeneficios() {
                   <Label className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                     <Car className="w-3 h-3 text-blue-600" /> Aux. Veículo Caju — R$
                   </Label>
-                  <Input className="h-7 text-xs" value={editForm.auxilioVeiculo} onChange={e => setEditForm({ ...editForm, auxilioVeiculo: e.target.value })} placeholder="1000.00" />
+                  <InputMoeda onValorChange={v => setEditForm({ ...editForm, auxilioVeiculo: v })} className="h-7 text-xs" value={editForm.auxilioVeiculo}  placeholder="1000,00" />
                 </div>
 
                 {/* Valor Fixo Quinzenal */}
                 <div className="space-y-0.5">
                   <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">📌 Val. Fixo Quinzenal — R$</Label>
-                  <Input className="h-7 text-xs" value={editForm.valorFixoQuinzenal} onChange={e => setEditForm({ ...editForm, valorFixoQuinzenal: e.target.value })} placeholder="632.00" />
+                  <InputMoeda onValorChange={v => setEditForm({ ...editForm, valorFixoQuinzenal: v })} className="h-7 text-xs" value={editForm.valorFixoQuinzenal}  placeholder="632,00" />
                 </div>
 
                 {/* Aux Veículo Folha */}
                 <div className="space-y-0.5">
                   <Label className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: '#7e22ce' }}>🚗 Aux. Veículo Folha — R$</Label>
-                  <Input className="h-7 text-xs" value={editForm.auxilioVeiculoFolha} onChange={e => setEditForm({ ...editForm, auxilioVeiculoFolha: e.target.value })} placeholder="400.00" style={{ borderColor: '#d8b4fe' }} />
+                  <InputMoeda onValorChange={v => setEditForm({ ...editForm, auxilioVeiculoFolha: v })} className="h-7 text-xs" value={editForm.auxilioVeiculoFolha}  placeholder="400,00" style={{ borderColor: '#d8b4fe' }} />
                   <p className="text-[9px]" style={{ color: '#9333ea' }}>Direto na folha</p>
                 </div>
 
                 {/* Aux Celular Folha */}
                 <div className="space-y-0.5">
                   <Label className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: '#3730a3' }}>📱 Aux. Celular Folha — R$</Label>
-                  <Input className="h-7 text-xs" value={editForm.auxilioCelularFolha} onChange={e => setEditForm({ ...editForm, auxilioCelularFolha: e.target.value })} placeholder="200.00" style={{ borderColor: '#a5b4fc' }} />
+                  <InputMoeda onValorChange={v => setEditForm({ ...editForm, auxilioCelularFolha: v })} className="h-7 text-xs" value={editForm.auxilioCelularFolha}  placeholder="200,00" style={{ borderColor: '#a5b4fc' }} />
                   <p className="text-[9px]" style={{ color: '#4f46e5' }}>Direto na folha</p>
                 </div>
 
@@ -643,7 +644,7 @@ export default function RelacaoBeneficios() {
                 <Label className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                   <Wallet className="w-3 h-3 text-blue-600" /> VR — R$
                 </Label>
-                <Input className="h-7 text-xs" value={novoForm.valorVR} onChange={e => setNovoForm(f => ({ ...f, valorVR: e.target.value }))} placeholder="39.52" />
+                <InputMoeda onValorChange={v => setNovoForm(f => ({ ...f, valorVR: v }))} className="h-7 text-xs" value={novoForm.valorVR}  placeholder="39,52" />
               </div>
 
               {/* VT */}
@@ -651,7 +652,7 @@ export default function RelacaoBeneficios() {
                 <Label className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                   <Bus className="w-3 h-3 text-blue-600" /> VT — R$
                 </Label>
-                <Input className="h-7 text-xs" value={novoForm.valorVT} onChange={e => setNovoForm(f => ({ ...f, valorVT: e.target.value }))} placeholder="150.00" />
+                <InputMoeda onValorChange={v => setNovoForm(f => ({ ...f, valorVT: v }))} className="h-7 text-xs" value={novoForm.valorVT}  placeholder="150,00" />
               </div>
 
               {/* Aux Veículo Caju */}
@@ -659,26 +660,26 @@ export default function RelacaoBeneficios() {
                 <Label className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                   <Car className="w-3 h-3 text-blue-600" /> Aux. Veículo Caju — R$
                 </Label>
-                <Input className="h-7 text-xs" value={novoForm.auxilioVeiculo} onChange={e => setNovoForm(f => ({ ...f, auxilioVeiculo: e.target.value }))} placeholder="1000.00" />
+                <InputMoeda onValorChange={v => setNovoForm(f => ({ ...f, auxilioVeiculo: v }))} className="h-7 text-xs" value={novoForm.auxilioVeiculo}  placeholder="1000,00" />
               </div>
 
               {/* Valor Fixo Quinzenal */}
               <div className="space-y-0.5">
                 <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">📌 Val. Fixo Quinzenal — R$</Label>
-                <Input className="h-7 text-xs" value={novoForm.valorFixoQuinzenal} onChange={e => setNovoForm(f => ({ ...f, valorFixoQuinzenal: e.target.value }))} placeholder="632.00" />
+                <InputMoeda onValorChange={v => setNovoForm(f => ({ ...f, valorFixoQuinzenal: v }))} className="h-7 text-xs" value={novoForm.valorFixoQuinzenal}  placeholder="632,00" />
               </div>
 
               {/* Aux Veículo Folha */}
               <div className="space-y-0.5">
                 <Label className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: '#7e22ce' }}>🚗 Aux. Veículo Folha — R$</Label>
-                <Input className="h-7 text-xs" value={novoForm.auxilioVeiculoFolha} onChange={e => setNovoForm(f => ({ ...f, auxilioVeiculoFolha: e.target.value }))} placeholder="400.00" style={{ borderColor: '#d8b4fe' }} />
+                <InputMoeda onValorChange={v => setNovoForm(f => ({ ...f, auxilioVeiculoFolha: v }))} className="h-7 text-xs" value={novoForm.auxilioVeiculoFolha}  placeholder="400,00" style={{ borderColor: '#d8b4fe' }} />
                 <p className="text-[9px]" style={{ color: '#9333ea' }}>Direto na folha</p>
               </div>
 
               {/* Aux Celular Folha */}
               <div className="space-y-0.5">
                 <Label className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: '#3730a3' }}>📱 Aux. Celular Folha — R$</Label>
-                <Input className="h-7 text-xs" value={novoForm.auxilioCelularFolha} onChange={e => setNovoForm(f => ({ ...f, auxilioCelularFolha: e.target.value }))} placeholder="200.00" style={{ borderColor: '#a5b4fc' }} />
+                <InputMoeda onValorChange={v => setNovoForm(f => ({ ...f, auxilioCelularFolha: v }))} className="h-7 text-xs" value={novoForm.auxilioCelularFolha}  placeholder="200,00" style={{ borderColor: '#a5b4fc' }} />
                 <p className="text-[9px]" style={{ color: '#4f46e5' }}>Direto na folha</p>
               </div>
 

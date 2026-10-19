@@ -15,6 +15,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
+import { InputMoeda } from "@/components/InputMoeda";
+import { mascaraInteiro } from "@/lib/mascaras";
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
@@ -100,8 +102,8 @@ function AusenciaCell({ colaboradorId, ano, mes, valorInicial, detalhe }: {
   if (editando) {
     return (
       <div className="flex items-center gap-1 justify-center">
-        <Input type="number" min={0} max={31} value={valor}
-          onChange={e => setValor(e.target.value)}
+        <Input type="text" inputMode="numeric" value={valor}
+          onChange={e => setValor(mascaraInteiro(e.target.value, 2))}
           onKeyDown={e => { if (e.key === "Enter") salvar(); if (e.key === "Escape") { setEditando(false); setValor(String(valorInicial)); } }}
           className="w-12 h-5 text-xs text-center px-1" autoFocus />
         <button onClick={salvar} disabled={upsert.isPending} className="text-[10px] text-blue-600 font-bold">✓</button>
@@ -207,9 +209,8 @@ function DiaEditavelCell({
   if (editando) {
     return (
       <div className="flex flex-col items-center gap-1 py-1">
-        <Input
-          type="number" min={0} max={31} value={valor}
-          onChange={e => setValor(e.target.value)}
+        <Input type="text" inputMode="numeric" value={valor}
+          onChange={e => setValor(mascaraInteiro(e.target.value, 2))}
           onKeyDown={e => {
             if (e.key === "Enter") salvar();
             if (e.key === "Escape") { setEditando(false); setValor(String(valorInicial)); }
@@ -391,10 +392,8 @@ function ModalEditarColaborador({ colab, onClose }: { colab: ColabEdit | null; o
                 <Utensils className="w-3 h-3" /> Vale-Refeição (VR)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">R$</span>
-                <Input
+                <InputMoeda onValorChange={v => setVr(v)}
                   value={vr}
-                  onChange={e => setVr(e.target.value)}
                   placeholder="39,52"
                   className="bg-slate-800/80 border-orange-700/30 text-slate-100 text-sm h-10 pl-9 focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/30 rounded-xl"
                 />
@@ -406,10 +405,8 @@ function ModalEditarColaborador({ colab, onClose }: { colab: ColabEdit | null; o
                 <Bus className="w-3 h-3" /> Vale-Transporte (VT)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">R$</span>
-                <Input
+                <InputMoeda onValorChange={v => setVt(v)}
                   value={vt}
-                  onChange={e => setVt(e.target.value)}
                   placeholder="0,00"
                   className="bg-slate-800/80 border-teal-700/30 text-slate-100 text-sm h-10 pl-9 focus:border-teal-500/60 focus:ring-1 focus:ring-teal-500/30 rounded-xl"
                 />

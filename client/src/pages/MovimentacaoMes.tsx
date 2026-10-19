@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
+import { InputMoeda } from "@/components/InputMoeda";
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
@@ -291,11 +292,8 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">Valor do Desconto (R$)</label>
               <div className="relative">
-                <Input
-                  type="number"
-                  step="0.01"
+                <InputMoeda onValorChange={v => setForm(f => ({ ...f, valor: v }))}
                   value={form.valor}
-                  onChange={e => setForm(f => ({ ...f, valor: e.target.value }))}
                   placeholder="Preenchido automaticamente pela empresa..."
                   className={form.colaborador?.valorSeguroVida ? "border-emerald-500/50 bg-emerald-950/10" : ""}
                 />
@@ -437,7 +435,7 @@ function AbaAuxilioNotebook({ mes, ano, empresa, onDataLoad }: { mes: number; an
               </div>
               <div><label className="text-xs text-muted-foreground mb-1 block">Data Início *</label><Input type="date" value={form.dataInicio} onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))} /></div>
             </div>
-            <div><label className="text-xs text-muted-foreground mb-1 block">Valor (R$)</label><Input type="number" step="0.01" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} /></div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">Valor (R$)</label><InputMoeda onValorChange={v => setForm(f => ({ ...f, valor: v }))} value={form.valor}  /></div>
             <div><label className="text-xs text-muted-foreground mb-1 block">Observação</label><Input value={form.observacao} onChange={e => setForm(f => ({ ...f, observacao: e.target.value }))} placeholder="Opcional..." /></div>
           </div>
           <div className="flex gap-2 justify-end mt-4">
@@ -691,7 +689,7 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
             {/* Valor */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground mb-1 block">Valor (R$)</label>
-              <Input type="number" step="0.01" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" />
+              <InputMoeda onValorChange={v => setForm(f => ({ ...f, valor: v }))} value={form.valor}  placeholder="0,00" />
               {valorAutomatico !== null && (
                 <p className="text-[11px] text-amber-600 mt-1">Calculado automaticamente pela faixa etária ({idadeForm} anos)</p>
               )}
@@ -990,7 +988,7 @@ function AbaAuxilioCreche({ mes, ano, empresa, onDataLoad }: { mes: number; ano:
                 <Input type="date" value={form.dataNascimentoFilho} onChange={e => setForm(f => ({ ...f, dataNascimentoFilho: e.target.value }))} />
                 {idadeFilho !== null && <p className="text-xs text-blue-600 mt-1">{idadeFilho} anos</p>}
               </div>
-              <div><label className="text-xs text-muted-foreground mb-1 block">Valor (R$)</label><Input type="number" step="0.01" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" /></div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">Valor (R$)</label><InputMoeda onValorChange={v => setForm(f => ({ ...f, valor: v }))} value={form.valor}  placeholder="0,00" /></div>
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">Observação</label><Input value={form.observacao} onChange={e => setForm(f => ({ ...f, observacao: e.target.value }))} placeholder="Opcional..." /></div>
           </div>
@@ -1194,7 +1192,7 @@ function AbaBonusIndicacao({ mes, ano, empresa, onDataLoad }: { mes: number; ano
                 Pagamento previsto: {(() => { const [y, m, d] = form.dataAdmissaoIndicado.split("-").map(Number); const dt = new Date(Date.UTC(y, m - 1 + 3, d)); return dt.toLocaleDateString("pt-BR"); })()}  (3 meses após admissão)
               </div>
             )}
-            <div><label className="text-xs text-muted-foreground mb-1 block">Valor do Bônus (R$)</label><Input type="number" step="0.01" value={form.valorBonus} onChange={e => setForm(f => ({ ...f, valorBonus: e.target.value }))} /></div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">Valor do Bônus (R$)</label><InputMoeda onValorChange={v => setForm(f => ({ ...f, valorBonus: v }))} value={form.valorBonus}  /></div>
             <div><label className="text-xs text-muted-foreground mb-1 block">Observação</label><Input value={form.observacao} onChange={e => setForm(f => ({ ...f, observacao: e.target.value }))} placeholder="Opcional..." /></div>
           </div>
           <div className="flex gap-2 justify-end mt-4">

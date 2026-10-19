@@ -31,6 +31,7 @@ import { SortableHeader } from "@/components/SortableHeader";
 import { NomeColaborador } from "@/components/NomeColaborador";
 import { toast } from "sonner";
 
+import { mascaraInteiro } from "@/lib/mascaras";
 // ─── Helpers de data UTC-safe ────────────────────────────────────────────────
 
 function toDateStr(val: Date | string | null | undefined): string | null {
@@ -777,11 +778,9 @@ export default function RelacaoAtestados() {
             </div>
             <div className="space-y-1.5">
               <Label>Dias de Afastamento <span className="text-red-500">*</span></Label>
-              <Input
-                type="number"
-                min={1}
+              <Input type="text" inputMode="numeric"
                 value={form.diasAfastamento}
-                onChange={e => setForm(prev => ({ ...prev, diasAfastamento: e.target.value }))}
+                onChange={e => setForm(prev => ({ ...prev, diasAfastamento: mascaraInteiro(e.target.value, 3) }))}
                 placeholder="Calculado automaticamente"
               />
               {form.dataInicio && form.dataFim && form.dataFim >= form.dataInicio && (
@@ -792,11 +791,9 @@ export default function RelacaoAtestados() {
             </div>
             <div className="space-y-1.5">
               <Label>Dias a Descontar na Planilha VR/VT</Label>
-              <Input
-                type="number"
-                min={0}
+              <Input type="text" inputMode="numeric"
                 value={form.diasDescontar}
-                onChange={e => setForm(prev => ({ ...prev, diasDescontar: e.target.value }))}
+                onChange={e => setForm(prev => ({ ...prev, diasDescontar: mascaraInteiro(e.target.value, 3) }))}
                 placeholder={form.diasAfastamento ? `Padrão: ${form.diasAfastamento} dia(s)` : "Deixe vazio para usar dias de afastamento"}
               />
               <p className="text-xs text-muted-foreground">

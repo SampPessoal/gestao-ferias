@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { InputMoeda } from "@/components/InputMoeda";
 import {
   Laptop, Baby, Award, Search, CheckCircle, Clock, XCircle,
   AlertTriangle, Bell, DollarSign, Users, Gift, Edit2, Pencil,
@@ -242,7 +243,7 @@ function AbaNotebook({ empresa, busca }: { empresa: string; busca: string }) {
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Valor (R$)</label>
-                <Input type="number" step="0.01" value={editForm.valor} onChange={e => setEditForm(f => ({ ...f, valor: e.target.value }))} />
+                <InputMoeda onValorChange={v => setEditForm(f => ({ ...f, valor: v }))} value={editForm.valor}  />
               </div>
             </div>
           </div>
@@ -478,7 +479,7 @@ function AbaCreche({ empresa, busca }: { empresa: string; busca: string }) {
                 <label className="text-xs text-muted-foreground mb-1 block">
                   Valor <span className="text-[10px] text-blue-600">auto</span>
                 </label>
-                <Input type="number" step="0.01" value={editForm.valor} onChange={e => setEditForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" />
+                <InputMoeda onValorChange={v => setEditForm(f => ({ ...f, valor: v }))} value={editForm.valor}  placeholder="0,00" />
               </div>
             </div>
           </div>
@@ -752,7 +753,7 @@ function AbaBonus({ empresa, busca }: { empresa: string; busca: string }) {
             )}
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Valor do Bônus (R$)</label>
-              <Input type="number" step="0.01" value={editForm.valorBonus} onChange={e => setEditForm(f => ({ ...f, valorBonus: e.target.value }))} />
+              <InputMoeda onValorChange={v => setEditForm(f => ({ ...f, valorBonus: v }))} value={editForm.valorBonus}  />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Observação</label>
