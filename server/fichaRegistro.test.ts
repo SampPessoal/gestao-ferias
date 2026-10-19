@@ -188,3 +188,20 @@ describe("PDF ocupa a página inteira e nunca passa de duas páginas", () => {
     }
   });
 });
+
+describe("Não se aplica (CNH e apólice de seguro)", () => {
+  const base = (campos: Record<string, string | null>) => ({ ...colab, registro: { campos, dependentes: [], notebook: null } } as unknown as DadosFichaRegistro);
+  for (const empresa of Object.keys(MODELOS)) {
+    it(`${empresa}: CNH e apólice marcadas como não se aplica`, () => {
+      const m = preencherModelo(MODELOS[empresa], montarMapaFichaRegistro(base({ cnhNumero: "NÃO SE APLICA", apoliceSeguro: "nao se aplica" }), "2026-10-13"));
+      const f = campos(m);
+      expect(f.get("CNH")).toContain("NÃO SE APLICA");
+      const apolice = [...f.entries()].find(([k]) => k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").startsWith("APOLICE"))![1];
+      expect(apolice.replace(/\s+/g, " ")).toMatch(/\(X\) NÃO SE APLICA/);
+    });
+  }
+  it("apólice com número continua saindo com o número", () => {
+    const f = campos(preencherModelo(MODELOS.SOLAR, montarMapaFichaRegistro(base({ apoliceSeguro: "123456" }), "2026-10-13")));
+    expect(JSON.stringify([...f.values()])).toContain("Apólice nº 123456");
+  });
+});
