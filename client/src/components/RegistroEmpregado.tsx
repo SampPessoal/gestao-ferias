@@ -16,8 +16,9 @@ import { InputMoeda } from "@/components/InputMoeda";
 import { mascaraRg } from "@/lib/mascaras";
 import {
   Pencil, Plus, Trash2, Users, Laptop, User, IdCard, Briefcase, Clock, UserCheck, GraduationCap,
-  BookOpen, Landmark, Gift, Bus, Utensils, HeartPulse, ShieldCheck, Smile, Dumbbell,
+  BookOpen, Landmark, Gift, Bus, Utensils, HeartPulse, ShieldCheck, Smile, Dumbbell, Baby, Car, Smartphone,
 } from "lucide-react";
+import { lerReais, formatarReais } from "@/lib/mascaras";
 import {
   CAMPOS_REGISTRO, GRUPOS_REGISTRO, PARENTESCOS, rotuloOpcao, NAO_SE_APLICA, ehNaoSeAplica, aplicarCampo,
   type CampoRegistro, type Dependente, type GrupoRegistro,
@@ -660,4 +661,96 @@ export function registroParaEnvio(campos: Record<string, string>, deps: Dependen
       cpf: d.cpf || null, rg: d.rg || null, dependenteIR: d.dependenteIR,
     })),
   };
+}
+
+// ─── Aba "Benefícios" da ficha: resumo rápido ────────────────────────────────
+
+type SituacaoBeneficio = "ativo" | "nao" | "info";
+type ItemResumo = { nome: string; icone: React.ElementType; situacao: SituacaoBeneficio; valor?: string; detalhe?: string };
+
+const reais = (v: string | number | null | undefined) => {
+  const n = lerReais(v);
+  return n && n > 0 ? `R$ ${formatarReais(n)}` : null;
+};
+const simNaoNa = (v: string | null | undefined): SituacaoBeneficio => (v === "sim" ? "ativo" : v ? "nao" : "info");
+
+const ESTILO_SITUACAO: Record<SituacaoBeneficio, { rotulo: string; pill: string }> = {
+  ativo: { rotulo: "Ativo", pill: "bg-[#e2f4e8] text-[#155d33]" },
+  nao: { rotulo: "Não possui", pill: "bg-muted text-muted-foreground" },
+  info: { rotulo: "Não informado", pill: "border border-dashed border-muted-foreground/40 text-muted-foreground" },
+};
+
+/** Resumo dos benefícios do colaborador, em quadros, a partir do que está gravado. */
+export function ResumoBeneficios({ colaboradorId }: { colaboradorId: number }) {
+  const { data, isLoading, isError, refetch } = trpc.registroEmpregado.get.useQuery({ colaboradorId });
+  if (isLoading) return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>;
+  if (isError || !data) {
+    return (
+      <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3 text-sm">
+        Não foi possível carregar os benefícios.
+        <Button size="sm" variant="outline" onClick={() => refetch()}>Tentar de novo</Button>
+      </div>
+    );
+  }
+  const b = data.beneficios;
+  const r = data.campos;
+  const nb = data.notebook;
+  const vr = reais(b.valorVR);
+  const vt = reais(b.valorVT);
+  const seguro = reais(b.valorSeguroVida);
+  const veiculo = reais(b.auxilioVeiculoFolha) ?? reais(b.auxilioVeiculo);
+  const celular = reais(b.auxilioCelularFolha);
+  const nbValor = nb?.ativo ? reais(nb.valor) : null;
+  const creche = b.creche;
+  const deps = b.planoSaude?.dependentes ?? 0;
+  const itens: ItemResumo[] = [
+    { nome: "Vale-refeição", icone: Utensils, situacao: vr ? "ativo" : "nao", valor: vr ?? undefined, detalhe: "por dia" },
+    { nome: "Vale-transporte", icone: Bus, situacao: vt ? "ativo" : "nao", valor: vt ?? undefined,
+      detalhe: vt ? "por dia" : r.motivoSemVT ? rotuloOpcao(CAMPOS_REGISTRO.find(c => c.chave === "motivoSemVT"), r.motivoSemVT) : undefined },
+    { nome: "Plano de saúde", icone: HeartPulse, situacao: b.planoSaude ? "ativo" : "nao", valor: b.planoSaude?.plano,
+      detalhe: b.planoSaude ? `titular${deps ? ` · ${deps} dependente${deps > 1 ? "s" : ""}` : ""}` : undefined },
+    { nome: "Plano odontológico", icone: Smile, situacao: simNaoNa(r.planoOdontologico) },
+    { nome: "Seguro de vida", icone: ShieldCheck, situacao: b.temSeguroVida ? "ativo" : b.temSeguroVida === false ? "nao" : "info",
+      valor: b.temSeguroVida ? seguro ?? undefined : undefined, detalhe: b.temSeguroVida && seguro ? "por mês" : undefined },
+    { nome: "TotalPass", icone: Dumbbell, situacao: simNaoNa(r.totalpass) },
+    { nome: "Auxílio notebook", icone: Laptop, situacao: nb?.ativo ? "ativo" : "nao", valor: nbValor ?? undefined, detalhe: nbValor ? "por mês" : undefined },
+    { nome: "Auxílio creche", icone: Baby, situacao: creche?.ativo ? "ativo" : "nao", valor: creche?.ativo ? reais(creche.valor) ?? undefined : undefined,
+      detalhe: creche?.ativo ? `${creche.filhos} filho${creche.filhos > 1 ? "s" : ""}` : undefined },
+    { nome: "Auxílio veículo", icone: Car, situacao: veiculo ? "ativo" : "nao", valor: veiculo ?? undefined, detalhe: veiculo ? "por mês" : undefined },
+    { nome: "Auxílio celular", icone: Smartphone, situacao: celular ? "ativo" : "nao", valor: celular ?? undefined, detalhe: celular ? "por mês" : undefined },
+  ];
+  const ativos = itens.filter(i => i.situacao === "ativo").length;
+  return (
+    <section aria-labelledby="resumo-beneficios" className="rounded-xl border border-border/60 overflow-hidden" style={{ boxShadow: "0 1px 4px oklch(0.145 0.03 245 / 0.05)" }}>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border/60" style={{ background: "oklch(0.975 0.004 245)" }}>
+        <h2 id="resumo-beneficios" className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-wide text-foreground/70">
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: "#10b98122" }}><Gift className="h-3.5 w-3.5" style={{ color: "#10b981" }} /></span>
+          Resumo de Benefícios
+        </h2>
+        <span className="text-sm text-foreground/70"><strong className="text-[15px] text-[#155d33]">{ativos}</strong> de {itens.length} benefícios ativos</span>
+      </div>
+      <ul className="grid gap-3 p-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(196px, 1fr))" }}>
+        {itens.map(it => {
+          const ativo = it.situacao === "ativo";
+          const est = ESTILO_SITUACAO[it.situacao];
+          const Icone = it.icone;
+          return (
+            <li key={it.nome} className={`flex flex-col gap-2.5 rounded-xl border p-3.5 ${ativo ? "border-[#cfe7d8] bg-[#f6fbf8]" : "border-border/60 bg-card"}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${ativo ? "bg-[#d9efe1]" : "bg-muted"}`}>
+                  <Icone className={`h-4 w-4 ${ativo ? "text-[#155d33]" : "text-muted-foreground"}`} />
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${est.pill}`}>{est.rotulo}</span>
+              </div>
+              <p className="text-xs font-semibold text-foreground/75">{it.nome}</p>
+              <p className="flex flex-wrap items-baseline gap-1.5">
+                <span className={`font-bold tabular-nums ${ativo ? "text-lg text-foreground" : "text-[15px] text-muted-foreground"}`}>{it.valor ?? "—"}</span>
+                {it.detalhe && <span className="text-xs text-muted-foreground">{it.detalhe}</span>}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 }
