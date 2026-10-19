@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import RegistroEmpregado, { formRegistroInicial, formRegistroParaEnvio, msgErro, type FormRegistro } from "@/components/RegistroEmpregado";
+import RegistroEmpregado, { ResumoBeneficios, formRegistroInicial, formRegistroParaEnvio, msgErro, type FormRegistro } from "@/components/RegistroEmpregado";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -18,8 +18,7 @@ import {
 import {
   ArrowLeft, Edit2, Save, X, Building2, UserX, UserCheck, Trash2,
   User, Phone, FileText, Briefcase, AlertTriangle, CalendarDays, MapPin, Baby,
-  FileDown, FileSpreadsheet, Download, ChevronDown,
-} from "lucide-react";
+  FileDown, FileSpreadsheet, Download, ChevronDown, Gift } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { formatDate, toDateStr } from "@/lib/ferias";
@@ -206,6 +205,7 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
   });
 
   const [editingFicha, setEditingFicha] = useState(false);
+  const [abaFicha, setAbaFicha] = useState<"dados" | "beneficios">("dados");
   const [baixandoFicha, setBaixandoFicha] = useState<null | "pdf" | "xlsx">(null);
 
   // Baixa a ficha gerada no servidor com os dados atuais do cadastro (PDF ou Excel)
@@ -300,6 +300,7 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
       bancoTipoChavePix: c.bancoTipoChavePix ?? "",
     });
     if (registroDados) setRegistroForm(formRegistroInicial(registroDados));
+    setAbaFicha("dados");
     setEditingFicha(true);
   }
 
@@ -579,6 +580,23 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
         </div>
       </div>
 
+      {/* ── Abas da ficha: dados do colaborador e resumo de benefícios ── */}
+      <nav role="tablist" aria-label="Seções da ficha" className="flex gap-7 border-b border-border/70 px-1">
+        {([["dados", "Dados do Colaborador", User], ["beneficios", "Benefícios", Gift]] as const).map(([valor, rotulo, Icone]) => {
+          const ativa = abaFicha === valor;
+          return (
+            <button key={valor} type="button" role="tab" aria-selected={ativa} onClick={() => setAbaFicha(valor)}
+              className={`-mb-px flex items-center gap-2 border-b-[3px] px-1 py-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${ativa ? "border-primary font-bold text-primary" : "border-transparent font-semibold text-muted-foreground hover:text-foreground"}`}>
+              <Icone className="h-4 w-4" />{rotulo}
+            </button>
+          );
+        })}
+      </nav>
+
+      {abaFicha === "beneficios" && <ResumoBeneficios colaboradorId={id} />}
+
+      {/* Aba "Dados do Colaborador": os cartões da ficha (ficam montados para não perder o que está sendo editado) */}
+      <div role="tabpanel" className={abaFicha === "dados" ? "space-y-5" : "hidden"}>
       {/* ── Layout Principal: 3 colunas no desktop ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
@@ -1067,6 +1085,8 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
 
       {/* ── Registro de Empregado: campos complementares da Ficha de Registro, no mesmo padrão de cartões ── */}
       <RegistroEmpregado colaboradorId={id} editando={editingFicha} form={registroForm} setForm={setRegistroForm} />
+
+      </div>
 
       {/* ── Dialog de confirmação de desligamento ── */}
       <AlertDialog open={confirmDesligar} onOpenChange={setConfirmDesligar}>
