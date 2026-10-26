@@ -26,6 +26,7 @@ import {
 import * as XLSX from "xlsx";
 
 import { InputMoeda } from "@/components/InputMoeda";
+import { contemTexto } from "@/lib/busca";
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
@@ -99,10 +100,10 @@ function BuscaColaborador({
     if (busca.length < 2) return [];
     const lower = busca.toLowerCase();
     if (incluirInativos && todos) {
-      return (todos.data ?? []).filter((c: any) => c.nome.toLowerCase().includes(lower)).slice(0, 10);
+      return (todos.data ?? []).filter((c: any) => contemTexto(c.nome, lower)).slice(0, 10);
     }
     if (!ativos) return [];
-    return ativos.filter(c => c.nome.toLowerCase().includes(lower)).slice(0, 10);
+    return ativos.filter(c => contemTexto(c.nome, lower)).slice(0, 10);
   }, [ativos, todos, busca, incluirInativos]);
 
   return (

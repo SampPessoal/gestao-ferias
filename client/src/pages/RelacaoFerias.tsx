@@ -37,6 +37,7 @@ import { NomeColaborador } from "@/components/NomeColaborador";
 import { toDateStr, formatDateBR, situacaoSaida, umMesAntes, diasPerdidosPenalidade } from "@/lib/ferias";
 
 import { mascaraInteiro, mascaraPeriodo } from "@/lib/mascaras";
+import { contemTexto } from "@/lib/busca";
 const MESES = [
   { value: "1", label: "Janeiro" },
   { value: "2", label: "Fevereiro" },
@@ -211,7 +212,7 @@ export default function RelacaoFerias() {
 
   const registrosFiltrados = useMemo(() => {
     return (registros as RegistroFerias[]).filter((r) => {
-      const matchBusca = !busca || (r.colaboradorNome ?? "").toLowerCase().includes(busca.toLowerCase());
+      const matchBusca = !busca || contemTexto((r.colaboradorNome ?? ""), busca);
       const matchMes = filtroMes === "all" ? true : (() => {
         if (!r.dataSaida) return false;
         // Usa UTC para evitar bug de timezone ao extrair mês
@@ -1001,7 +1002,7 @@ export default function RelacaoFerias() {
               {dropdownAberto && buscaColab.length >= 1 && (
                 <div className="absolute z-50 w-full bg-white border border-border rounded-md shadow-lg max-h-52 overflow-y-auto mt-1">
                   {(colaboradoresLista as any[])
-                    .filter((c) => c.nome.toLowerCase().includes(buscaColab.toLowerCase()))
+                    .filter((c) => contemTexto(c.nome, buscaColab))
                     .slice(0, 20)
                     .map((c) => (
                       <button
@@ -1058,7 +1059,7 @@ export default function RelacaoFerias() {
                         {c.setorNome && <span className="text-muted-foreground ml-2 text-xs">{c.setorNome}</span>}
                       </button>
                     ))}
-                  {(colaboradoresLista as any[]).filter((c) => c.nome.toLowerCase().includes(buscaColab.toLowerCase())).length === 0 && (
+                  {(colaboradoresLista as any[]).filter((c) => contemTexto(c.nome, buscaColab)).length === 0 && (
                     <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum colaborador encontrado.</div>
                   )}
                 </div>
@@ -1282,7 +1283,7 @@ function HistoricoCancelamentos() {
   const filtrados = useMemo(() => {
     return (cancelamentos as any[]).filter((c) => {
       const matchEmpresa = filtroEmpresaId === "all" || String(c.empresaId) === filtroEmpresaId;
-      const matchBusca = !busca || (c.colaboradorNome ?? "").toLowerCase().includes(busca.toLowerCase());
+      const matchBusca = !busca || contemTexto((c.colaboradorNome ?? ""), busca);
       return matchEmpresa && matchBusca;
     });
   }, [cancelamentos, filtroEmpresaId, busca]);

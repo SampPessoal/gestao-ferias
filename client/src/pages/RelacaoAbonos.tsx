@@ -30,6 +30,7 @@ import { SortableHeader } from "@/components/SortableHeader";
 import { NomeColaborador } from "@/components/NomeColaborador";
 import { toast } from "sonner";
 
+import { contemTexto } from "@/lib/busca";
 const ANO_ATUAL = new Date().getFullYear();
 // Mostra os últimos 5 anos + próximos 2 para cobrir histórico completo
 const ANOS = Array.from({ length: 8 }, (_, i) => ANO_ATUAL - 5 + i);
@@ -439,7 +440,7 @@ export default function RelacaoAbonos() {
   // Filtro local por busca de nome
   const abonosFiltrados = useMemo(() => {
     if (!data?.data) return [];
-    const filtrado = !busca.trim() ? data.data : data.data.filter((a: any) => (a.colaboradorNome ?? "").toLowerCase().includes(busca.toLowerCase()));
+    const filtrado = !busca.trim() ? data.data : data.data.filter((a: any) => contemTexto((a.colaboradorNome ?? ""), busca));
     return sortAbonosData(filtrado);
   }, [data, busca, sortAbonos]);
 

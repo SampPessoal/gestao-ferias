@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
+import { contemTexto } from "@/lib/busca";
 function getInitials(nome: string) {
   return nome.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join("").toUpperCase();
 }
@@ -686,9 +687,9 @@ export default function ExamesPeriodicos() {
       if (filtroStatus === "nao" && r.realizou) return false;
       if (busca) {
         const q = busca.toLowerCase();
-        if (!r.colaboradorNome.toLowerCase().includes(q) &&
-            !r.empresaNome.toLowerCase().includes(q) &&
-            !(r.setorNome ?? "").toLowerCase().includes(q)) return false;
+        if (!contemTexto(r.colaboradorNome, q) &&
+            !contemTexto(r.empresaNome, q) &&
+            !contemTexto((r.setorNome ?? ""), q)) return false;
       }
       return true;
     });
