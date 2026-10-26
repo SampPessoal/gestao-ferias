@@ -59,6 +59,7 @@ import { toast } from "sonner";
 
 import { InputMoeda } from "@/components/InputMoeda";
 import { mascaraCpf, mascaraInteiro } from "@/lib/mascaras";
+import { contemTexto } from "@/lib/busca";
 const EMPRESAS = ["FREIRE", "JOANES", "SUDOESTE", "SOLAR"] as const;
 const EMPRESA_LABELS: Record<string, string> = {
   FREIRE: "Freire",
@@ -221,7 +222,7 @@ function Simulador() {
   const colabsFiltrados = useMemo(() => {
     if (nomeBuscaDebounced.length < 2) return [];
     const q = nomeBuscaDebounced.toLowerCase();
-    return (todosColabs as any[]).filter((c: any) => c.nome.toLowerCase().includes(q)).slice(0, 8);
+    return (todosColabs as any[]).filter((c: any) => contemTexto(c.nome, q)).slice(0, 8);
   }, [todosColabs, nomeBuscaDebounced]);
 
   // Selecionar colaborador da busca
@@ -717,9 +718,9 @@ function Coparticipacao() {
     const q = busca.toLowerCase();
     return base.filter(
       (r) =>
-        r.nomeBeneficiario.toLowerCase().includes(q) ||
-        r.numeroBeneficiario.toLowerCase().includes(q) ||
-        (r.observacao ?? "").toLowerCase().includes(q)
+        contemTexto(r.nomeBeneficiario, q) ||
+        contemTexto(r.numeroBeneficiario, q) ||
+        contemTexto((r.observacao ?? ""), q)
     );
   }, [lancamentos, busca]);
 
@@ -1187,7 +1188,7 @@ function Beneficiarios() {
     if (buscaColabDebounced.length < 2) return [];
     const q = buscaColabDebounced.toLowerCase();
     return (todosColabsAtivos as any[]).filter((c: any) =>
-      c.nome.toLowerCase().includes(q)
+      contemTexto(c.nome, q)
     ).slice(0, 10);
   }, [todosColabsAtivos, buscaColabDebounced]);
 

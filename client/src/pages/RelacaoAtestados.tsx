@@ -32,6 +32,7 @@ import { NomeColaborador } from "@/components/NomeColaborador";
 import { toast } from "sonner";
 
 import { mascaraInteiro } from "@/lib/mascaras";
+import { contemTexto } from "@/lib/busca";
 // ─── Helpers de data UTC-safe ────────────────────────────────────────────────
 
 function toDateStr(val: Date | string | null | undefined): string | null {
@@ -219,8 +220,8 @@ export default function RelacaoAtestados() {
   const filtered = useMemo(() => {
     if (!data?.data) return [];
     const base = !busca.trim() ? data.data : data.data.filter((r: any) =>
-      r.colaboradorNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      r.observacao?.toLowerCase().includes(busca.toLowerCase())
+      contemTexto(r.colaboradorNome, busca) ||
+      contemTexto(r.observacao, busca)
     );
     return sortAtestData(base);
   }, [data?.data, busca, sortAtest]);

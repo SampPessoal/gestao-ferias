@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 import { InputMoeda } from "@/components/InputMoeda";
 import { mascaraInteiro } from "@/lib/mascaras";
+import { contemTexto } from "@/lib/busca";
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
@@ -703,10 +704,10 @@ function ModalGerenciarColaboradores({ open, onClose, mes, ano }: { open: boolea
 
   const colaboradoresPlanilha = dadosPlanilha?.setores.flatMap(s => s.colaboradores) ?? [];
   const filtradosPlanilha = colaboradoresPlanilha.filter(c =>
-    !busca || c.nome.toLowerCase().includes(busca.toLowerCase())
+    !busca || contemTexto(c.nome, busca)
   );
   const filtradosExcluidos = (excluidos ?? []).filter((c: any) =>
-    !busca || c.nome.toLowerCase().includes(busca.toLowerCase())
+    !busca || contemTexto(c.nome, busca)
   );
 
   const totalAtivos = colaboradoresPlanilha.length;
@@ -1004,7 +1005,7 @@ export default function PlanilhaVRVT() {
     if (!buscaColaborador.trim()) return setoresFiltrados;
     const termo = buscaColaborador.trim().toLowerCase();
     return setoresFiltrados
-      .map(s => ({ ...s, colaboradores: s.colaboradores.filter(c => c.nome.toLowerCase().includes(termo)) }))
+      .map(s => ({ ...s, colaboradores: s.colaboradores.filter(c => contemTexto(c.nome, termo)) }))
       .filter(s => s.colaboradores.length > 0);
   }, [setoresFiltrados, buscaColaborador]);
 

@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { mascaraInteiro } from "@/lib/mascaras";
+import { contemTexto } from "@/lib/busca";
 import {
   Receipt, RefreshCw, Printer, Download, Search,
   Building2, TrendingDown, Wallet, Heart, Shield,
@@ -566,8 +567,8 @@ export default function FolhaMes() {
   const folhaFiltrada = useMemo(() => {
     const q = busca.toLowerCase().trim();
     return (folha as FolhaRow[]).filter(r =>
-      !q || r.nomeColaborador?.toLowerCase().includes(q) ||
-      r.setorNome?.toLowerCase().includes(q)
+      !q || contemTexto(r.nomeColaborador, q) ||
+      contemTexto(r.setorNome, q)
     );
   }, [folha, busca]);
 
