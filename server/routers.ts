@@ -194,7 +194,10 @@ export const appRouter = router({
         return getSetores(input?.empresaId);
       }),
     create: protectedProcedure
-      .input(z.object({ nome: z.string().min(1).max(100), empresaId: z.number().optional() }))
+      .input(z.object({
+        nome: z.string().trim().min(2, "Informe o nome do setor").max(100, "Nome do setor muito longo"),
+        empresaId: z.number({ message: "Escolha a empresa do setor" }).int().positive(),
+      }))
       .mutation(async ({ input }) => {
         return createSetor(input.nome, input.empresaId);
       }),

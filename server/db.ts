@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, gte, isNotNull, isNull, lte, or, sql, sum, inArray, ne } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { CAMPOS_REGISTRO, tipoSql } from "../shared/registroEmpregado";
@@ -223,12 +224,21 @@ export async function getSetores(empresaId?: number) {
   return db.select().from(setores).orderBy(asc(setores.nome));
 }
 
+/** Nome comparável: sem acentos, minúsculo e com espaços simples. */
+const nomeComparavel = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
 export async function createSetor(nome: string, empresaId?: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.insert(setores).values({ nome, empresaId: empresaId ?? null });
-  const result = await db.select().from(setores).where(eq(setores.nome, nome)).limit(1);
-  return result[0];
+  const nomeLimpo = nome.replace(/\s+/g, " ").trim();
+  // Evita setor repetido na mesma empresa (ignora maiúsculas, acentos e espaços)
+  const existentes = await db.select().from(setores).where(empresaId ? eq(setores.empresaId, empresaId) : isNull(setores.empresaId));
+  const igual = existentes.find(s => nomeComparavel(s.nome) === nomeComparavel(nomeLimpo));
+  if (igual) {
+    throw new TRPCError({ code: "CONFLICT", message: `Já existe o setor "${igual.nome}" nesta empresa.` });
+  }
+  const [novo] = await db.insert(setores).values({ nome: nomeLimpo, empresaId: empresaId ?? null }).returning();
+  return novo;
 }
 
 export async function updateSetor(id: number, nome: string, empresaId?: number) {
@@ -840,6 +850,20 @@ export async function getStatusPorSetor(empresaId?: number) {
       if (dl <= d30Str) entry.vence30++;
       if (dl <= hojeStr) entry.vencidas++;
     }
+  }
+
+  // Setores cadastrados ainda sem colaboradores também aparecem (com 0)
+  const todosSetores = await db
+    .select({ id: setores.id, nome: setores.nome, empresaId: setores.empresaId, empresaNome: empresas.nome })
+    .from(setores)
+    .leftJoin(empresas, eq(setores.empresaId, empresas.id))
+    .where(empresaId ? eq(setores.empresaId, empresaId) : undefined);
+  for (const st of todosSetores) {
+    if (setorMap.has(st.id)) continue;
+    setorMap.set(st.id, {
+      setorId: st.id, setorNome: st.nome, empresaId: st.empresaId, empresaNome: st.empresaNome ?? "",
+      total: 0, vencidas: 0, vence30: 0, vence60: 0, vence90: 0, saldoTotal: 0,
+    });
   }
 
   // Filtrar setor fantasma (setorId = -1, colaboradores sem setor cadastrado)
