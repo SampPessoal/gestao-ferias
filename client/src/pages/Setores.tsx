@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, ChevronRight, Users, AlertTriangle, CheckCircle2, Clock, Bell, Info, Shield, Pencil, Check, X } from "lucide-react";
+import { Building2, ChevronRight, Users, AlertTriangle, CheckCircle2, Clock, Bell, Info, Shield, Pencil, Check, X, Plus } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -22,7 +25,7 @@ function getEmpresaColor(nome: string) {
   return "oklch(0.22 0.015 240)";
 }
 
-type SetorStatus = {
+type SetorStatus = { total: number;
   vencidas: number;
   vence30: number;
   vence60?: number;
@@ -38,6 +41,12 @@ function getStatusInfo(s: SetorStatus) {
   const alertas  = vence60 - s.vence30;
   const atencoes = vence90 - vence60;
 
+  if (s.total === 0) return {
+    label: "Sem colaboradores", color: "text-muted-foreground", bg: "bg-muted/60", border: "border-border",
+    icon: Users, dot: "bg-muted-foreground",
+    count: 0,
+    desc: "Nenhum colaborador neste setor ainda",
+  };
   if (urgentes > 0) return {
     label: "Urgente", color: "text-red-700", bg: "bg-red-100", border: "border-red-300",
     icon: AlertTriangle, dot: "bg-red-600",
@@ -72,11 +81,12 @@ function getStatusInfo(s: SetorStatus) {
 
 export default function Setores() {
   const { data: setores, isLoading } = trpc.dashboard.statusPorSetor.useQuery();
+  const [novoAberto, setNovoAberto] = useState(false);
 
   const totalColaboradores = setores?.reduce((acc, s) => acc + s.total, 0) ?? 0;
   const totalUrgentes  = setores?.reduce((acc, s) => acc + s.vencidas, 0) ?? 0;
   const totalCriticos  = setores?.reduce((acc, s) => acc + Math.max(0, s.vence30 - s.vencidas), 0) ?? 0;
-  const totalEmDia     = (setores ?? []).filter(s => (s.vence90 ?? s.vence30) === 0).length;
+  const totalEmDia     = (setores ?? []).filter(s => s.total > 0 && (s.vence90 ?? s.vence30) === 0).length;
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -91,10 +101,13 @@ export default function Setores() {
             style={{ background: "linear-gradient(135deg, oklch(0.48 0.20 252), oklch(0.45 0.18 255))", boxShadow: "0 4px 12px oklch(0.45 0.18 250 / 0.30)" }}>
             <Building2 className="w-6 h-6 text-white" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-white leading-none tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Setores</h1>
             <p className="text-sm mt-1" style={{ color: "oklch(0.65 0.008 240)" }}>Visão consolidada por setor e empresa — clique em um setor para ver os colaboradores</p>
           </div>
+          <Button onClick={() => setNovoAberto(true)} className="h-11 shrink-0 gap-2 rounded-xl bg-white px-4 font-bold text-[oklch(0.25_0.09_252)] hover:bg-white/90">
+            <Plus className="h-4 w-4" /> Novo Setor
+          </Button>
         </div>
       </div>
 
@@ -176,7 +189,7 @@ export default function Setores() {
                       </div>
                       <div className={`text-center rounded-lg py-2 ${status.bg} border ${status.border}`}>
                         <p className={`text-base font-bold ${status.color}`} style={{ fontFamily: "var(--font-display)" }}>
-                          {temAlerta ? status.count : "✓"}
+                          {s.total === 0 ? "—" : temAlerta ? status.count : "✓"}
                         </p>
                         <p className={`text-[10px] mt-0.5 ${status.color} font-medium`}>{status.label}</p>
                       </div>
@@ -213,8 +226,12 @@ export default function Setores() {
                     ) : (
                       <div className="mt-3 flex items-center gap-1.5">
                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                        <CheckCircle2 className="w-3 h-3 text-blue-600" />
-                        <span className="text-xs font-medium text-blue-600">Todas as férias em dia</span>
+                        {s.total === 0 ? (
+                          <span className="text-xs font-medium text-muted-foreground">Nenhum colaborador neste setor ainda</span>
+                        ) : (<>
+                          <CheckCircle2 className="w-3 h-3 text-blue-600" />
+                          <span className="text-xs font-medium text-blue-600">Todas as férias em dia</span>
+                        </>)}
                       </div>
                     )}
                   </div>
@@ -226,6 +243,7 @@ export default function Setores() {
 
       {/* Configuração de Seguro de Vida por Empresa */}
       <ConfiguracaoSeguroVida />
+      <NovoSetorDialog aberto={novoAberto} onFechar={() => setNovoAberto(false)} />
     </div>
   );
 }
@@ -316,5 +334,59 @@ function ConfiguracaoSeguroVida() {
         ))}
       </div>
     </div>
+  );
+}
+
+
+// ─── Janela "Novo Setor" ─────────────────────────────────────────────────────
+
+function NovoSetorDialog({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
+  const utils = trpc.useUtils();
+  const { data: empresas = [] } = trpc.empresas.list.useQuery(undefined, { enabled: aberto });
+  const [nome, setNome] = useState("");
+  const [empresaId, setEmpresaId] = useState("");
+  const criar = trpc.setores.create.useMutation({
+    onSuccess: (novo) => {
+      toast.success(`Setor "${novo?.nome ?? nome.trim()}" criado.`);
+      utils.dashboard.statusPorSetor.invalidate();
+      utils.setores.list.invalidate();
+      setNome(""); setEmpresaId(""); onFechar();
+    },
+    onError: (e) => {
+      let msg = e.message;
+      try { const l = JSON.parse(msg); if (Array.isArray(l) && l[0]?.message) msg = l[0].message; } catch { /* mensagem já legível */ }
+      toast.error(msg || "Não foi possível criar o setor.");
+    },
+  });
+  const podeCriar = nome.trim().length >= 2 && !!empresaId && !criar.isPending;
+  return (
+    <Dialog open={aberto} onOpenChange={o => { if (!o) onFechar(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-blue-600" /> Novo Setor</DialogTitle>
+          <DialogDescription>O setor fica disponível no cadastro dos colaboradores da empresa escolhida.</DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={e => { e.preventDefault(); if (podeCriar) criar.mutate({ nome: nome.trim(), empresaId: Number(empresaId) }); }}>
+          <div className="space-y-1.5">
+            <Label htmlFor="novo-setor-nome">Nome do setor <span className="text-destructive">*</span></Label>
+            <Input id="novo-setor-nome" value={nome} maxLength={100} autoFocus placeholder="Ex.: Fábrica Sedur" onChange={e => setNome(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="novo-setor-empresa">Empresa <span className="text-destructive">*</span></Label>
+            <Select value={empresaId} onValueChange={setEmpresaId}>
+              <SelectTrigger id="novo-setor-empresa" className="w-full"><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+              <SelectContent>
+                {empresas.map((e: any) => <SelectItem key={e.id} value={String(e.id)}>{e.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground">Se já existir um setor com esse nome na mesma empresa, o sistema avisa e não cria outro igual.</p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onFechar}>Cancelar</Button>
+            <Button type="submit" disabled={!podeCriar}>{criar.isPending ? "Criando…" : "Criar Setor"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
