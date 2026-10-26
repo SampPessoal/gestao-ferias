@@ -7,6 +7,18 @@ import { InsertUser, SystemUser, colaboradores, empresas, setores, users, histor
 import bcrypt from "bcryptjs";
 import { ENV } from "./_core/env";
 
+// ─── Pesquisa por nome que ignora acentos, maiúsculas e espaços repetidos ──────
+// "joao conceicao" encontra "JOÃO CONCEIÇÃO". Usa translate() do PostgreSQL (sem extensões).
+const LETRAS_COM_ACENTO = "áàâãäåéèêëíìîïóòôõöúùûüçñýÁÀÂÃÄÅÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑÝ";
+const LETRAS_SEM_ACENTO = "aaaaaaeeeeiiiiooooouuuucnyaaaaaaeeeeiiiiooooouuuucny";
+export const textoBusca = (v: string) =>
+  v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+/** Condição SQL: a coluna contém o termo, sem diferenciar acentos nem maiúsculas. */
+function contemSemAcento(coluna: any, termo: string) {
+  return sql`regexp_replace(translate(lower(coalesce(${coluna}, '')), ${LETRAS_COM_ACENTO}, ${LETRAS_SEM_ACENTO}), '[[:space:]]+', ' ', 'g') LIKE ${`%${textoBusca(termo)}%`}`;
+}
+
+
 let _db: ReturnType<typeof drizzle> | null = null;
 let _client: ReturnType<typeof postgres> | null = null;
 
@@ -411,7 +423,7 @@ export async function getColaboradores(filtros: ColaboradorFiltros = {}) {
   if (setorId) conditions.push(eq(colaboradores.setorId, setorId) as any);
   if (busca) {
     const termo = busca.trim();
-    const nomeCond = sql`LOWER(${colaboradores.nome}) LIKE ${`%${termo.toLowerCase()}%`}`;
+    const nomeCond = contemSemAcento(colaboradores.nome, termo);
     // Busca por CPF: compara só os dígitos, aceitando "123.456.789-00" ou "12345678900"
     const digitos = termo.replace(/\D/g, "");
     const pareceCpf = digitos.length >= 3 && /^[\d.\-\s]+$/.test(termo);
@@ -1976,7 +1988,7 @@ export async function getSeguroVida(filtros: { busca?: string; empresaId?: numbe
   if (seguro === "com") conditions.push(eq(colaboradores.temSeguroVida, true) as any);
   else if (seguro === "sem") conditions.push(eq(colaboradores.temSeguroVida, false) as any);
   // seguro === "todos" não adiciona filtro de seguro
-  if (busca) conditions.push(sql`LOWER(${colaboradores.nome}) LIKE ${`%${busca.toLowerCase()}%`}` as any);
+  if (busca) conditions.push(contemSemAcento(colaboradores.nome, busca) as any);
   if (empresaId) conditions.push(eq(colaboradores.empresaId, empresaId) as any);
   if (setorId) conditions.push(eq(colaboradores.setorId, setorId) as any);
   const rows = await db
@@ -2012,7 +2024,7 @@ export async function getBeneficios(filtros: { busca?: string; empresaId?: numbe
   if (!db) throw new Error("DB not available");
   const { busca, empresaId, setorId } = filtros;
   const conditions: any[] = [eq(colaboradores.status, "ativo")];
-  if (busca) conditions.push(sql`LOWER(${colaboradores.nome}) LIKE ${`%${busca.toLowerCase()}%`}` as any);
+  if (busca) conditions.push(contemSemAcento(colaboradores.nome, busca) as any);
   if (empresaId) conditions.push(eq(colaboradores.empresaId, empresaId) as any);
   if (setorId) conditions.push(eq(colaboradores.setorId, setorId) as any);
   const rows = await db
@@ -2296,7 +2308,7 @@ export async function getColaboradoresSemVRVT(busca?: string) {
     eq(colaboradores.ativoVRVT, false),
   ];
   if (busca) {
-    conditions.push(sql`LOWER(${colaboradores.nome}) LIKE ${`%${busca.toLowerCase()}%`}`);
+    conditions.push(contemSemAcento(colaboradores.nome, busca));
   }
   return db.select({
     id: colaboradores.id,
@@ -3122,10 +3134,12 @@ export async function getPlanoSaude(params: {
   if (tipo) conditions.push(eq(planoSaude.tipo, tipo as any));
   if (busca) {
     const term = `%${busca}%`;
+    const digitos = busca.replace(/\D/g, "");
     conditions.push(or(
-      like(planoSaude.nome, term),
+      contemSemAcento(planoSaude.nome, busca),
       like(planoSaude.numeroBeneficiario, term),
       like(planoSaude.cpf, term),
+      ...(digitos.length >= 3 ? [sql`REGEXP_REPLACE(COALESCE(${planoSaude.cpf}, ''), '[^0-9]', '', 'g') LIKE ${`%${digitos}%`}`] : []),
     ));
   }
 
