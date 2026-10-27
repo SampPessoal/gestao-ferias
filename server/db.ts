@@ -88,33 +88,62 @@ export async function withTimeout<T>(promise: Promise<T>, ms = DB_QUERY_TIMEOUT_
  * Cria, se ainda não existirem, as colunas adicionadas em versões novas.
  * É idempotente (ADD COLUMN IF NOT EXISTS), então roda com segurança a cada início.
  */
-/** Executa um comando de estrutura com algumas tentativas (a tabela pode estar em uso durante a publicação). */
-async function comandoComTentativas(client: ReturnType<typeof postgres>, comando: string, tentativas = 4): Promise<boolean> {
+/** Último erro ao criar estrutura (para diagnóstico na tela). */
+let ultimoErroEstrutura: { quando: string; comando: string; erro: string } | null = null;
+let ultimaTentativaEstrutura = 0;
+let estruturaEmAndamento: Promise<void> | null = null;
+
+/** Executa um comando de estrutura sem travar o sistema: espera no máximo 3 s pela tabela. */
+async function comandoComTentativas(client: ReturnType<typeof postgres>, comando: string, tentativas = 2): Promise<boolean> {
   for (let i = 1; i <= tentativas; i++) {
     try {
-      await client.unsafe(`SET lock_timeout = '15s'; ${comando}`);
+      await client.unsafe(`SET lock_timeout = '3s'; ${comando}`);
       return true;
     } catch (error) {
-      console.error(`[Database] Tentativa ${i}/${tentativas} falhou: ${comando.slice(0, 90)} — ${(error as Error).message}`);
-      if (i < tentativas) await new Promise(r => setTimeout(r, 2000 * i));
+      const erro = (error as Error).message;
+      ultimoErroEstrutura = { quando: new Date().toISOString(), comando: comando.slice(0, 120), erro };
+      console.error(`[Database] Tentativa ${i}/${tentativas} falhou: ${comando.slice(0, 90)} — ${erro}`);
+      if (i < tentativas) await new Promise(r => setTimeout(r, 1000));
     }
   }
   return false;
 }
 
+/** Colunas que existem hoje numa tabela (consulta leve, sem bloquear a tabela). */
+export async function colunasExistentes(tabela: string): Promise<Set<string>> {
+  if (!_client) return new Set();
+  const linhas = await _client`select column_name from information_schema.columns where table_schema = current_schema() and table_name = ${tabela}`;
+  return new Set(linhas.map((l: any) => l.column_name as string));
+}
+
 /**
- * Cria as colunas e tabelas novas (idempotente). Cada comando roda separado,
- * com novas tentativas: uma falha não impede os demais.
+ * Cria só o que falta (colunas e tabelas novas). Antes confere o que já existe, para
+ * não pedir bloqueio da tabela à toa. Cada comando roda separado: uma falha não impede os demais.
  */
 async function garantirColunasNovas(client: ReturnType<typeof postgres>) {
-  const comandos: string[] = [
-    `ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "periodoAquisitivoAnterior" date;`,
-    `ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "vencimentoAnterior" date;`,
-    `ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "dataLimiteAnterior" date;`,
-    `ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "saldoAnterior" integer;`,
-    // Registro de Empregado: campos complementares da Ficha de Registro
-    ...CAMPOS_REGISTRO.map(c => `ALTER TABLE "colaboradores" ADD COLUMN IF NOT EXISTS "${c.chave}" ${tipoSql(c)};`),
-    `CREATE TABLE IF NOT EXISTS "dependentes" (
+  ultimaTentativaEstrutura = Date.now();
+  const existe = async (tabela: string) => {
+    const linhas = await client`select column_name from information_schema.columns where table_schema = current_schema() and table_name = ${tabela}`;
+    return new Set(linhas.map((l: any) => l.column_name as string));
+  };
+  let colHist = new Set<string>(), colColab = new Set<string>(), temDependentes = false;
+  try {
+    colHist = await existe("historicoFerias");
+    colColab = await existe("colaboradores");
+    temDependentes = (await existe("dependentes")).size > 0;
+  } catch (error) {
+    console.error("[Database] Não foi possível ler a estrutura atual:", (error as Error).message);
+  }
+  const comandos: string[] = [];
+  for (const [col, tipo] of [["periodoAquisitivoAnterior", "date"], ["vencimentoAnterior", "date"], ["dataLimiteAnterior", "date"], ["saldoAnterior", "integer"]] as const) {
+    if (!colHist.has(col)) comandos.push(`ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "${col}" ${tipo};`);
+  }
+  // Registro de Empregado: campos complementares da Ficha de Registro
+  for (const c of CAMPOS_REGISTRO) {
+    if (!colColab.has(c.chave)) comandos.push(`ALTER TABLE "colaboradores" ADD COLUMN IF NOT EXISTS "${c.chave}" ${tipoSql(c)};`);
+  }
+  if (!temDependentes) {
+    comandos.push(`CREATE TABLE IF NOT EXISTS "dependentes" (
         "id" serial PRIMARY KEY,
         "colaboradorId" integer NOT NULL REFERENCES "colaboradores"("id") ON DELETE CASCADE,
         "nome" varchar(200) NOT NULL,
@@ -124,41 +153,37 @@ async function garantirColunasNovas(client: ReturnType<typeof postgres>) {
         "rg" varchar(20),
         "dependenteIR" boolean DEFAULT false NOT NULL,
         "createdAt" timestamp DEFAULT now() NOT NULL
-      );`,
-    `CREATE INDEX IF NOT EXISTS "idx_dependentes_colab" ON "dependentes" ("colaboradorId");`,
-    // "Empresa vinculada": a opção que era "Sudoeste" passou a ser "a própria empresa do colaborador"
-    `UPDATE "colaboradores" SET "empresaEstagio" = 'empresa' WHERE "empresaEstagio" = 'sudoeste';`,
-  ];
+      );`);
+    comandos.push(`CREATE INDEX IF NOT EXISTS "idx_dependentes_colab" ON "dependentes" ("colaboradorId");`);
+  }
   let falhas = 0;
   for (const c of comandos) if (!(await comandoComTentativas(client, c))) falhas++;
-  if (falhas) console.error(`[Database] ${falhas} comando(s) de estrutura não foram aplicados; serão tentados de novo quando necessário.`);
-  else console.log("[Database] Estrutura do banco conferida.");
-}
-
-/**
- * Confere a estrutura de novo (sem reiniciar o sistema). Usado quando uma consulta
- * encontra uma coluna que ainda não existe.
- */
-export async function garantirEstruturaBanco() {
-  if (_client) await garantirColunasNovas(_client);
-}
-
-/** É erro de coluna/tabela inexistente? */
-export function ehErroDeEstrutura(e: unknown): boolean {
-  const msgs = [(e as any)?.message, (e as any)?.cause?.message, (e as any)?.cause?.code].filter(Boolean).join(" ");
-  return /does not exist|não existe|42703|42P01/i.test(msgs);
-}
-
-/** Executa a operação; se faltar coluna ou tabela, cria o que falta e tenta mais uma vez. */
-export async function comReparoDeEstrutura<T>(operacao: () => Promise<T>): Promise<T> {
-  try {
-    return await operacao();
-  } catch (e) {
-    if (!ehErroDeEstrutura(e)) throw e;
-    console.error("[Database] Coluna ou tabela ausente; criando e tentando de novo:", (e as any)?.cause?.message ?? (e as Error).message);
-    await garantirEstruturaBanco();
-    return await operacao();
+  // "Empresa vinculada": a opção que era "Sudoeste" passou a ser "a própria empresa do colaborador"
+  if (colColab.has("empresaEstagio")) {
+    try { await client.unsafe(`UPDATE "colaboradores" SET "empresaEstagio" = 'empresa' WHERE "empresaEstagio" = 'sudoeste';`); } catch { /* tenta de novo na próxima vez */ }
   }
+  if (falhas) console.error(`[Database] ${falhas} comando(s) de estrutura não foram aplicados; o sistema segue funcionando sem eles e tenta de novo depois.`);
+  else console.log(`[Database] Estrutura do banco conferida (${comandos.length} item(ns) criado(s)).`);
+  if (!falhas) ultimoErroEstrutura = null;
+}
+
+/** Tenta de novo criar o que falta, em segundo plano e no máximo a cada 1 minuto. */
+export function garantirEstruturaBanco(): Promise<void> {
+  if (!_client) return Promise.resolve();
+  if (estruturaEmAndamento) return estruturaEmAndamento;
+  if (Date.now() - ultimaTentativaEstrutura < 60_000) return Promise.resolve();
+  estruturaEmAndamento = garantirColunasNovas(_client).finally(() => { estruturaEmAndamento = null; });
+  return estruturaEmAndamento;
+}
+
+/** Diagnóstico: colunas do registro que faltam no banco e o último erro ao criá-las. */
+export async function diagnosticoEstrutura() {
+  const cols = await colunasExistentes("colaboradores");
+  return {
+    faltando: CAMPOS_REGISTRO.map(c => c.chave).filter(c => !cols.has(c)),
+    ultimoErro: ultimoErroEstrutura,
+    ultimaTentativa: ultimaTentativaEstrutura ? new Date(ultimaTentativaEstrutura).toISOString() : null,
+  };
 }
 
 let _initPromise: Promise<ReturnType<typeof drizzle> | null> | null = null;
@@ -174,9 +199,10 @@ export async function getDb() {
       }
       try {
         const client = postgres(url, { max: 10, idle_timeout: 60, connect_timeout: 8 });
-        await garantirColunasNovas(client);
         _client = client;
         _db = drizzle(client);
+        // Confere/cria colunas novas em segundo plano: o sistema já atende enquanto isso
+        void garantirEstruturaBanco();
         console.log("[Database] Connected to PostgreSQL");
         return _db;
       } catch (error) {
