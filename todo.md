@@ -404,8 +404,8 @@ Quando o colaborador sai de férias dentro de 1 mês antes do vencimento do per�
 ## Correção: Relação de Férias não mostrava Janeiro e Fevereiro 2026 (16/07/2026)
 
 - [x] Identificado: TiDB Cloud voltou a funcionar mas tinha apenas 100 registros (Mar-Ago 2026), sem Jan e Fev
-- [x] Identificado: senha do admin `joao.cerqueira@solarinfo.com.br` estava diferente no TiDB Cloud
-- [x] Corrigido: senha "Joao123" atualizada no TiDB Cloud para coincidir com o banco local
+- [x] Corrigido: divergência de credencial administrativa no ambiente legado, sem registrar identificadores ou segredos.
+
 - [x] Migrado: 23 registros de Jan (16) e Fev (7) do banco local para o TiDB Cloud
 - [x] TiDB Cloud agora tem 123 registros (Jan=16, Fev=7, Mar=11, Abr=16, Mai=10, Jun=29, Jul=17, Ago=17)
 - [x] Corrigido: token de autenticação mudado de sessionStorage para localStorage em SystemLogin.tsx e main.tsx
