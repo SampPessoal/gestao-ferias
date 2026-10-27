@@ -6,7 +6,7 @@ import { z } from "zod/v4";
 import { and, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "./_core/trpc";
-import { getDb, comReparoDeEstrutura } from "./db";
+import { getDb, colunasExistentes, garantirEstruturaBanco, diagnosticoEstrutura } from "./db";
 import { colaboradores, dependentes, movimentacaoAuxilioCreche, movimentacaoAuxilioNotebook, planoSaude } from "../drizzle/schema";
 import { CAMPOS_REGISTRO, PARENTESCOS, UFS, type CampoRegistro, type Dependente, type RegistroEmpregado } from "../shared/registroEmpregado";
 
@@ -102,10 +102,11 @@ export const registroInicialSchema = z.object({
 export async function salvarRegistroInicial(colaboradorId: number, registro: z.infer<typeof registroInicialSchema>) {
   const db = await dbOuErro();
   const patch: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(registro.campos)) if (v !== undefined && v !== null) patch[k] = v;
+  const disponiveis = await camposDisponiveis();
+  for (const [k, v] of Object.entries(registro.campos)) if (v !== undefined && v !== null && disponiveis.has(k)) patch[k] = v;
   for (const [k, v] of Object.entries(registro.complementos ?? {})) if (v !== undefined && v !== null) patch[k] = v;
   if (Object.keys(patch).length) {
-    await comReparoDeEstrutura(() => db.update(colaboradores).set(patch as any).where(eq(colaboradores.id, colaboradorId)));
+    await db.update(colaboradores).set(patch as any).where(eq(colaboradores.id, colaboradorId));
   }
   if (registro.dependentes.length) {
     await db.insert(dependentes).values(registro.dependentes.map(d => ({ ...d, colaboradorId })) as any);
@@ -125,13 +126,24 @@ const dataStr = (v: unknown): string | null => {
 };
 
 /** Campos do Registro de Empregado, dependentes e auxílio notebook de um colaborador. */
-export async function lerRegistroEmpregado(colaboradorId: number) {
-  return comReparoDeEstrutura(() => lerRegistroEmpregadoSemReparo(colaboradorId));
+/**
+ * Campos do registro que já existem no banco. Se algum ainda não existir (coluna nova
+ * que não pôde ser criada), o sistema segue funcionando sem ele e tenta criá-lo em segundo plano.
+ */
+async function camposDisponiveis(): Promise<Set<string>> {
+  const existentes = await colunasExistentes("colaboradores");
+  const faltando = CAMPOS_REGISTRO.filter(c => !existentes.has(c.chave));
+  if (faltando.length) {
+    console.error("[Registro] Colunas ainda inexistentes:", faltando.map(c => c.chave).join(", "));
+    void garantirEstruturaBanco();
+  }
+  return new Set(CAMPOS_REGISTRO.filter(c => existentes.has(c.chave)).map(c => c.chave));
 }
 
-async function lerRegistroEmpregadoSemReparo(colaboradorId: number) {
+export async function lerRegistroEmpregado(colaboradorId: number) {
   const db = await dbOuErro();
-  const sel = Object.fromEntries(CAMPOS_REGISTRO.map(c => [c.chave, (colaboradores as any)[c.chave]]));
+  const disponiveis = await camposDisponiveis();
+  const sel = Object.fromEntries(CAMPOS_REGISTRO.filter(c => disponiveis.has(c.chave)).map(c => [c.chave, (colaboradores as any)[c.chave]]));
   const [linha] = await db.select(sel as any).from(colaboradores).where(eq(colaboradores.id, colaboradorId)).limit(1);
   if (!linha) return null;
   const campos: RegistroEmpregado = {};
@@ -205,6 +217,12 @@ async function lerRegistroEmpregadoSemReparo(colaboradorId: number) {
 }
 
 export const registroEmpregadoRouter = router({
+  /** Diagnóstico: colunas do registro que faltam no banco e o último erro ao criá-las. */
+  estrutura: protectedProcedure.query(async () => {
+    void garantirEstruturaBanco();
+    return diagnosticoEstrutura();
+  }),
+
   get: protectedProcedure
     .input(z.object({ colaboradorId: z.number().int().positive() }))
     .query(async ({ input }) => {
@@ -222,11 +240,12 @@ export const registroEmpregadoRouter = router({
     .mutation(async ({ input }) => {
       const db = await dbOuErro();
       const patch: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(input.campos)) if (v !== undefined) patch[k] = v;
+      const disponiveis = await camposDisponiveis();
+      for (const [k, v] of Object.entries(input.campos)) if (v !== undefined && disponiveis.has(k)) patch[k] = v;
       for (const [k, v] of Object.entries(input.beneficios ?? {})) if (v !== undefined) patch[k] = v;
       if (!Object.keys(patch).length) return { success: true };
-      const r = await comReparoDeEstrutura(() => db.update(colaboradores).set({ ...patch, updatedAt: new Date() } as any)
-        .where(eq(colaboradores.id, input.colaboradorId)).returning({ id: colaboradores.id }));
+      const r = await db.update(colaboradores).set({ ...patch, updatedAt: new Date() } as any)
+        .where(eq(colaboradores.id, input.colaboradorId)).returning({ id: colaboradores.id });
       if (!r.length) throw new TRPCError({ code: "NOT_FOUND", message: "Colaborador não encontrado" });
       return { success: true };
     }),
