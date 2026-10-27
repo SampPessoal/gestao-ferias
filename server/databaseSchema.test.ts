@@ -162,4 +162,14 @@ describe("database schema preflight", () => {
     expect(migration).not.toMatch(/\bDELETE\b|\bGRANT\b|JWT_SECRET|passwordHash/i);
     expect(migration).not.toMatch(/UPDATE\s+public\."systemUsers"/i);
   });
+
+  it("coordinates Railway deployment with the database-backed health endpoint", () => {
+    const railway = JSON.parse(
+      readFileSync(path.resolve(import.meta.dirname, "../railway.json"), "utf8"),
+    );
+    expect(railway.deploy).toMatchObject({
+      healthcheckPath: "/healthz",
+      healthcheckTimeout: 300,
+    });
+  });
 });
