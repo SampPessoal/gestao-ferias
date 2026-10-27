@@ -67,6 +67,7 @@ export const CAMPOS_REGISTRO: CampoRegistro[] = [
     ["A", "B", "AB", "C", "D", "E", "AC", "AD", "AE"].map(c => ({ valor: c, rotulo: c })) },
   { chave: "cnhValidade", rotulo: "CNH — validade", tipo: "data", grupo: "pessoal", dependeDe: "cnhNumero" },
   { chave: "emailPessoal", rotulo: "E-mail pessoal", tipo: "email", grupo: "pessoal", max: 200, largo: true },
+  { chave: "cidadeInterior", rotulo: "Cidade do interior", tipo: "texto", grupo: "pessoal", max: 100, dica: "Ex.: Paulo Afonso - BA" },
 
   // ── Contrato e jornada
   { chave: "vinculo", rotulo: "Vínculo", tipo: "opcao", grupo: "contrato", opcoes: [
