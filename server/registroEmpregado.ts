@@ -6,7 +6,7 @@ import { z } from "zod/v4";
 import { and, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "./_core/trpc";
-import { getDb, colunasExistentes, garantirEstruturaBanco, diagnosticoEstrutura } from "./db";
+import { getDb, colunasExistentes } from "./db";
 import { colaboradores, dependentes, movimentacaoAuxilioCreche, movimentacaoAuxilioNotebook, planoSaude } from "../drizzle/schema";
 import { CAMPOS_REGISTRO, PARENTESCOS, UFS, type CampoRegistro, type Dependente, type RegistroEmpregado } from "../shared/registroEmpregado";
 
@@ -127,15 +127,14 @@ const dataStr = (v: unknown): string | null => {
 
 /** Campos do Registro de Empregado, dependentes e auxílio notebook de um colaborador. */
 /**
- * Campos do registro que já existem no banco. Se algum ainda não existir (coluna nova
- * que não pôde ser criada), o sistema segue funcionando sem ele e tenta criá-lo em segundo plano.
+ * Campos do registro que já existem no banco. Esta descoberta é somente leitura:
+ * o runtime nunca cria ou altera objetos do banco.
  */
 async function camposDisponiveis(): Promise<Set<string>> {
   const existentes = await colunasExistentes("colaboradores");
   const faltando = CAMPOS_REGISTRO.filter(c => !existentes.has(c.chave));
   if (faltando.length) {
     console.error("[Registro] Colunas ainda inexistentes:", faltando.map(c => c.chave).join(", "));
-    void garantirEstruturaBanco();
   }
   return new Set(CAMPOS_REGISTRO.filter(c => existentes.has(c.chave)).map(c => c.chave));
 }
@@ -217,10 +216,10 @@ export async function lerRegistroEmpregado(colaboradorId: number) {
 }
 
 export const registroEmpregadoRouter = router({
-  /** Diagnóstico: colunas do registro que faltam no banco e o último erro ao criá-las. */
+  /** Diagnóstico somente leitura: campos do registro ainda ausentes no catálogo. */
   estrutura: protectedProcedure.query(async () => {
-    void garantirEstruturaBanco();
-    return diagnosticoEstrutura();
+    const existentes = await colunasExistentes("colaboradores");
+    return { faltando: CAMPOS_REGISTRO.map(c => c.chave).filter(c => !existentes.has(c)) };
   }),
 
   get: protectedProcedure

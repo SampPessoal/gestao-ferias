@@ -2,10 +2,10 @@ import { and, asc, count, desc, eq, gte, isNotNull, isNull, lte, or, sql, sum, i
 import { TRPCError } from "@trpc/server";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { CAMPOS_REGISTRO, tipoSql } from "../shared/registroEmpregado";
 import { InsertUser, SystemUser, colaboradores, empresas, setores, users, historicoFerias, InsertHistoricoFerias, abonos, InsertAbono, atestados, InsertAtestado, systemUsers, eventosCalendario, InsertEventoCalendario, EventoCalendario, feriados, Feriado, InsertFeriado, ausenciasVRVT, AusenciaVRVT, InsertAusenciaVRVT, diasCustomVRVT, planilhasGeradas, examesPeriodicos, planoSaude, tabelaPrecos, coparticipacaoPlanoSaude, folhaMes, folhaMesExcecoes, movimentacaoSeguroVida, movimentacaoAuxilioNotebook, movimentacaoPlanoSaude, movimentacaoValeTransporte, movimentacaoAuxilioCreche, movimentacaoBonusIndicacao, cancelamentoFerias } from "../drizzle/schema";
 import bcrypt from "bcryptjs";
 import { ENV } from "./_core/env";
+import { assertRequiredDatabaseSchema } from "./databaseSchema";
 
 // ─── Pesquisa por nome que ignora acentos, maiúsculas e espaços repetidos ──────
 // "joao conceicao" encontra "JOÃO CONCEIÇÃO". Usa translate() do PostgreSQL (sem extensões).
@@ -84,108 +84,12 @@ export async function withTimeout<T>(promise: Promise<T>, ms = DB_QUERY_TIMEOUT_
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer!));
 }
 
-/**
- * Cria, se ainda não existirem, as colunas adicionadas em versões novas.
- * É idempotente (ADD COLUMN IF NOT EXISTS), então roda com segurança a cada início.
- */
-/** Último erro ao criar estrutura (para diagnóstico na tela). */
-let ultimoErroEstrutura: { quando: string; comando: string; erro: string } | null = null;
-let ultimaTentativaEstrutura = 0;
-let estruturaEmAndamento: Promise<void> | null = null;
-
-/** Executa um comando de estrutura sem travar o sistema: espera no máximo 3 s pela tabela. */
-async function comandoComTentativas(client: ReturnType<typeof postgres>, comando: string, tentativas = 2): Promise<boolean> {
-  for (let i = 1; i <= tentativas; i++) {
-    try {
-      await client.unsafe(`SET lock_timeout = '3s'; ${comando}`);
-      return true;
-    } catch (error) {
-      const erro = (error as Error).message;
-      ultimoErroEstrutura = { quando: new Date().toISOString(), comando: comando.slice(0, 120), erro };
-      console.error(`[Database] Tentativa ${i}/${tentativas} falhou: ${comando.slice(0, 90)} — ${erro}`);
-      if (i < tentativas) await new Promise(r => setTimeout(r, 1000));
-    }
-  }
-  return false;
-}
-
 /** Colunas que existem hoje numa tabela (consulta leve, sem bloquear a tabela). */
 export async function colunasExistentes(tabela: string): Promise<Set<string>> {
   if (!_client) return new Set();
   const linhas = await _client`select column_name from information_schema.columns where table_schema = current_schema() and table_name = ${tabela}`;
   return new Set(linhas.map((l: any) => l.column_name as string));
 }
-
-/**
- * Cria só o que falta (colunas e tabelas novas). Antes confere o que já existe, para
- * não pedir bloqueio da tabela à toa. Cada comando roda separado: uma falha não impede os demais.
- */
-async function garantirColunasNovas(client: ReturnType<typeof postgres>) {
-  ultimaTentativaEstrutura = Date.now();
-  const existe = async (tabela: string) => {
-    const linhas = await client`select column_name from information_schema.columns where table_schema = current_schema() and table_name = ${tabela}`;
-    return new Set(linhas.map((l: any) => l.column_name as string));
-  };
-  let colHist = new Set<string>(), colColab = new Set<string>(), temDependentes = false;
-  try {
-    colHist = await existe("historicoFerias");
-    colColab = await existe("colaboradores");
-    temDependentes = (await existe("dependentes")).size > 0;
-  } catch (error) {
-    console.error("[Database] Não foi possível ler a estrutura atual:", (error as Error).message);
-  }
-  const comandos: string[] = [];
-  for (const [col, tipo] of [["periodoAquisitivoAnterior", "date"], ["vencimentoAnterior", "date"], ["dataLimiteAnterior", "date"], ["saldoAnterior", "integer"]] as const) {
-    if (!colHist.has(col)) comandos.push(`ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "${col}" ${tipo};`);
-  }
-  // Registro de Empregado: campos complementares da Ficha de Registro
-  for (const c of CAMPOS_REGISTRO) {
-    if (!colColab.has(c.chave)) comandos.push(`ALTER TABLE "colaboradores" ADD COLUMN IF NOT EXISTS "${c.chave}" ${tipoSql(c)};`);
-  }
-  if (!temDependentes) {
-    comandos.push(`CREATE TABLE IF NOT EXISTS "dependentes" (
-        "id" serial PRIMARY KEY,
-        "colaboradorId" integer NOT NULL REFERENCES "colaboradores"("id") ON DELETE CASCADE,
-        "nome" varchar(200) NOT NULL,
-        "parentesco" varchar(20) NOT NULL,
-        "dataNascimento" date,
-        "cpf" varchar(14),
-        "rg" varchar(20),
-        "dependenteIR" boolean DEFAULT false NOT NULL,
-        "createdAt" timestamp DEFAULT now() NOT NULL
-      );`);
-    comandos.push(`CREATE INDEX IF NOT EXISTS "idx_dependentes_colab" ON "dependentes" ("colaboradorId");`);
-  }
-  let falhas = 0;
-  for (const c of comandos) if (!(await comandoComTentativas(client, c))) falhas++;
-  // "Empresa vinculada": a opção que era "Sudoeste" passou a ser "a própria empresa do colaborador"
-  if (colColab.has("empresaEstagio")) {
-    try { await client.unsafe(`UPDATE "colaboradores" SET "empresaEstagio" = 'empresa' WHERE "empresaEstagio" = 'sudoeste';`); } catch { /* tenta de novo na próxima vez */ }
-  }
-  if (falhas) console.error(`[Database] ${falhas} comando(s) de estrutura não foram aplicados; o sistema segue funcionando sem eles e tenta de novo depois.`);
-  else console.log(`[Database] Estrutura do banco conferida (${comandos.length} item(ns) criado(s)).`);
-  if (!falhas) ultimoErroEstrutura = null;
-}
-
-/** Tenta de novo criar o que falta, em segundo plano e no máximo a cada 1 minuto. */
-export function garantirEstruturaBanco(): Promise<void> {
-  if (!_client) return Promise.resolve();
-  if (estruturaEmAndamento) return estruturaEmAndamento;
-  if (Date.now() - ultimaTentativaEstrutura < 60_000) return Promise.resolve();
-  estruturaEmAndamento = garantirColunasNovas(_client).finally(() => { estruturaEmAndamento = null; });
-  return estruturaEmAndamento;
-}
-
-/** Diagnóstico: colunas do registro que faltam no banco e o último erro ao criá-las. */
-export async function diagnosticoEstrutura() {
-  const cols = await colunasExistentes("colaboradores");
-  return {
-    faltando: CAMPOS_REGISTRO.map(c => c.chave).filter(c => !cols.has(c)),
-    ultimoErro: ultimoErroEstrutura,
-    ultimaTentativa: ultimaTentativaEstrutura ? new Date(ultimaTentativaEstrutura).toISOString() : null,
-  };
-}
-
 let _initPromise: Promise<ReturnType<typeof drizzle> | null> | null = null;
 
 export async function getDb() {
@@ -197,16 +101,17 @@ export async function getDb() {
         console.error("[Database] DATABASE_URL not set");
         return null;
       }
+      let client: ReturnType<typeof postgres> | null = null;
       try {
-        const client = postgres(url, { max: 10, idle_timeout: 60, connect_timeout: 8 });
+        client = postgres(url, { max: 10, idle_timeout: 60, connect_timeout: 8 });
+        await withTimeout(assertRequiredDatabaseSchema(client));
         _client = client;
         _db = drizzle(client);
-        // Confere/cria colunas novas em segundo plano: o sistema já atende enquanto isso
-        void garantirEstruturaBanco();
-        console.log("[Database] Connected to PostgreSQL");
+        console.log("[Database] Connected to PostgreSQL; required schema verified");
         return _db;
       } catch (error) {
         console.error("[Database] Connection failed:", (error as Error).message);
+        if (client) await client.end({ timeout: 1 }).catch(() => undefined);
         return null;
       } finally {
         _initPromise = null;
@@ -214,6 +119,23 @@ export async function getDb() {
     })();
   }
   return _initPromise;
+}
+
+/** Usado no boot de produção para não servir uma versão incompatível com o banco. */
+export async function assertDatabaseReady(): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível ou com esquema incompatível");
+}
+
+/** Healthcheck leve; não lê tabelas nem dados da aplicação. */
+export async function isDatabaseHealthy(): Promise<boolean> {
+  if (!_client) return false;
+  try {
+    await withTimeout(_client.unsafe("SELECT 1"), 2000);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -1968,6 +1890,7 @@ export async function getSystemUserById(id: number) {
       email: systemUsers.email,
       role: systemUsers.role,
       ativo: systemUsers.ativo,
+      sessionVersion: systemUsers.sessionVersion,
       createdAt: systemUsers.createdAt,
     }).from(systemUsers).where(eq(systemUsers.id, id)).limit(1)
   );
@@ -2006,11 +1929,20 @@ export async function updateSystemUser(id: number, data: { nome?: string; email?
  *  Diferente de updateSystemUser(), esta função PERMITE alterar o passwordHash.
  *  Deve ser usada exclusivamente pelo changePassword e resetPassword.
  */
-export async function changeSystemUserPassword(id: number, novaSenha: string): Promise<void> {
+export async function changeSystemUserPassword(id: number, novaSenha: string): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const passwordHash = await bcrypt.hash(novaSenha, 10);
-  await db.update(systemUsers).set({ passwordHash } as any).where(eq(systemUsers.id, id));
+  const rows = await db.update(systemUsers)
+    .set({
+      passwordHash,
+      sessionVersion: sql`${systemUsers.sessionVersion} + 1`,
+      updatedAt: new Date(),
+    } as any)
+    .where(eq(systemUsers.id, id))
+    .returning({ sessionVersion: systemUsers.sessionVersion });
+  if (!rows[0]) throw new Error("System user not found");
+  return rows[0].sessionVersion;
 }
 
 export async function resetSystemUserPassword(id: number) {
@@ -2020,8 +1952,26 @@ export async function resetSystemUserPassword(id: number) {
   let novaSenha = "";
   for (let i = 0; i < 8; i++) novaSenha += chars[Math.floor(Math.random() * chars.length)];
   const passwordHash = await bcrypt.hash(novaSenha, 10);
-  await db.update(systemUsers).set({ passwordHash } as any).where(eq(systemUsers.id, id));
+  await db.update(systemUsers).set({
+    passwordHash,
+    sessionVersion: sql`${systemUsers.sessionVersion} + 1`,
+    updatedAt: new Date(),
+  } as any).where(eq(systemUsers.id, id));
   return { novaSenha };
+}
+
+export async function revokeSystemUserSessions(id: number): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const rows = await db.update(systemUsers)
+    .set({
+      sessionVersion: sql`${systemUsers.sessionVersion} + 1`,
+      updatedAt: new Date(),
+    } as any)
+    .where(eq(systemUsers.id, id))
+    .returning({ sessionVersion: systemUsers.sessionVersion });
+  if (!rows[0]) throw new Error("System user not found");
+  return rows[0].sessionVersion;
 }
 
 export async function deleteSystemUser(id: number) {
