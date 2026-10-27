@@ -40,6 +40,7 @@ export const systemUsers = pgTable("systemUsers", {
   passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
   role: systemUserRoleEnum("role").default("usuario").notNull(),
   ativo: boolean("ativo").default(true).notNull(),
+  sessionVersion: integer("sessionVersion").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });

@@ -37,7 +37,8 @@ export default function MeuPerfil() {
   });
 
   const changePasswordMutation = trpc.systemUsers.changePassword.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
+      try { localStorage.setItem("gf_sys_token", data.token); } catch {}
       toast.success("Senha alterada com sucesso!");
       setSenhaAtual("");
       setNovaSenha("");
@@ -56,7 +57,9 @@ export default function MeuPerfil() {
 
   const salvarSenha = () => {
     if (!senhaAtual.trim()) { toast.error("Informe a senha atual."); return; }
-    if (novaSenha.length < 6) { toast.error("A nova senha deve ter pelo menos 6 caracteres."); return; }
+    if (novaSenha.length < 8) { toast.error("A nova senha deve ter pelo menos 8 caracteres."); return; }
+    if (!/[A-Z]/.test(novaSenha)) { toast.error("A nova senha deve conter uma letra maiúscula."); return; }
+    if (!/[0-9]/.test(novaSenha)) { toast.error("A nova senha deve conter um número."); return; }
     if (novaSenha !== confirmarSenha) { toast.error("As senhas não coincidem."); return; }
     changePasswordMutation.mutate({ senhaAtual, novaSenha });
   };
@@ -69,9 +72,9 @@ export default function MeuPerfil() {
     .map((n) => n.charAt(0).toUpperCase())
     .join("");
 
-  const senhaForte = novaSenha.length >= 8;
+  const senhaForte = novaSenha.length >= 8 && /[A-Z]/.test(novaSenha) && /[0-9]/.test(novaSenha);
   const senhaMedia = novaSenha.length >= 6 && novaSenha.length < 8;
-  const senhaOk = novaSenha.length >= 6;
+  const senhaOk = novaSenha.length >= 8 && /[A-Z]/.test(novaSenha) && /[0-9]/.test(novaSenha);
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -257,7 +260,7 @@ export default function MeuPerfil() {
                 <Input
                   id="novaSenha"
                   type={mostrarNovaSenha ? "text" : "password"}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 8 caracteres, com maiúscula e número"
                   value={novaSenha}
                   onChange={(e) => setNovaSenha(e.target.value)}
                   className="pr-10"

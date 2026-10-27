@@ -13,6 +13,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { alertasFeriasHandler } from "../alertasHandler";
 import { lembretesCalendarioHandler } from "../lembretesCalendarioHandler";
+import { assertDatabaseReady, isDatabaseHealthy } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -34,6 +35,8 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  if (process.env.NODE_ENV === "production") await assertDatabaseReady();
+
   const app = express();
   const server = createServer(app);
   // Trust proxy (necessário no Cloud Run / ambientes com load balancer)
@@ -78,6 +81,13 @@ async function startServer() {
       "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
     );
     next();
+  });
+
+  // Railway pode usar esta rota como healthcheck. O servidor só começa a ouvir
+  // depois que a pré-checagem de banco acima termina com sucesso.
+  app.get("/healthz", async (_req, res) => {
+    const healthy = await isDatabaseHealthy();
+    res.status(healthy ? 200 : 503).json({ status: healthy ? "ok" : "unavailable" });
   });
 
   // ─── Rate limiting ────────────────────────────────────────────────────────
@@ -151,4 +161,7 @@ async function startServer() {
   });
 }
 
-startServer().catch(console.error);
+startServer().catch(error => {
+  console.error("[Startup] Falha ao iniciar:", error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});
