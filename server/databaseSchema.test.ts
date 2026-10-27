@@ -167,9 +167,28 @@ describe("database schema preflight", () => {
     const railway = JSON.parse(
       readFileSync(path.resolve(import.meta.dirname, "../railway.json"), "utf8"),
     );
+    const dbSource = readFileSync(
+      path.resolve(import.meta.dirname, "./db.ts"),
+      "utf8",
+    );
+    const serverSource = readFileSync(
+      path.resolve(import.meta.dirname, "./_core/index.ts"),
+      "utf8",
+    );
     expect(railway.deploy).toMatchObject({
       healthcheckPath: "/healthz",
       healthcheckTimeout: 300,
     });
+    expect(dbSource).toContain("HEALTHCHECK_QUERY_TIMEOUT_MS = 5000");
+    expect(dbSource).toContain("DB_QUERY_TIMEOUT_MS = 8000");
+    expect(dbSource).toContain("finally(() => clearTimeout(timer!))");
+    expect(dbSource).toContain(
+      'error.message === "Database query timeout"',
+    );
+    expect(dbSource).toContain('reason} after ${Date.now() - startedAt}ms');
+    expect(dbSource.match(/_client\.unsafe\("SELECT 1"\)/g)).toHaveLength(1);
+    expect(serverSource).toContain(
+      "res.status(healthy ? 200 : 503).json({ status: healthy ? \"ok\" : \"unavailable\" })",
+    );
   });
 });

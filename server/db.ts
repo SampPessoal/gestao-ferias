@@ -74,6 +74,9 @@ function parseDateCol(val: string | Date | null | undefined): Date {
 
 // Timeout padrão para queries ao banco (8 segundos)
 const DB_QUERY_TIMEOUT_MS = 8000;
+// O probe precisa tolerar pequenas oscilações de rede sem mascarar uma
+// indisponibilidade real. Ele continua abaixo do timeout normal das queries.
+const HEALTHCHECK_QUERY_TIMEOUT_MS = 5000;
 
 // Executa uma query com timeout para evitar travamento quando o banco está inacessível
 export async function withTimeout<T>(promise: Promise<T>, ms = DB_QUERY_TIMEOUT_MS): Promise<T> {
@@ -129,11 +132,25 @@ export async function assertDatabaseReady(): Promise<void> {
 
 /** Healthcheck leve; não lê tabelas nem dados da aplicação. */
 export async function isDatabaseHealthy(): Promise<boolean> {
-  if (!_client) return false;
+  if (!_client) {
+    console.warn("[Database] Healthcheck unavailable: client_not_initialized");
+    return false;
+  }
+  const startedAt = Date.now();
   try {
-    await withTimeout(_client.unsafe("SELECT 1"), 2000);
+    await withTimeout(
+      _client.unsafe("SELECT 1"),
+      HEALTHCHECK_QUERY_TIMEOUT_MS,
+    );
     return true;
-  } catch {
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.message === "Database query timeout"
+        ? "timeout"
+        : "query_error";
+    console.warn(
+      `[Database] Healthcheck ${reason} after ${Date.now() - startedAt}ms`,
+    );
     return false;
   }
 }
