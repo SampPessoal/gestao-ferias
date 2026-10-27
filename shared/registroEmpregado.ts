@@ -2,8 +2,8 @@
  * Registro de Empregado — campos complementares da Ficha de Registro.
  *
  * Fonte ÚNICA destes campos: a coluna no banco, a validação do servidor, a tela
- * do colaborador e o preenchimento do PDF usam esta lista. Para criar um campo
- * novo, basta acrescentá-lo aqui (o banco cria a coluna sozinho na inicialização).
+ * do colaborador e o preenchimento do PDF usam esta lista. Um campo novo também
+ * precisa ser incluído na migração revisada; o runtime nunca altera o esquema.
  */
 
 export type Opcao = { valor: string; rotulo: string };
