@@ -88,21 +88,33 @@ export async function withTimeout<T>(promise: Promise<T>, ms = DB_QUERY_TIMEOUT_
  * Cria, se ainda não existirem, as colunas adicionadas em versões novas.
  * É idempotente (ADD COLUMN IF NOT EXISTS), então roda com segurança a cada início.
  */
+/** Executa um comando de estrutura com algumas tentativas (a tabela pode estar em uso durante a publicação). */
+async function comandoComTentativas(client: ReturnType<typeof postgres>, comando: string, tentativas = 4): Promise<boolean> {
+  for (let i = 1; i <= tentativas; i++) {
+    try {
+      await client.unsafe(`SET lock_timeout = '15s'; ${comando}`);
+      return true;
+    } catch (error) {
+      console.error(`[Database] Tentativa ${i}/${tentativas} falhou: ${comando.slice(0, 90)} — ${(error as Error).message}`);
+      if (i < tentativas) await new Promise(r => setTimeout(r, 2000 * i));
+    }
+  }
+  return false;
+}
+
+/**
+ * Cria as colunas e tabelas novas (idempotente). Cada comando roda separado,
+ * com novas tentativas: uma falha não impede os demais.
+ */
 async function garantirColunasNovas(client: ReturnType<typeof postgres>) {
-  try {
-    await client.unsafe(`
-      ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "periodoAquisitivoAnterior" date;
-      ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "vencimentoAnterior" date;
-      ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "dataLimiteAnterior" date;
-      ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "saldoAnterior" integer;
-    `);
+  const comandos: string[] = [
+    `ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "periodoAquisitivoAnterior" date;`,
+    `ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "vencimentoAnterior" date;`,
+    `ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "dataLimiteAnterior" date;`,
+    `ALTER TABLE "historicoFerias" ADD COLUMN IF NOT EXISTS "saldoAnterior" integer;`,
     // Registro de Empregado: campos complementares da Ficha de Registro
-    const colunas = CAMPOS_REGISTRO
-      .map(c => `ALTER TABLE "colaboradores" ADD COLUMN IF NOT EXISTS "${c.chave}" ${tipoSql(c)};`)
-      .join("\n");
-    await client.unsafe(colunas);
-    await client.unsafe(`
-      CREATE TABLE IF NOT EXISTS "dependentes" (
+    ...CAMPOS_REGISTRO.map(c => `ALTER TABLE "colaboradores" ADD COLUMN IF NOT EXISTS "${c.chave}" ${tipoSql(c)};`),
+    `CREATE TABLE IF NOT EXISTS "dependentes" (
         "id" serial PRIMARY KEY,
         "colaboradorId" integer NOT NULL REFERENCES "colaboradores"("id") ON DELETE CASCADE,
         "nome" varchar(200) NOT NULL,
@@ -112,13 +124,40 @@ async function garantirColunasNovas(client: ReturnType<typeof postgres>) {
         "rg" varchar(20),
         "dependenteIR" boolean DEFAULT false NOT NULL,
         "createdAt" timestamp DEFAULT now() NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS "idx_dependentes_colab" ON "dependentes" ("colaboradorId");
-    `);
+      );`,
+    `CREATE INDEX IF NOT EXISTS "idx_dependentes_colab" ON "dependentes" ("colaboradorId");`,
     // "Empresa vinculada": a opção que era "Sudoeste" passou a ser "a própria empresa do colaborador"
-    await client.unsafe(`UPDATE "colaboradores" SET "empresaEstagio" = 'empresa' WHERE "empresaEstagio" = 'sudoeste';`);
-  } catch (error) {
-    console.error("[Database] Falha ao garantir colunas novas:", (error as Error).message);
+    `UPDATE "colaboradores" SET "empresaEstagio" = 'empresa' WHERE "empresaEstagio" = 'sudoeste';`,
+  ];
+  let falhas = 0;
+  for (const c of comandos) if (!(await comandoComTentativas(client, c))) falhas++;
+  if (falhas) console.error(`[Database] ${falhas} comando(s) de estrutura não foram aplicados; serão tentados de novo quando necessário.`);
+  else console.log("[Database] Estrutura do banco conferida.");
+}
+
+/**
+ * Confere a estrutura de novo (sem reiniciar o sistema). Usado quando uma consulta
+ * encontra uma coluna que ainda não existe.
+ */
+export async function garantirEstruturaBanco() {
+  if (_client) await garantirColunasNovas(_client);
+}
+
+/** É erro de coluna/tabela inexistente? */
+export function ehErroDeEstrutura(e: unknown): boolean {
+  const msgs = [(e as any)?.message, (e as any)?.cause?.message, (e as any)?.cause?.code].filter(Boolean).join(" ");
+  return /does not exist|não existe|42703|42P01/i.test(msgs);
+}
+
+/** Executa a operação; se faltar coluna ou tabela, cria o que falta e tenta mais uma vez. */
+export async function comReparoDeEstrutura<T>(operacao: () => Promise<T>): Promise<T> {
+  try {
+    return await operacao();
+  } catch (e) {
+    if (!ehErroDeEstrutura(e)) throw e;
+    console.error("[Database] Coluna ou tabela ausente; criando e tentando de novo:", (e as any)?.cause?.message ?? (e as Error).message);
+    await garantirEstruturaBanco();
+    return await operacao();
   }
 }
 
