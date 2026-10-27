@@ -1890,6 +1890,7 @@ export async function getSystemUserById(id: number) {
       email: systemUsers.email,
       role: systemUsers.role,
       ativo: systemUsers.ativo,
+      sessionVersion: systemUsers.sessionVersion,
       createdAt: systemUsers.createdAt,
     }).from(systemUsers).where(eq(systemUsers.id, id)).limit(1)
   );
@@ -1928,11 +1929,20 @@ export async function updateSystemUser(id: number, data: { nome?: string; email?
  *  Diferente de updateSystemUser(), esta função PERMITE alterar o passwordHash.
  *  Deve ser usada exclusivamente pelo changePassword e resetPassword.
  */
-export async function changeSystemUserPassword(id: number, novaSenha: string): Promise<void> {
+export async function changeSystemUserPassword(id: number, novaSenha: string): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const passwordHash = await bcrypt.hash(novaSenha, 10);
-  await db.update(systemUsers).set({ passwordHash } as any).where(eq(systemUsers.id, id));
+  const rows = await db.update(systemUsers)
+    .set({
+      passwordHash,
+      sessionVersion: sql`${systemUsers.sessionVersion} + 1`,
+      updatedAt: new Date(),
+    } as any)
+    .where(eq(systemUsers.id, id))
+    .returning({ sessionVersion: systemUsers.sessionVersion });
+  if (!rows[0]) throw new Error("System user not found");
+  return rows[0].sessionVersion;
 }
 
 export async function resetSystemUserPassword(id: number) {
@@ -1942,8 +1952,26 @@ export async function resetSystemUserPassword(id: number) {
   let novaSenha = "";
   for (let i = 0; i < 8; i++) novaSenha += chars[Math.floor(Math.random() * chars.length)];
   const passwordHash = await bcrypt.hash(novaSenha, 10);
-  await db.update(systemUsers).set({ passwordHash } as any).where(eq(systemUsers.id, id));
+  await db.update(systemUsers).set({
+    passwordHash,
+    sessionVersion: sql`${systemUsers.sessionVersion} + 1`,
+    updatedAt: new Date(),
+  } as any).where(eq(systemUsers.id, id));
   return { novaSenha };
+}
+
+export async function revokeSystemUserSessions(id: number): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const rows = await db.update(systemUsers)
+    .set({
+      sessionVersion: sql`${systemUsers.sessionVersion} + 1`,
+      updatedAt: new Date(),
+    } as any)
+    .where(eq(systemUsers.id, id))
+    .returning({ sessionVersion: systemUsers.sessionVersion });
+  if (!rows[0]) throw new Error("System user not found");
+  return rows[0].sessionVersion;
 }
 
 export async function deleteSystemUser(id: number) {

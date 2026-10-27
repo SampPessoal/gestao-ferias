@@ -15,12 +15,13 @@ const completeSnapshot = () => ({
       table_name,
       column_name,
       actual_type: REQUIRED_DATABASE_COLUMN_TYPES[table_name][column_name],
-      is_not_null: table_name === "dependentes" && [
+      is_not_null: (table_name === "dependentes" && [
         "id", "colaboradorId", "nome", "parentesco", "dependenteIR", "createdAt",
-      ].includes(column_name),
-      has_default: table_name === "dependentes" && [
+      ].includes(column_name)) || (table_name === "systemUsers" && column_name === "sessionVersion"),
+      has_default: (table_name === "dependentes" && [
         "id", "dependenteIR", "createdAt",
-      ].includes(column_name),
+      ].includes(column_name)) || (table_name === "systemUsers" && column_name === "sessionVersion"),
+      default_expression: table_name === "systemUsers" && column_name === "sessionVersion" ? "0" : null,
     })),
   ),
   indexes: [...REQUIRED_DATABASE_INDEXES],
@@ -28,6 +29,7 @@ const completeSnapshot = () => ({
   foreignKeyCascade: true,
   runtimeDependentesDml: true,
   runtimeDependentesSequenceUsage: true,
+  runtimeSystemUsersSelectUpdate: true,
 });
 
 describe("database schema preflight", () => {
@@ -41,6 +43,23 @@ describe("database schema preflight", () => {
       column => !(column.table_name === "colaboradores" && column.column_name === "cidadeInterior"),
     );
     expect(findDatabaseSchemaIssues(snapshot)).toContain("colaboradores.cidadeInterior (ausente)");
+  });
+
+  it("requires the per-account session version with type, default and not-null", () => {
+    const snapshot = completeSnapshot();
+    const column = snapshot.columns.find(
+      item => item.table_name === "systemUsers" && item.column_name === "sessionVersion",
+    )!;
+    column.actual_type = "bigint";
+    column.is_not_null = false;
+    column.has_default = false;
+    column.default_expression = "1";
+    expect(findDatabaseSchemaIssues(snapshot)).toEqual([
+      "systemUsers.sessionVersion (esperado integer; encontrado bigint)",
+      "systemUsers.sessionVersion (esperado NOT NULL)",
+      "systemUsers.sessionVersion (esperado DEFAULT)",
+      "systemUsers.sessionVersion (esperado DEFAULT 0)",
+    ]);
   });
 
   it("reports an incompatible column type", () => {
@@ -87,9 +106,11 @@ describe("database schema preflight", () => {
     const snapshot = completeSnapshot();
     snapshot.runtimeDependentesDml = false;
     snapshot.runtimeDependentesSequenceUsage = false;
+    snapshot.runtimeSystemUsersSelectUpdate = false;
     expect(findDatabaseSchemaIssues(snapshot)).toEqual([
       "privilege:runtime dependentes SELECT/INSERT/UPDATE/DELETE",
       "privilege:runtime dependentes_id_seq USAGE",
+      "privilege:runtime systemUsers SELECT/UPDATE",
     ]);
   });
 
@@ -130,5 +151,15 @@ describe("database schema preflight", () => {
     expect(dbSource).not.toContain("empresaEstagio\" = 'empresa'");
     expect(dbSource).not.toContain("garantirEstruturaBanco");
     expect(registroSource).not.toContain("garantirEstruturaBanco");
+  });
+
+  it("keeps the session-version migration additive and free of grants or global key changes", () => {
+    const migration = readFileSync(
+      path.resolve(import.meta.dirname, "../migrations/20261027_system_user_session_version.sql"),
+      "utf8",
+    );
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS "sessionVersion" integer NOT NULL DEFAULT 0');
+    expect(migration).not.toMatch(/\bDELETE\b|\bGRANT\b|JWT_SECRET|passwordHash/i);
+    expect(migration).not.toMatch(/UPDATE\s+public\."systemUsers"/i);
   });
 });

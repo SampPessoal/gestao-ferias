@@ -1,5 +1,4 @@
 import { z } from "zod/v4";
-import jwt from "jsonwebtoken";
 import { parse as parseCookieHeader } from "cookie";
 import { TRPCError } from "@trpc/server";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -15,30 +14,23 @@ import {
   countSystemAdmins,
   getSystemUserById,
   changeSystemUserPassword,
+  revokeSystemUserSessions,
 } from "./db";
+import {
+  createSystemSessionToken,
+  isSystemSessionCurrent,
+  SYSTEM_SESSION_MAX_AGE_MS,
+  verifySystemSessionToken,
+} from "./systemSession";
 
 const SYS_COOKIE = "gf_sys_session";
 
-// Cache em memória para evitar query ao banco a cada request de /me
-// TTL de 10 minutos — reduz latência sem risco de dados obsoletos (invalidação manual em logout/update)
-const userCache = new Map<number, { user: Awaited<ReturnType<typeof getSystemUserById>>; expiresAt: number }>();
-const USER_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
-
-export function invalidateUserCache(userId: number) {
-  userCache.delete(userId);
-}
-
-async function getSystemUserCached(id: number) {
-  const cached = userCache.get(id);
-  if (cached && cached.expiresAt > Date.now()) return cached.user;
+async function getSystemUserForSession(id: number) {
   try {
     const timeout = new Promise<null>((_, reject) =>
       setTimeout(() => reject(new Error('DB timeout')), 5000)
     );
-    const user = await Promise.race([getSystemUserById(id), timeout]);
-    if (user) userCache.set(id, { user, expiresAt: Date.now() + USER_CACHE_TTL_MS });
-    else userCache.delete(id);
-    return user;
+    return await Promise.race([getSystemUserById(id), timeout]);
   } catch {
     return null;
   }
@@ -54,9 +46,12 @@ export async function getSystemUserFromRequest(req: any) {
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
     const token = rawCookies[SYS_COOKIE] || bearerToken;
     if (!token) return null;
-    const payload = jwt.verify(token, ENV.cookieSecret) as { id: number };
-    const user = await getSystemUserCached(payload.id);
+    const payload = verifySystemSessionToken(token, ENV.cookieSecret);
+    // Consulta deliberadamente sem cache: uma revogação seletiva precisa valer
+    // imediatamente em todas as instâncias, sem reiniciar o serviço.
+    const user = await getSystemUserForSession(payload.id);
     if (!user || !user.ativo) return null;
+    if (!isSystemSessionCurrent(payload, user)) return null;
     return user;
   } catch {
     return null;
@@ -80,9 +75,9 @@ export const systemUsersRouter = router({
       if (!user) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "E-mail ou senha incorretos." });
       }
-      const token = jwt.sign({ id: user.id }, ENV.cookieSecret, { expiresIn: "7d" });
+      const token = createSystemSessionToken(user, ENV.cookieSecret);
       const cookieOpts = getSessionCookieOptions(ctx.req);
-      ctx.res.cookie(SYS_COOKIE, token, { ...cookieOpts, maxAge: 7 * 24 * 60 * 60 * 1000 });
+      ctx.res.cookie(SYS_COOKIE, token, { ...cookieOpts, maxAge: SYSTEM_SESSION_MAX_AGE_MS });
       return {
         id: user.id,
         nome: user.nome,
@@ -164,6 +159,16 @@ export const systemUsersRouter = router({
       return { novaSenha };
     }),
 
+  // Revoga somente as sessões do usuário alvo, sem alterar JWT_SECRET nem outros usuários.
+  revokeSessions: publicProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      const me = await getSystemUserFromRequest(ctx.req);
+      if (!me || me.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+      await revokeSystemUserSessions(input.id);
+      return { success: true };
+    }),
+
   // Alterar própria senha (qualquer usuário logado)
   changePassword: publicProcedure
     .input(z.object({
@@ -179,10 +184,11 @@ export const systemUsersRouter = router({
       const valid = await verifySystemUserPassword(me.email, input.senhaAtual);
       if (!valid) throw new TRPCError({ code: "BAD_REQUEST", message: "Senha atual incorreta." });
       // Aplica a nova senha usando função dedicada (updateSystemUser ignora passwordHash por segurança)
-      await changeSystemUserPassword(me.id, input.novaSenha);
-      // Invalida o cache do usuário para forçar releitura do banco no próximo request
-      invalidateUserCache(me.id);
-      return { success: true };
+      const sessionVersion = await changeSystemUserPassword(me.id, input.novaSenha);
+      const token = createSystemSessionToken({ id: me.id, sessionVersion }, ENV.cookieSecret);
+      const cookieOpts = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(SYS_COOKIE, token, { ...cookieOpts, maxAge: SYSTEM_SESSION_MAX_AGE_MS });
+      return { success: true, token };
     }),
 
   // Editar próprio perfil: nome e e-mail (qualquer usuário logado)

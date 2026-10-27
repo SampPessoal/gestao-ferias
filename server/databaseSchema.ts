@@ -7,6 +7,7 @@ export type DatabaseColumn = {
   actual_type: string;
   is_not_null: boolean;
   has_default: boolean;
+  default_expression: string | null;
 };
 
 const catalogType = (sqlType: string) =>
@@ -33,6 +34,9 @@ export const REQUIRED_DATABASE_COLUMN_TYPES: Readonly<Record<string, Readonly<Re
     dependenteIR: "boolean",
     createdAt: "timestamp without time zone",
   },
+  systemUsers: {
+    sessionVersion: "integer",
+  },
 };
 
 export const REQUIRED_DATABASE_COLUMNS: Readonly<Record<string, readonly string[]>> =
@@ -51,11 +55,13 @@ export const REQUIRED_NOT_NULL_COLUMNS = new Set([
   "dependentes.parentesco",
   "dependentes.dependenteIR",
   "dependentes.createdAt",
+  "systemUsers.sessionVersion",
 ]);
 export const REQUIRED_DEFAULT_COLUMNS = new Set([
   "dependentes.id",
   "dependentes.dependenteIR",
   "dependentes.createdAt",
+  "systemUsers.sessionVersion",
 ]);
 
 export type DatabaseSchemaSnapshot = {
@@ -65,6 +71,7 @@ export type DatabaseSchemaSnapshot = {
   foreignKeyCascade: boolean;
   runtimeDependentesDml: boolean;
   runtimeDependentesSequenceUsage: boolean;
+  runtimeSystemUsersSelectUpdate: boolean;
 };
 
 /** Retorna somente divergências de catálogo; nunca consulta ou registra dados de funcionários. */
@@ -96,6 +103,12 @@ export function findDatabaseSchemaIssues(snapshot: DatabaseSchemaSnapshot): stri
     if (REQUIRED_DEFAULT_COLUMNS.has(objectName) && !column.has_default) {
       issues.push(`${objectName} (esperado DEFAULT)`);
     }
+    if (
+      objectName === "systemUsers.sessionVersion" &&
+      column.default_expression !== "0"
+    ) {
+      issues.push(`${objectName} (esperado DEFAULT 0)`);
+    }
   }
   for (const index of REQUIRED_DATABASE_INDEXES) {
     if (!existingIndexes.has(index)) issues.push(`index:${index} (ausente)`);
@@ -111,6 +124,9 @@ export function findDatabaseSchemaIssues(snapshot: DatabaseSchemaSnapshot): stri
   }
   if (!snapshot.runtimeDependentesSequenceUsage) {
     issues.push("privilege:runtime dependentes_id_seq USAGE");
+  }
+  if (!snapshot.runtimeSystemUsersSelectUpdate) {
+    issues.push("privilege:runtime systemUsers SELECT/UPDATE");
   }
   return issues;
 }
@@ -139,12 +155,14 @@ export async function assertRequiredDatabaseSchema(client: PostgresClient): Prom
            a.attname AS column_name,
            format_type(a.atttypid, a.atttypmod) AS actual_type,
            a.attnotnull AS is_not_null,
-           a.atthasdef AS has_default
+           a.atthasdef AS has_default,
+           pg_get_expr(ad.adbin, ad.adrelid) AS default_expression
       FROM pg_attribute a
       JOIN pg_class c ON c.oid = a.attrelid
       JOIN pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
      WHERE n.nspname = 'public'
-       AND c.relname IN ('historicoFerias', 'colaboradores', 'dependentes')
+       AND c.relname IN ('historicoFerias', 'colaboradores', 'dependentes', 'systemUsers')
        AND a.attnum > 0
        AND NOT a.attisdropped
   `);
@@ -191,6 +209,7 @@ export async function assertRequiredDatabaseSchema(client: PostgresClient): Prom
   const [privilegeRow] = await client.unsafe<Array<{
     dependentes_dml: boolean;
     dependentes_sequence_usage: boolean;
+    system_users_select_update: boolean;
   }>>(`
     SELECT
       COALESCE(has_table_privilege(current_user, to_regclass('public.dependentes'), 'SELECT'), false)
@@ -207,7 +226,10 @@ export async function assertRequiredDatabaseSchema(client: PostgresClient): Prom
           ),
           false
         )
-      END AS dependentes_sequence_usage
+      END AS dependentes_sequence_usage,
+      COALESCE(has_table_privilege(current_user, to_regclass('public."systemUsers"'), 'SELECT'), false)
+        AND COALESCE(has_table_privilege(current_user, to_regclass('public."systemUsers"'), 'UPDATE'), false)
+        AS system_users_select_update
   `);
   const issues = findDatabaseSchemaIssues({
     columns,
@@ -216,6 +238,7 @@ export async function assertRequiredDatabaseSchema(client: PostgresClient): Prom
     foreignKeyCascade: constraintRow?.foreign_key_cascade === true,
     runtimeDependentesDml: privilegeRow?.dependentes_dml === true,
     runtimeDependentesSequenceUsage: privilegeRow?.dependentes_sequence_usage === true,
+    runtimeSystemUsersSelectUpdate: privilegeRow?.system_users_select_update === true,
   });
   if (issues.length) throw new DatabaseSchemaError(issues);
 }

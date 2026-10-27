@@ -75,6 +75,14 @@ transacional descrito acima e exige autorização específica de produção.
    O endpoint só fica disponível depois que a pré-checagem do banco passa.
 6. Fazer QA autenticado sem usar dados reais nos testes automatizados: login, abertura
    da ficha, leitura/gravação de `cidadeInterior`, dependentes e exportação PDF/Excel.
+7. Antes desta versão, executar também `20261027_system_user_session_version.sql` e
+   confirmar `20261027_system_user_session_version_check.sql`. A coluna começa em zero,
+   mantendo tokens legados das demais contas compatíveis. Revogar uma conta exige
+   incrementar somente a versão daquela conta ou usar a mutation administrativa.
+8. Para a revogação emergencial, resolver primeiro um único `id` pelo identificador já
+   confirmado, exigir exatamente uma linha e então incrementar `sessionVersion` apenas
+   desse `id`. Verificar somente contagens/versões; não consultar hashes nem credenciais.
+   Nunca decrementar a versão durante rollback, pois isso reativaria tokens antigos.
 
 ## Recuperação
 
@@ -84,3 +92,5 @@ transacional descrito acima e exige autorização específica de produção.
   é compatível com os objetos adicionais.
 - Se a pós-checagem falhar, não publicar; manter a versão anterior ativa e investigar
   propriedade/tipo do objeto sem ampliar privilégios do runtime.
+- Reimplantar o SHA anterior continua compatível com a coluna `sessionVersion`, mas não
+  reverte uma revogação já aplicada. Não remover a coluna nem reduzir seu valor.
