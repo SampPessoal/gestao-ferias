@@ -196,6 +196,7 @@ export const colaboradores = pgTable("colaboradores", {
   cnhCategoria: varchar("cnhCategoria", { length: 40 }),
   cnhValidade: date("cnhValidade"),
   emailPessoal: varchar("emailPessoal", { length: 200 }),
+  cidadeInterior: varchar("cidadeInterior", { length: 100 }),
   vinculo: varchar("vinculo", { length: 40 }),
   primeiroTrabalho: varchar("primeiroTrabalho", { length: 40 }),
   contratoExperiencia: varchar("contratoExperiencia", { length: 40 }),
