@@ -1,0 +1,2 @@
+# Do not render historical task notes in hosted diffs.
+todo.md -diff
