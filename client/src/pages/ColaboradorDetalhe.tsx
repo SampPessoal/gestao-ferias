@@ -711,12 +711,16 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
                 <EditField label="Cargo">
                   <Input className="h-8 text-sm" value={fichaForm.cargo} onChange={e => setFichaForm({ ...fichaForm, cargo: e.target.value })} placeholder="Ex: Analista de RH" />
                 </EditField>
+                <EditField label="Cidade do Interior">
+                  <Input className="h-8 text-sm" aria-label="Cidade do Interior" value={registroForm.cidadeInterior ?? ""} maxLength={100} onChange={e => setReg("cidadeInterior", e.target.value)} placeholder="Ex.: Paulo Afonso - BA" />
+                </EditField>
               </div>
             ) : (
               <div>
                 <InfoRow label="Empresa" value={colaborador.empresaNome} icon={Building2} />
                 <InfoRow label="Setor" value={colaborador.setorNome} icon={Briefcase} />
                 <InfoRow label="Cargo" value={c.cargo} icon={Briefcase} />
+                <InfoRow label="Cidade do Interior" value={reg("cidadeInterior")} icon={MapPin} />
               </div>
             )}
           </SectionBlock>

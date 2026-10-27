@@ -671,6 +671,7 @@ export default function Colaboradores() {
                     <Input className="h-9" placeholder="Ex: Auxiliar Administrativo" value={novoColab.cargo}
                       onChange={e => setNovoColab(prev => ({ ...prev, cargo: e.target.value }))} />
                   </div>
+                  <CampoRegistroNovo chave="cidadeInterior" form={registroNovo} onChange={setRegistroCampo} rotulo="Cidade do Interior" className="col-span-2" />
                 </div>
               </div>
 
