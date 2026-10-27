@@ -6,7 +6,7 @@ import { z } from "zod/v4";
 import { and, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "./_core/trpc";
-import { getDb } from "./db";
+import { getDb, comReparoDeEstrutura } from "./db";
 import { colaboradores, dependentes, movimentacaoAuxilioCreche, movimentacaoAuxilioNotebook, planoSaude } from "../drizzle/schema";
 import { CAMPOS_REGISTRO, PARENTESCOS, UFS, type CampoRegistro, type Dependente, type RegistroEmpregado } from "../shared/registroEmpregado";
 
@@ -105,7 +105,7 @@ export async function salvarRegistroInicial(colaboradorId: number, registro: z.i
   for (const [k, v] of Object.entries(registro.campos)) if (v !== undefined && v !== null) patch[k] = v;
   for (const [k, v] of Object.entries(registro.complementos ?? {})) if (v !== undefined && v !== null) patch[k] = v;
   if (Object.keys(patch).length) {
-    await db.update(colaboradores).set(patch as any).where(eq(colaboradores.id, colaboradorId));
+    await comReparoDeEstrutura(() => db.update(colaboradores).set(patch as any).where(eq(colaboradores.id, colaboradorId)));
   }
   if (registro.dependentes.length) {
     await db.insert(dependentes).values(registro.dependentes.map(d => ({ ...d, colaboradorId })) as any);
@@ -126,6 +126,10 @@ const dataStr = (v: unknown): string | null => {
 
 /** Campos do Registro de Empregado, dependentes e auxílio notebook de um colaborador. */
 export async function lerRegistroEmpregado(colaboradorId: number) {
+  return comReparoDeEstrutura(() => lerRegistroEmpregadoSemReparo(colaboradorId));
+}
+
+async function lerRegistroEmpregadoSemReparo(colaboradorId: number) {
   const db = await dbOuErro();
   const sel = Object.fromEntries(CAMPOS_REGISTRO.map(c => [c.chave, (colaboradores as any)[c.chave]]));
   const [linha] = await db.select(sel as any).from(colaboradores).where(eq(colaboradores.id, colaboradorId)).limit(1);
@@ -221,8 +225,8 @@ export const registroEmpregadoRouter = router({
       for (const [k, v] of Object.entries(input.campos)) if (v !== undefined) patch[k] = v;
       for (const [k, v] of Object.entries(input.beneficios ?? {})) if (v !== undefined) patch[k] = v;
       if (!Object.keys(patch).length) return { success: true };
-      const r = await db.update(colaboradores).set({ ...patch, updatedAt: new Date() } as any)
-        .where(eq(colaboradores.id, input.colaboradorId)).returning({ id: colaboradores.id });
+      const r = await comReparoDeEstrutura(() => db.update(colaboradores).set({ ...patch, updatedAt: new Date() } as any)
+        .where(eq(colaboradores.id, input.colaboradorId)).returning({ id: colaboradores.id }));
       if (!r.length) throw new TRPCError({ code: "NOT_FOUND", message: "Colaborador não encontrado" });
       return { success: true };
     }),
