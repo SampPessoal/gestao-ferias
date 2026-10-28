@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { formatDate, toDateStr } from "@/lib/ferias";
 
 import { InputMoeda } from "@/components/InputMoeda";
+import { lerReais, formatarReais } from "@/lib/mascaras";
+import { Pencil } from "lucide-react";
 export default function RelacaoSeguroVida() {
   const utils = trpc.useUtils();
   const [busca, setBusca] = useState("");
@@ -96,7 +98,7 @@ export default function RelacaoSeguroVida() {
   const totalComSeguro = data?.filter((r) => r.temSeguroVida).length ?? 0;
   const totalSemSeguro = (data?.length ?? 0) - totalComSeguro;
   const totalMensalSeguro = data?.filter((r) => r.temSeguroVida && r.valorSeguroVida)
-    .reduce((acc, r) => acc + parseFloat(String(r.valorSeguroVida ?? 0)), 0) ?? 0;
+    .reduce((acc, r) => acc + (lerReais(r.valorSeguroVida) ?? 0), 0) ?? 0;
   const fmtMoedaSV = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   // Modal de novo seguro
@@ -173,6 +175,9 @@ export default function RelacaoSeguroVida() {
           </div>
         ))}
       </div>
+
+      {/* Valores por empresa */}
+      <ValoresPorEmpresa />
 
       {/* Filtros */}
       <Card>
@@ -468,5 +473,105 @@ export default function RelacaoSeguroVida() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// ─── Valores do seguro por empresa ───────────────────────────────────────────
+
+const COR_EMPRESA: Record<string, string> = { SOLAR: "#7c3aed", FREIRE: "#1a1d24", JOANES: "#0f766e", SUDOESTE: "#1d5bd8" };
+const reais = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `R$ ${formatarReais(n)}`);
+
+type ResumoEmpresa = { empresaId: number; empresaNome: string; valor: number | null; comSeguro: number; totalMensal: number };
+
+function ValoresPorEmpresa() {
+  const { data, isLoading } = trpc.seguroVida.resumoEmpresas.useQuery();
+  const [editando, setEditando] = useState<ResumoEmpresa | null>(null);
+  return (
+    <section aria-labelledby="valores-empresa" className="rounded-xl border border-border/60 bg-card overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-4 py-3">
+        <h2 id="valores-empresa" className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-wide text-foreground/70">
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-100"><ShieldCheck className="h-3.5 w-3.5 text-blue-700" /></span>
+          Valores por Empresa
+        </h2>
+        <span className="text-xs text-muted-foreground">Valor mensal descontado na folha de cada colaborador com seguro</span>
+      </div>
+      <div className="grid gap-3 p-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        {isLoading && Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
+        {(data ?? []).map(e => (
+          <article key={e.empresaId} className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4" style={{ borderTop: `4px solid ${COR_EMPRESA[e.empresaNome?.toUpperCase()] ?? "#64748b"}` }}>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-bold tracking-wide">{e.empresaNome}</h3>
+              <span className="text-[11px] text-muted-foreground">valor mensal</span>
+            </div>
+            <p className="text-2xl font-bold tabular-nums text-foreground"><PrivacyValue value={reais(e.valor)} /></p>
+            <div className="flex justify-between gap-2 border-t border-border/50 pt-2.5 text-xs text-foreground/75">
+              <span><strong className="text-sm">{e.comSeguro}</strong> com seguro</span>
+              <span>Total: <strong><PrivacyValue value={reais(e.totalMensal)} /></strong></span>
+            </div>
+            <Button variant="outline" className="h-10 gap-1.5 font-semibold" onClick={() => setEditando(e)}>
+              <Pencil className="h-3.5 w-3.5" /> Alterar valor
+            </Button>
+          </article>
+        ))}
+      </div>
+      {editando && <AlterarValorDialog empresa={editando} onFechar={() => setEditando(null)} />}
+    </section>
+  );
+}
+
+function AlterarValorDialog({ empresa, onFechar }: { empresa: ResumoEmpresa; onFechar: () => void }) {
+  const utils = trpc.useUtils();
+  const [valor, setValor] = useState(empresa.valor !== null ? empresa.valor.toFixed(2) : "");
+  const [aplicar, setAplicar] = useState(true);
+  const novo = lerReais(valor);
+  const novoTotal = novo !== null ? Math.round(novo * empresa.comSeguro * 100) / 100 : null;
+  const alterar = trpc.seguroVida.alterarValorEmpresa.useMutation({
+    onSuccess: (r) => {
+      toast.success(aplicar
+        ? `Valor da ${r.empresaNome} alterado e aplicado a ${r.colaboradoresAlterados} colaborador${r.colaboradoresAlterados === 1 ? "" : "es"}.`
+        : `Valor da ${r.empresaNome} alterado. Vale para os próximos seguros lançados.`);
+      utils.seguroVida.resumoEmpresas.invalidate();
+      utils.seguroVida.list.invalidate();
+      utils.empresas.list.invalidate();
+      onFechar();
+    },
+    onError: (e) => toast.error(e.message || "Não foi possível alterar o valor."),
+  });
+  const podeSalvar = novo !== null && novo > 0 && !alterar.isPending;
+  return (
+    <Dialog open onOpenChange={o => { if (!o) onFechar(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-blue-700" /> Valor do seguro — {empresa.empresaNome}</DialogTitle>
+          <p className="text-sm text-muted-foreground">Valor atual: {reais(empresa.valor)} por mês</p>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={ev => { ev.preventDefault(); if (podeSalvar) alterar.mutate({ empresaId: empresa.empresaId, valor: novo!, aplicarAosColaboradores: aplicar }); }}>
+          <div className="space-y-1.5">
+            <Label htmlFor="novo-valor-seguro">Novo valor mensal</Label>
+            <InputMoeda id="novo-valor-seguro" autoFocus value={valor} onValorChange={setValor} className="h-10 text-base font-semibold" />
+          </div>
+          {empresa.comSeguro > 0 && (
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border/60 bg-muted/30 p-3">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[oklch(0.25_0.09_252)]" checked={aplicar} onChange={e => setAplicar(e.target.checked)} />
+              <span className="text-sm">
+                <strong>Aplicar também aos {empresa.comSeguro} colaborador{empresa.comSeguro === 1 ? "" : "es"} da {empresa.empresaNome} que já têm seguro</strong>
+                {novo !== null && (
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    O valor na folha passa a ser {reais(novo)} para todos. Total mensal da {empresa.empresaNome}: {reais(empresa.totalMensal)} → {reais(novoTotal)}.
+                  </span>
+                )}
+              </span>
+            </label>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {aplicar && empresa.comSeguro > 0 ? "Os próximos seguros lançados também usarão este valor." : "Sem aplicar, o novo valor vale só para os próximos seguros lançados."}
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onFechar}>Cancelar</Button>
+            <Button type="submit" disabled={!podeSalvar}>{alterar.isPending ? "Salvando…" : "Salvar valor"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
