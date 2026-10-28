@@ -143,7 +143,7 @@ import {
   getAuxilioNotebookAtivos,
   getAuxilioCrecheAtivos,
   getBonusIndicacaoPanel,
-  getDb,
+  getDb, getResumoSeguroPorEmpresa, alterarValorSeguroEmpresa
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -807,6 +807,14 @@ export const appRouter = router({
       }),
   }),
   seguroVida: router({
+    resumoEmpresas: protectedProcedure.query(async () => getResumoSeguroPorEmpresa()),
+    alterarValorEmpresa: protectedProcedure
+      .input(z.object({
+        empresaId: z.number().int().positive(),
+        valor: z.number({ message: "Informe o novo valor" }).positive("O valor deve ser maior que zero").max(10000, "Valor muito alto"),
+        aplicarAosColaboradores: z.boolean(),
+      }))
+      .mutation(async ({ input }) => alterarValorSeguroEmpresa(input.empresaId, Math.round(input.valor * 100) / 100, input.aplicarAosColaboradores)),
     list: protectedProcedure
       .input(z.object({
         busca: z.string().max(200).trim().optional(),
