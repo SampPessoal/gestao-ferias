@@ -4646,3 +4646,57 @@ export function getMesesAfetadosPorFerias(
   }
   return meses;
 }
+
+// ─── Seguro de vida: valores por empresa ───────────────────────────────────────
+
+/** Lê valores em reais gravados como "12,50", "11.90", "1.234,56" ou número. */
+function lerValorReais(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return isFinite(v) ? v : null;
+  let t = String(v).replace(/\s|R\$/g, "");
+  if (t.includes(",")) t = t.replace(/\./g, "").replace(",", ".");
+  const n = Number(t);
+  return isFinite(n) ? n : null;
+}
+
+/** Para cada empresa: valor do seguro, quantos ativos têm seguro e o total mensal na folha. */
+export async function getResumoSeguroPorEmpresa() {
+  const db = await getDb();
+  if (!db) return [];
+  const emps = await db.select({ id: empresas.id, nome: empresas.nome, valor: empresas.valorSeguroVida }).from(empresas).orderBy(asc(empresas.nome));
+  const colabs = await db.select({ empresaId: colaboradores.empresaId, valor: colaboradores.valorSeguroVida })
+    .from(colaboradores)
+    .where(and(eq(colaboradores.status, "ativo"), eq(colaboradores.temSeguroVida, true)));
+  return emps.map(e => {
+    const daEmpresa = colabs.filter(c => c.empresaId === e.id);
+    const total = daEmpresa.reduce((t, c) => t + (lerValorReais(c.valor) ?? 0), 0);
+    return {
+      empresaId: e.id,
+      empresaNome: e.nome,
+      valor: lerValorReais(e.valor),
+      comSeguro: daEmpresa.length,
+      totalMensal: Math.round(total * 100) / 100,
+    };
+  });
+}
+
+/**
+ * Altera o valor do seguro de uma empresa. Com "aplicar", também troca o valor
+ * dos colaboradores ATIVOS dessa empresa que têm seguro. Devolve quantos foram alterados.
+ */
+export async function alterarValorSeguroEmpresa(empresaId: number, valor: number, aplicar: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [emp] = await db.update(empresas).set({ valorSeguroVida: valor.toFixed(2) } as any)
+    .where(eq(empresas.id, empresaId)).returning({ id: empresas.id, nome: empresas.nome });
+  if (!emp) throw new TRPCError({ code: "NOT_FOUND", message: "Empresa não encontrada." });
+  let colaboradoresAlterados = 0;
+  if (aplicar) {
+    const texto = valor.toFixed(2).replace(".", ",");   // mesmo formato da tela ("10,20")
+    const r = await db.update(colaboradores).set({ valorSeguroVida: texto, updatedAt: new Date() } as any)
+      .where(and(eq(colaboradores.empresaId, empresaId), eq(colaboradores.status, "ativo"), eq(colaboradores.temSeguroVida, true)))
+      .returning({ id: colaboradores.id });
+    colaboradoresAlterados = r.length;
+  }
+  return { empresaNome: emp.nome, colaboradoresAlterados };
+}
