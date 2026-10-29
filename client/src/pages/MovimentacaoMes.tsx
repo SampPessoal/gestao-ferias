@@ -307,21 +307,26 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
               </div>
               <div><label className="text-xs text-muted-foreground mb-1 block">Data *</label><Input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} /></div>
             </div>
-            <div><label className="text-xs text-muted-foreground mb-1 block">Valor do Desconto (R$)</label>
-              <div className="relative">
-                <InputMoeda onValorChange={v => setForm(f => ({ ...f, valor: v }))}
-                  value={form.valor}
-                  placeholder="Preenchido automaticamente pela empresa..."
-                  className={form.colaborador?.valorSeguroVida ? "border-emerald-500/50 bg-emerald-950/10" : ""}
-                />
-                {form.colaborador?.valorSeguroVida && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-emerald-400 font-medium">Auto</span>
-                )}
-              </div>
-              {form.colaborador?.valorSeguroVida && (
-                <p className="text-[11px] text-emerald-400 mt-1">✓ Valor preenchido automaticamente com base na empresa do colaborador. Pode ser editado se necessário.</p>
-              )}
-            </div>
+            {(() => {
+              const empresaForm = form.colaborador?.empresa || empresa;
+              const valorEmpresaForm = empresaForm ? valorSeguroEmpresa(empresaForm) : null;
+              return (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Valor do Desconto (R$)</label>
+                  <div className="flex h-9 items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/40 px-3 text-sm" aria-live="polite">
+                    <span className={valorEmpresaForm !== null ? "font-semibold tabular-nums" : "text-muted-foreground"}>
+                      {valorEmpresaForm !== null
+                        ? `R$ ${formatarReais(valorEmpresaForm)}`
+                        : form.colaborador ? "Empresa sem valor configurado" : "Escolha o colaborador"}
+                    </span>
+                    {valorEmpresaForm !== null && (
+                      <span className="rounded border border-border/60 bg-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Valor da {empresaForm}</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Valor configurado para a empresa em Seguro de Vida › Valores por Empresa.</p>
+                </div>
+              );
+            })()}
             <div><label className="text-xs text-muted-foreground mb-1 block">Observação</label><Input value={form.observacao} onChange={e => setForm(f => ({ ...f, observacao: e.target.value }))} placeholder="Opcional..." /></div>
           </div>
           <div className="flex gap-2 justify-end mt-4">
