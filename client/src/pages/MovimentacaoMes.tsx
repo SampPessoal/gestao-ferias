@@ -84,8 +84,8 @@ const ABAS: { id: TipoMovimentacao; label: string; icon: React.ReactNode; cor: s
 function BuscaColaborador({
   value, onChange, placeholder = "Buscar colaborador...", incluirInativos = false,
 }: {
-  value: { id: number; nome: string; empresa: string; valorSeguroVida?: string | null; admissao?: string | Date | null } | null;
-  onChange: (c: { id: number; nome: string; empresa: string; valorSeguroVida?: string | null; admissao?: string | Date | null } | null) => void;
+  value: { id: number; nome: string; empresa: string; valorSeguroVida?: string | null; admissao?: string | Date | null; dataNascimento?: string | Date | null } | null;
+  onChange: (c: { id: number; nome: string; empresa: string; valorSeguroVida?: string | null; admissao?: string | Date | null; dataNascimento?: string | Date | null } | null) => void;
   placeholder?: string;
   incluirInativos?: boolean;
 }) {
@@ -133,7 +133,7 @@ function BuscaColaborador({
                 <button
                   key={c.id}
                   className="w-full text-left px-3 py-2.5 text-sm text-foreground hover:bg-muted/50 border-b border-border/30 last:border-0 transition-colors"
-                  onMouseDown={() => { onChange({ id: c.id, nome: c.nome, empresa: c.empresaNome ?? "", admissao: c.admissao ?? null }); setBusca(""); setAberto(false); }}
+                  onMouseDown={() => { onChange({ id: c.id, nome: c.nome, empresa: c.empresaNome ?? "", admissao: c.admissao ?? null, dataNascimento: c.dataNascimento ?? null }); setBusca(""); setAberto(false); }}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium truncate">{c.nome}</span>
@@ -490,7 +490,7 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [excluirId, setExcluirId] = useState<number | null>(null);
   const [excluirNome, setExcluirNome] = useState("");
-  const FORM_INICIAL_PS = { colaborador: null as { id: number; nome: string; empresa: string } | null, tipo: "incluir" as "incluir" | "excluir", tipoPlano: "", categoria: "titular" as "titular" | "dependente", dataNascimento: "", valor: "", observacao: "" };
+  const FORM_INICIAL_PS = { colaborador: null as { id: number; nome: string; empresa: string; dataNascimento?: string | Date | null } | null, tipo: "incluir" as "incluir" | "excluir", tipoPlano: "", categoria: "titular" as "titular" | "dependente", dataNascimento: "", valor: "", observacao: "" };
   const [form, setForm] = useState(FORM_INICIAL_PS);
 
   const utils = trpc.useUtils();
@@ -569,22 +569,29 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
     return null;
   };
 
-  /** Ao escolher o colaborador: data de nascimento do cadastro e plano atual (ou o padrão Prata QC). */
-  const preencherDoColaborador = async (c: { id: number; empresa: string } | null) => {
+  // Plano atual de cada colaborador, carregado uma vez com a aba (consulta leve)
+  const { data: planosAtuais = [] } = trpc.movimentacao.planoSaude.planosAtuais.useQuery(undefined, { staleTime: 60_000 });
+  const planoAtualPorColab = useMemo(() => new Map((planosAtuais as any[]).map(p => [p.colaboradorId, p.plano as string])), [planosAtuais]);
+
+  /** Ao escolher o colaborador: data de nascimento e plano atual (ou o padrão Prata QC), na hora. */
+  const preencherDoColaborador = async (c: { id: number; empresa: string; dataNascimento?: string | Date | null } | null) => {
     if (!c || editandoId) return;
-    const [ficha, reg] = await Promise.all([
-      utils.colaboradores.byId.fetch({ id: c.id }).catch(() => null),
-      utils.registroEmpregado.get.fetch({ colaboradorId: c.id }).catch(() => null),
-    ]);
-    const nasc = (ficha as any)?.dataNascimento ? String((ficha as any).dataNascimento).slice(0, 10) : "";
-    const planoAtual = codigoDoPlano((reg as any)?.beneficios?.planoSaude?.plano, c.empresa);
+    const isoData = (d: any) => (d ? (typeof d === "string" ? d.slice(0, 10) : new Date(d).toISOString().slice(0, 10)) : "");
+    const planoAtual = codigoDoPlano(planoAtualPorColab.get(c.id), c.empresa);
     const temPadrao = (precos as any[]).some(p => p.empresa === c.empresa && p.codigoPlano === PLANO_BASE);
+    let nasc = isoData(c.dataNascimento);
     setForm(f => f.colaborador?.id !== c.id ? f : {
       ...f,
       dataNascimento: f.dataNascimento || nasc,
       tipoPlano: f.tipoPlano || planoAtual || (temPadrao ? PLANO_BASE : ""),
     });
     setOrigemPlano(planoAtual ? "atual" : temPadrao ? "padrao" : null);
+    // Só se a lista não trouxe a data de nascimento, busca no cadastro
+    if (!nasc) {
+      const ficha = await utils.colaboradores.byId.fetch({ id: c.id }).catch(() => null);
+      nasc = isoData((ficha as any)?.dataNascimento);
+      if (nasc) setForm(f => f.colaborador?.id !== c.id || f.dataNascimento ? f : { ...f, dataNascimento: nasc });
+    }
   };
   const [origemPlano, setOrigemPlano] = useState<"atual" | "padrao" | null>(null);
 

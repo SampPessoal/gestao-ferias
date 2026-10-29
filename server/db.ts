@@ -4762,3 +4762,24 @@ export async function getComplementosExportacaoMovimentacao(colaboradorIds: numb
   for (const e of emps) valorSeguroEmpresa[(e.nome ?? "").toUpperCase()] = lerValorReais(e.valor);
   return { cpfs, valorSeguroEmpresa };
 }
+
+// ─── Plano de saúde atual de cada colaborador (consulta leve, de uma vez só) ───
+
+/** Para cada colaborador, o plano do registro de titular ativo mais recente. */
+export async function getPlanosAtuaisColaboradores(): Promise<{ colaboradorId: number; plano: string }[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const linhas = await db.select({
+    colaboradorId: planoSaude.colaboradorId, plano: planoSaude.plano,
+    ano: planoSaude.anoReferencia, mes: planoSaude.mesReferencia,
+  }).from(planoSaude)
+    .where(and(eq(planoSaude.tipo, "T"), eq(planoSaude.ativo, true), isNotNull(planoSaude.colaboradorId)));
+  const maisRecente = new Map<number, { plano: string; chave: number }>();
+  for (const l of linhas) {
+    if (!l.colaboradorId || !l.plano) continue;
+    const chave = (l.ano ?? 0) * 100 + (l.mes ?? 0);
+    const atual = maisRecente.get(l.colaboradorId);
+    if (!atual || chave > atual.chave) maisRecente.set(l.colaboradorId, { plano: l.plano, chave });
+  }
+  return Array.from(maisRecente.entries()).map(([colaboradorId, v]) => ({ colaboradorId, plano: v.plano }));
+}
