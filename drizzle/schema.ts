@@ -643,6 +643,7 @@ export type InsertMovimentacaoAuxilioNotebook = typeof movimentacaoAuxilioNotebo
   tipo: tipoMovEnum("tipo").notNull(),
   tipoPlano: varchar("tipoPlano", { length: 100 }), // ex: Bronze, Prata, Ouro
   categoria: categoriaPlanoEnum("categoria").default("titular"),
+  nomeDependente: varchar("nomeDependente", { length: 200 }), // nome do dependente (categoria dependente)
   dataNascimento: date("dataNascimento"), // para cálculo de faixa etária
   valor: decimal("valor", { precision: 10, scale: 2 }),
   valorEmpresa: decimal("valorEmpresa", { precision: 10, scale: 2 }), // subsídio da empresa (70% do Prata QC)
