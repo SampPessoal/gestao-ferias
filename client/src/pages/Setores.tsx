@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, ChevronRight, Users, AlertTriangle, CheckCircle2, Clock, Bell, Info, Shield, Pencil, Check, X, Plus } from "lucide-react";
+import { Building2, ChevronRight, Users, AlertTriangle, CheckCircle2, Clock, Bell, Info, Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-import { InputMoeda } from "@/components/InputMoeda";
 const EMPRESA_COLORS: Record<string, string> = {
   "Freire": "oklch(0.22 0.015 240)",
   "Sudoeste": "oklch(0.48 0.20 252)",
@@ -241,102 +240,10 @@ export default function Setores() {
           })}
       </div>
 
-      {/* Configuração de Seguro de Vida por Empresa */}
-      <ConfiguracaoSeguroVida />
       <NovoSetorDialog aberto={novoAberto} onFechar={() => setNovoAberto(false)} />
     </div>
   );
 }
-
-function ConfiguracaoSeguroVida() {
-  const utils = trpc.useUtils();
-  const { data: empresas = [], isLoading } = trpc.empresas.list.useQuery();
-  const [editandoId, setEditandoId] = useState<number | null>(null);
-  const [valorTemp, setValorTemp] = useState("");
-
-  const atualizar = trpc.empresas.updateValorSeguro.useMutation({
-    onSuccess: () => {
-      utils.empresas.list.invalidate();
-      utils.colaboradores.listAtivos.invalidate();
-      toast.success("Valor do seguro de vida atualizado!");
-      setEditandoId(null);
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const iniciarEdicao = (id: number, valorAtual: string | null) => {
-    setEditandoId(id);
-    setValorTemp(valorAtual ? parseFloat(String(valorAtual)).toFixed(2) : "");
-  };
-
-  const salvar = (id: number) => {
-    atualizar.mutate({ id, valorSeguroVida: valorTemp || null });
-  };
-
-  return (
-    <div className="rounded-xl border border-border/60 bg-card overflow-hidden"
-      style={{ boxShadow: "0 2px 8px oklch(0.145 0.03 245 / 0.06)" }}>
-      <div className="px-5 py-4 border-b border-border/40 flex items-center gap-3"
-        style={{ background: "linear-gradient(135deg, oklch(0.14 0.07 254) 0%, oklch(0.17 0.015 240) 100%)" }}>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: "oklch(0.48 0.20 252 / 0.20)", border: "1px solid oklch(0.48 0.20 252 / 0.30)" }}>
-          <Shield className="w-4 h-4" style={{ color: "oklch(0.70 0.15 252)" }} />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-white">Valor do Seguro de Vida por Empresa</h2>
-          <p className="text-xs" style={{ color: "oklch(0.65 0.008 240)" }}>Configure o desconto mensal do seguro de vida para cada empresa. Este valor é preenchido automaticamente ao lançar um novo colaborador na Movimentação do Mês.</p>
-        </div>
-      </div>
-      <div className="divide-y divide-border/30">
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 mx-4 my-2 rounded-lg" />)
-        ) : empresas.map(emp => (
-          <div key={emp.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-muted/40">
-              <Building2 className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">{emp.nome}</p>
-            </div>
-            {editandoId === emp.id ? (
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <InputMoeda onValorChange={v => setValorTemp(v)}
-                    value={valorTemp}
-                    className="w-28 pl-8 h-8 text-sm"
-                    placeholder="0,00"
-                    autoFocus
-                    onKeyDown={e => { if (e.key === "Enter") salvar(emp.id); if (e.key === "Escape") setEditandoId(null); }}
-                  />
-                </div>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-400 hover:text-emerald-300" onClick={() => salvar(emp.id)} disabled={atualizar.isPending}>
-                  <Check className="w-4 h-4" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setEditandoId(null)}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                {(emp as any).valorSeguroVida ? (
-                  <span className="text-sm font-semibold text-emerald-400">
-                    R$ {parseFloat(String((emp as any).valorSeguroVida)).toFixed(2).replace('.', ',')}
-                  </span>
-                ) : (
-                  <span className="text-xs text-amber-400/80">Não configurado</span>
-                )}
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => iniciarEdicao(emp.id, (emp as any).valorSeguroVida)}>
-                  <Pencil className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 
 // ─── Janela "Novo Setor" ─────────────────────────────────────────────────────
 
