@@ -78,6 +78,12 @@ type RegistroFerias = {
   createdAt: Date | string;
 };
 
+type Planejado = {
+  colaboradorId: number; colaboradorNome: string; empresaId: number | null; setorId: number | null;
+  empresaNome: string | null; setorNome: string | null; numero: 1 | 2 | 3; texto: string;
+  inicio: string; fim: string; dias: number;
+};
+
 type FormData = {
   colaboradorId: string;
   empresaId: string;
@@ -128,6 +134,7 @@ export default function RelacaoFerias() {
   const [filtroSetorId, setFiltroSetorId] = useState<string>("all");
   const [busca, setBusca] = useState("");
   const [mesesExpandidos, setMesesExpandidos] = useState<Record<string, boolean>>({});
+  const [mostrarPlanejados, setMostrarPlanejados] = useState(true);
 
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<RegistroFerias | null>(null);
@@ -164,10 +171,18 @@ export default function RelacaoFerias() {
     setorId: filtroSetorId !== "all" ? Number(filtroSetorId) : undefined,
   });
 
+  // Planejamentos da ficha de férias (aparecem como "Planejado" no mês da saída)
+  const { data: planejamentosResp } = trpc.historicoFerias.planejamentos.useQuery({
+    ano: Number(filtroAno),
+    empresaId: filtroEmpresaId !== "all" ? Number(filtroEmpresaId) : undefined,
+    setorId: filtroSetorId !== "all" ? Number(filtroSetorId) : undefined,
+  });
+
   const utils = trpc.useUtils();
 
   const createMutation = trpc.historicoFerias.create.useMutation({
     onSuccess: () => {
+      utils.historicoFerias.planejamentos.invalidate();
       toast.success("Registro de férias adicionado! Saldo do colaborador atualizado.");
       setModalAberto(false);
       setForm(emptyForm);
@@ -224,9 +239,24 @@ export default function RelacaoFerias() {
     });
   }, [registros, busca, filtroMes]);
 
+  const planejadosFiltrados = useMemo(() => {
+    if (!mostrarPlanejados) return [] as Planejado[];
+    return ((planejamentosResp?.planejados ?? []) as Planejado[]).filter(p =>
+      (!busca || contemTexto(p.colaboradorNome, busca)) &&
+      (filtroMes === "all" || Number(p.inicio.slice(5, 7)) === Number(filtroMes)));
+  }, [planejamentosResp, mostrarPlanejados, busca, filtroMes]);
+
+  const planejadosPorMes = useMemo(() => {
+    const g: Record<string, Planejado[]> = {};
+    for (const p of planejadosFiltrados) (g[p.inicio.slice(0, 7)] ??= []).push(p);
+    for (const k of Object.keys(g)) g[k].sort((a, b) => a.inicio.localeCompare(b.inicio) || a.colaboradorNome.localeCompare(b.colaboradorNome));
+    return g;
+  }, [planejadosFiltrados]);
+
   // Agrupar por mês
   const agrupados = useMemo(() => {
     const grupos: Record<string, RegistroFerias[]> = {};
+    for (const k of Object.keys(planejadosPorMes)) grupos[k] ??= [];
     for (const r of registrosFiltrados) {
       if (!r.dataSaida) continue;
       // Usa UTC para evitar bug de timezone ao extrair ano/mês
@@ -236,7 +266,7 @@ export default function RelacaoFerias() {
       grupos[chave].push(r);
     }
     return Object.entries(grupos).sort((a, b) => a[0].localeCompare(b[0])).map(([k, regs]) => [k, sortFeriasData(regs)] as [string, RegistroFerias[]]);
-  }, [registrosFiltrados, sortFerias]);
+  }, [registrosFiltrados, sortFerias, planejadosPorMes]);
 
   function nomeMes(chave: string) {
     const [ano, mes] = chave.split("-");
@@ -254,6 +284,37 @@ export default function RelacaoFerias() {
     setBuscaColab("");
     setNomeColabSelecionado("");
     setColabInfo(null);
+    setDropdownAberto(false);
+    setModalAberto(true);
+  }
+
+  function periodoDoColab(c: any): string {
+    const ini = c?.periodoAquisitivo ? toDateStr(c.periodoAquisitivo) : null;
+    if (!ini) return "";
+    const fim = c.vencimento ? toDateStr(c.vencimento) : null;
+    const br = (x: string) => x.split("-").reverse().join("/");
+    return fim ? `${br(ini)} a ${br(fim)}` : br(ini);
+  }
+
+  /** "Lançar" um planejamento: abre Registrar Férias já preenchido (só desconta saldo ao salvar). */
+  function lancarPlanejado(p: Planejado) {
+    const c = (todosColaboradores as any[]).find(x => x.id === p.colaboradorId) ?? null;
+    setEditando(null);
+    setForm({
+      ...emptyForm,
+      colaboradorId: String(p.colaboradorId),
+      empresaId: p.empresaId ? String(p.empresaId) : "",
+      setorId: p.setorId ? String(p.setorId) : "",
+      dataSaida: p.inicio,
+      dataFim: p.fim,
+      dataRetorno: calcRetorno(p.fim),
+      diasGozados: String(p.dias),
+      periodoRef: periodoDoColab(c),
+      observacao: `Planejamento ${p.numero}`,
+    });
+    setBuscaColab(p.colaboradorNome);
+    setNomeColabSelecionado(p.colaboradorNome);
+    setColabInfo(c);
     setDropdownAberto(false);
     setModalAberto(true);
   }
@@ -774,6 +835,15 @@ export default function RelacaoFerias() {
                 onChange={(e) => setBusca(e.target.value)}
               />
             </div>
+
+            <label className="flex h-9 cursor-pointer items-center gap-2 self-end text-sm text-foreground select-none">
+              <input type="checkbox" className="h-4 w-4 accent-[oklch(0.25_0.09_252)]" checked={mostrarPlanejados}
+                onChange={(e) => setMostrarPlanejados(e.target.checked)} />
+              Mostrar planejamentos
+              {(planejamentosResp?.planejados?.length ?? 0) > 0 && (
+                <span className="rounded-full bg-[#fdebd6] px-2 py-0.5 text-xs font-semibold text-[#8a4510]">{planejamentosResp!.planejados.length}</span>
+              )}
+            </label>
           </div>
         </CardContent>
       </Card>
@@ -811,6 +881,7 @@ export default function RelacaoFerias() {
         <div className="space-y-4">
           {agrupados.map(([chave, regs]) => {
             const expandido = mesesExpandidos[chave] !== false;
+            const planejadosMes = planejadosPorMes[chave] ?? [];
             const totalDias = regs.reduce((acc, r) => acc + (r.diasGozados || 0), 0);
             const comVenda = regs.filter((r) => r.venda10 === "SIM").length;
             return (
@@ -830,12 +901,21 @@ export default function RelacaoFerias() {
                         )}
                       </div>
                       <span className="text-sm font-bold text-foreground">{nomeMes(chave)}</span>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
-                        {regs.length} registro{regs.length !== 1 ? "s" : ""}
-                      </span>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-emerald-100">
-                        {totalDias} dias gozados
-                      </span>
+                      {regs.length > 0 && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
+                          {regs.length} registro{regs.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {planejadosMes.length > 0 && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#fdebd6] text-[#8a4510]">
+                          {planejadosMes.length} planejado{planejadosMes.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {regs.length > 0 && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-emerald-100">
+                          {totalDias} dias gozados
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       {comVenda > 0 && (
@@ -915,6 +995,38 @@ export default function RelacaoFerias() {
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {planejadosMes.map(p => (
+                          <TableRow key={`plan-${p.colaboradorId}-${p.numero}`} className="bg-[#fbfaf6] hover:bg-[#f6f3ea]">
+                            <TableCell className="pl-5">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 bg-slate-400">
+                                  {(p.colaboradorNome ?? "?")[0].toUpperCase()}
+                                </div>
+                                <NomeColaborador nome={p.colaboradorNome} className="font-semibold text-sm text-foreground/80" maxChars={38} />
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{p.empresaNome ?? "—"}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{p.setorNome ?? "—"}</TableCell>
+                            <TableCell className="text-sm font-medium">{formatDateBR(p.inicio)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatDateBR(p.fim)}</TableCell>
+                            <TableCell className="text-sm font-medium">{formatDateBR(calcRetorno(p.fim))}</TableCell>
+                            <TableCell className="text-center">
+                              <span className="inline-flex items-center justify-center w-10 h-6 rounded-full text-xs font-bold text-foreground/75 border border-dashed border-muted-foreground/50">{p.dias}d</span>
+                            </TableCell>
+                            <TableCell className="text-center"><span className="text-muted-foreground/50 text-xs">—</span></TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#fdebd6] text-[#8a4510] whitespace-nowrap">Planejado · {p.numero}</span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">—</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">—</TableCell>
+                            <TableCell className="text-right pr-5">
+                              <Button size="sm" variant="outline" className="h-8 font-semibold" onClick={() => lancarPlanejado(p)}
+                                aria-label={`Lançar férias planejadas de ${p.colaboradorNome}`}>
+                                Lançar
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
