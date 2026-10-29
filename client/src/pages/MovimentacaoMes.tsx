@@ -23,7 +23,7 @@ import {
   ChevronDown, ChevronUp, Search, Building2,
   Download, FileSpreadsheet, FileText,
 } from "lucide-react";
-import * as XLSX from "xlsx";
+import { baixarExcelMovimentacao, NOMES_SECAO, type SecaoExport } from "@/lib/excelMovimentacao";
 
 import { InputMoeda } from "@/components/InputMoeda";
 import { contemTexto } from "@/lib/busca";
@@ -1236,36 +1236,6 @@ function AbaBonusIndicacao({ mes, ano, empresa, onDataLoad }: { mes: number; ano
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 // ─── Helpers de exportação ────────────────────────────────────────────────────
-function buildSheetSeguroVida(rows: any[]) {
-  return rows.map(r => ({ "Colaborador": r.nomeColaborador ?? "", "Empresa": r.empresa ?? "", "Tipo": r.tipo === "incluir" ? "Incluir" : "Excluir", "Data": fmtDate(r.data), "Observação": r.observacao ?? "", "Registrado por": r.createdByNome ?? "" }));
-}
-function buildSheetAuxNotebook(rows: any[]) {
-  return rows.map(r => ({ "Colaborador": r.nomeColaborador ?? "", "Empresa": r.empresa ?? "", "Tipo": r.tipo === "incluir" ? "Incluir" : "Excluir", "Data Início": fmtDate(r.dataInicio), "Valor (R$)": r.valor != null ? Number(r.valor).toFixed(2) : "", "Observação": r.observacao ?? "", "Registrado por": r.createdByNome ?? "" }));
-}
-function buildSheetPlanoSaude(rows: any[]) {
-  return rows.map(r => ({ "Colaborador": r.nomeColaborador ?? "", "Empresa": r.empresa ?? "", "Tipo": r.tipo === "incluir" ? "Incluir" : "Excluir", "Plano": r.tipoPlano ?? "", "Categoria": r.categoria ?? "", "Dt. Nascimento": fmtDate(r.dataNascimento), "Valor (R$)": r.valor != null ? Number(r.valor).toFixed(2) : "", "Observação": r.observacao ?? "", "Registrado por": r.createdByNome ?? "" }));
-}
-function buildSheetValeTransporte(rows: any[]) {
-  return rows.map(r => ({ "Colaborador": r.nomeColaborador ?? "", "Empresa": r.empresa ?? "", "Tipo": r.tipo === "incluir" ? "Incluir" : "Excluir", "Observação": r.observacao ?? "", "Registrado por": r.createdByNome ?? "" }));
-}
-function buildSheetAuxCreche(rows: any[]) {
-  return rows.map(r => ({ "Colaborador": r.nomeColaborador ?? "", "Empresa": r.empresa ?? "", "Tipo": r.tipo === "incluir" ? "Incluir" : "Excluir", "Nome do Filho": r.nomeFilho ?? "", "Dt. Nasc. Filho": fmtDate(r.dataNascimentoFilho), "Valor (R$)": r.valor != null ? Number(r.valor).toFixed(2) : "", "Observação": r.observacao ?? "", "Registrado por": r.createdByNome ?? "" }));
-}
-function buildSheetBonus(rows: any[]) {
-  return rows.map(r => ({ "Indicador": r.nomeIndicador ?? "", "Indicado": r.nomeIndicado ?? "", "Empresa": r.empresa ?? "", "Admissão Indicado": fmtDate(r.dataAdmissaoIndicado), "Pgto. Previsto": fmtDate(r.dataPagamentoPrevisto), "Pgto. Efetivo": fmtDate(r.dataPagamentoEfetivo), "Valor Bônus (R$)": r.valorBonus != null ? Number(r.valorBonus).toFixed(2) : "", "Status": r.status ?? "", "Observação": r.observacao ?? "", "Registrado por": r.createdByNome ?? "" }));
-}
-
-function appendXlsxSheet(wb: XLSX.WorkBook, rows: Record<string, string>[], sheetName: string) {
-  if (rows.length === 0) {
-    const ws = XLSX.utils.aoa_to_sheet([["Nenhum registro neste mês"]]);
-    XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
-    return;
-  }
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const headers = Object.keys(rows[0]);
-  ws["!cols"] = headers.map(h => ({ wch: Math.max(h.length + 4, 16) }));
-  XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
-}
 
 function buildPdfHtml(titulo: string, competencia: string, empresa: string, secoes: { nome: string; headers: string[]; rows: string[][] }[]) {
   const now = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Bahia" });
@@ -1312,36 +1282,23 @@ export default function MovimentacaoMes() {
     { enabled: false }
   );
 
-  const exportarExcelAbaAtual = () => {
-    const wb = XLSX.utils.book_new();
-    const abaInfo = ABAS.find(a => a.id === abaAtiva);
-    const sheetName = abaInfo?.label ?? abaAtiva;
-    let rows: Record<string, string>[] = [];
-    if (abaAtiva === "seguroVida") rows = buildSheetSeguroVida(dadosAbaAtual);
-    else if (abaAtiva === "auxNotebook") rows = buildSheetAuxNotebook(dadosAbaAtual);
-    else if (abaAtiva === "planoSaude") rows = buildSheetPlanoSaude(dadosAbaAtual);
-    else if (abaAtiva === "valeTransporte") rows = buildSheetValeTransporte(dadosAbaAtual);
-    else if (abaAtiva === "auxCreche") rows = buildSheetAuxCreche(dadosAbaAtual);
-    else if (abaAtiva === "bonusIndicacao") rows = buildSheetBonus(dadosAbaAtual);
-    appendXlsxSheet(wb, rows, sheetName);
-    XLSX.writeFile(wb, `${nomeArquivo}-${sheetName}.xlsx`);
-    toast.success("Excel exportado!");
-  };
-
-  const exportarExcelTodas = async () => {
+  const exportarExcel = async (secoes: SecaoExport[], sufixo: string) => {
     const result = await exportAllQuery.refetch();
     if (!result.data) { toast.error("Erro ao buscar dados"); return; }
-    const d = result.data;
-    const wb = XLSX.utils.book_new();
-    appendXlsxSheet(wb, buildSheetSeguroVida(d.seguroVida), "Seguro de Vida");
-    appendXlsxSheet(wb, buildSheetAuxNotebook(d.auxNotebook), "Auxílio Notebook");
-    appendXlsxSheet(wb, buildSheetPlanoSaude(d.planoSaude), "Plano de Saúde");
-    appendXlsxSheet(wb, buildSheetValeTransporte(d.valeTransporte), "Vale Transporte");
-    appendXlsxSheet(wb, buildSheetAuxCreche(d.auxCreche), "Auxílio Creche");
-    appendXlsxSheet(wb, buildSheetBonus(d.bonusIndicacao), "Bônus por Indicação");
-    XLSX.writeFile(wb, `${nomeArquivo}-COMPLETO.xlsx`);
-    toast.success("Excel completo exportado!");
+    try {
+      await baixarExcelMovimentacao(result.data as any, secoes, competencia, empresa, `${nomeArquivo}-${sufixo}.xlsx`);
+      toast.success(secoes.length > 1 ? "Excel completo exportado!" : "Excel exportado!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Não foi possível gerar o Excel.");
+    }
   };
+  const exportarExcelAbaAtual = () => {
+    const secao = abaAtiva as SecaoExport;
+    return exportarExcel([secao], NOMES_SECAO[secao] ?? abaAtiva);
+  };
+  const exportarExcelTodas = () =>
+    exportarExcel(["planoSaude", "seguroVida", "auxNotebook", "valeTransporte", "auxCreche", "bonusIndicacao"], "COMPLETO");
 
   const exportarPdfAbaAtual = () => {
     const abaInfo = ABAS.find(a => a.id === abaAtiva);

@@ -143,7 +143,7 @@ import {
   getAuxilioNotebookAtivos,
   getAuxilioCrecheAtivos,
   getBonusIndicacaoPanel,
-  getDb, getResumoSeguroPorEmpresa, alterarValorSeguroEmpresa, getPlanejamentosFerias
+  getDb, getResumoSeguroPorEmpresa, alterarValorSeguroEmpresa, getPlanejamentosFerias, getComplementosExportacaoMovimentacao
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -1713,7 +1713,10 @@ export const appRouter = router({
           getMovimentacaoAuxilioCreche(input),
           getMovimentacaoBonusIndicacao(input),
         ]);
-        return { seguroVida, auxNotebook, planoSaude, valeTransporte, auxCreche, bonusIndicacao };
+        const ids = [seguroVida, auxNotebook, planoSaude, valeTransporte, auxCreche]
+          .flatMap((lista: any[]) => lista.map(r => Number(r.colaboradorId)));
+        const complementos = await getComplementosExportacaoMovimentacao(ids);
+        return { seguroVida, auxNotebook, planoSaude, valeTransporte, auxCreche, bonusIndicacao, ...complementos };
       }),
 
     // Bônus por Indicação
