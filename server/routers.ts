@@ -143,7 +143,7 @@ import {
   getAuxilioNotebookAtivos,
   getAuxilioCrecheAtivos,
   getBonusIndicacaoPanel,
-  getDb, getResumoSeguroPorEmpresa, alterarValorSeguroEmpresa
+  getDb, getResumoSeguroPorEmpresa, alterarValorSeguroEmpresa, getPlanejamentosFerias
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -475,6 +475,10 @@ export const appRouter = router({
   }),
   // ─── Histórico de Férias ─────────────────────────────────────────────────────────────────────────────────
   historicoFerias: router({
+    /** Planejamentos da ficha de férias, já lidos, para aparecerem na Relação de Férias. */
+    planejamentos: protectedProcedure
+      .input(z.object({ ano: z.number().int().optional(), empresaId: z.number().optional(), setorId: z.number().optional() }).optional())
+      .query(async ({ input }) => getPlanejamentosFerias(input ?? {})),
   list: protectedProcedure
     .input(
       z.object({

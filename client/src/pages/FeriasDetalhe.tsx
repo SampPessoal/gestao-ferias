@@ -14,7 +14,7 @@ import { Link } from "wouter";
 import { toast } from "sonner";
 import { calcularStatus, statusColor, statusLabel, formatDate, diasRestantes, toDateStr, calcPeriodoFerias } from "@/lib/ferias";
 
-import { mascaraInteiro } from "@/lib/mascaras";
+import { mascaraInteiro, mascaraPeriodo } from "@/lib/mascaras";
 function InfoRow({ label, value, highlight }: { label: string; value: React.ReactNode; highlight?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-2 py-2 border-b border-border/40 last:border-0">
@@ -385,12 +385,12 @@ export default function FeriasDetalhe({ id }: { id: number }) {
               {[
                 { key: "planejamento1", label: "Planejamento 1", placeholder: "Ex: 01/01/2026 a 15/01/2026" },
                 { key: "planejamento2", label: "Planejamento 2", placeholder: "Ex: 01/07/2026 a 15/07/2026" },
-                { key: "planejamento3", label: "Planejamento 3", placeholder: "Opcional" },
+                { key: "planejamento3", label: "Planejamento 3", placeholder: "Opcional: dd/mm/aaaa a dd/mm/aaaa" },
               ].map(f => (
                 <div key={f.key} className="space-y-1">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">{f.label}</Label>
                   <Input className="h-8 text-sm" value={form[f.key]}
-                    onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                    onChange={e => setForm({ ...form, [f.key]: mascaraPeriodo(e.target.value) })} inputMode="numeric"
                     placeholder={f.placeholder} />
                 </div>
               ))}

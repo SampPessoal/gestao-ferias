@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gte, isNotNull, isNull, lte, or, sql, sum, inArray, ne } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { lerPlanejamento } from "../shared/planejamento";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { InsertUser, SystemUser, colaboradores, empresas, setores, users, historicoFerias, InsertHistoricoFerias, abonos, InsertAbono, atestados, InsertAtestado, systemUsers, eventosCalendario, InsertEventoCalendario, EventoCalendario, feriados, Feriado, InsertFeriado, ausenciasVRVT, AusenciaVRVT, InsertAusenciaVRVT, diasCustomVRVT, planilhasGeradas, examesPeriodicos, planoSaude, tabelaPrecos, coparticipacaoPlanoSaude, folhaMes, folhaMesExcecoes, movimentacaoSeguroVida, movimentacaoAuxilioNotebook, movimentacaoPlanoSaude, movimentacaoValeTransporte, movimentacaoAuxilioCreche, movimentacaoBonusIndicacao, cancelamentoFerias } from "../drizzle/schema";
@@ -4699,4 +4700,47 @@ export async function alterarValorSeguroEmpresa(empresaId: number, valor: number
     colaboradoresAlterados = r.length;
   }
   return { empresaNome: emp.nome, colaboradoresAlterados };
+}
+
+// ─── Planejamentos de férias (aparecem na Relação de Férias como "Planejado") ──
+
+/**
+ * Planejamentos preenchidos na ficha de férias dos colaboradores ativos, com as datas lidas.
+ * Deixa de fora os que já foram lançados (há férias com a mesma data de saída) e devolve,
+ * à parte, os textos que não puderam ser lidos.
+ */
+export async function getPlanejamentosFerias(filtros: { ano?: number; empresaId?: number; setorId?: number } = {}) {
+  const db = await getDb();
+  if (!db) return { planejados: [], naoLidos: [] };
+  const conds: any[] = [eq(colaboradores.status, "ativo"),
+    or(isNotNull(colaboradores.planejamento1), isNotNull(colaboradores.planejamento2), isNotNull(colaboradores.planejamento3))];
+  if (filtros.empresaId) conds.push(eq(colaboradores.empresaId, filtros.empresaId));
+  if (filtros.setorId) conds.push(eq(colaboradores.setorId, filtros.setorId));
+  const colabs = await db.select({
+    id: colaboradores.id, nome: colaboradores.nome, empresaId: colaboradores.empresaId, setorId: colaboradores.setorId,
+    empresaNome: empresas.nome, setorNome: setores.nome,
+    p1: colaboradores.planejamento1, p2: colaboradores.planejamento2, p3: colaboradores.planejamento3,
+  }).from(colaboradores)
+    .leftJoin(empresas, eq(colaboradores.empresaId, empresas.id))
+    .leftJoin(setores, eq(colaboradores.setorId, setores.id))
+    .where(and(...conds));
+  if (!colabs.length) return { planejados: [], naoLidos: [] };
+  const lancadas = await db.select({ colaboradorId: historicoFerias.colaboradorId, dataSaida: historicoFerias.dataSaida })
+    .from(historicoFerias).where(inArray(historicoFerias.colaboradorId, colabs.map(c => c.id)));
+  const jaLancado = new Set(lancadas.map(l => `${l.colaboradorId}|${String(l.dataSaida).slice(0, 10)}`));
+  const planejados: any[] = []; const naoLidos: any[] = [];
+  for (const c of colabs) {
+    ([[1, c.p1], [2, c.p2], [3, c.p3]] as const).forEach(([numero, texto]) => {
+      if (!texto || !texto.trim()) return;
+      const lido = lerPlanejamento(texto);
+      if (!lido) { naoLidos.push({ colaboradorId: c.id, colaboradorNome: c.nome, numero, texto }); return; }
+      if (filtros.ano && Number(lido.inicio.slice(0, 4)) !== filtros.ano) return;
+      if (jaLancado.has(`${c.id}|${lido.inicio}`)) return;
+      planejados.push({
+        colaboradorId: c.id, colaboradorNome: c.nome, empresaId: c.empresaId, setorId: c.setorId,
+        empresaNome: c.empresaNome, setorNome: c.setorNome, numero, texto, ...lido,
+      });
+    });
+  }
+  return { planejados, naoLidos };
 }
