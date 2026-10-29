@@ -486,102 +486,62 @@ const COR_EMPRESA: Record<string, { cor: string; clara: string }> = {
 };
 const corEmpresa = (nome: string) => COR_EMPRESA[nome?.toUpperCase()] ?? { cor: "#64748b", clara: "#eef1f5" };
 const reais = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `R$ ${formatarReais(n)}`);
-const pctFmt = (n: number) => `${n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 type ResumoEmpresa = { empresaId: number; empresaNome: string; valor: number | null; comSeguro: number; totalMensal: number };
 
 function ValoresPorEmpresa() {
   const { data, isLoading } = trpc.seguroVida.resumoEmpresas.useQuery();
   const [editando, setEditando] = useState<ResumoEmpresa | null>(null);
-  const lista = [...(data ?? [])].sort((x, y) => y.totalMensal - x.totalMensal);
+  const lista = [...(data ?? [])].sort((x, y) => x.empresaNome.localeCompare(y.empresaNome, "pt-BR"));
   const total = lista.reduce((t, e) => t + e.totalMensal, 0);
   const comSeguro = lista.reduce((t, e) => t + e.comSeguro, 0);
-  const pct = (e: ResumoEmpresa) => (total > 0 ? (e.totalMensal / total) * 100 : 0);
+  const th = "px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/60";
   return (
-    <section aria-labelledby="valores-empresa" className="flex flex-col gap-5 rounded-[20px] border border-border/60 bg-card p-5 sm:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[oklch(0.25_0.09_252)] text-white"><ShieldCheck className="h-[18px] w-[18px]" /></span>
-          <div>
-            <h2 id="valores-empresa" className="text-[17px] font-bold text-foreground">Valores por Empresa</h2>
-            <p className="text-sm text-muted-foreground">Desconto mensal do seguro de vida na folha</p>
-          </div>
-        </div>
-        <dl className="flex flex-wrap gap-6">
-          <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total mensal</dt>
-            <dd className="text-xl font-bold tabular-nums"><PrivacyValue value={reais(total)} /></dd>
-          </div>
-          <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Com seguro</dt>
-            <dd className="text-xl font-bold tabular-nums">{comSeguro}</dd>
-          </div>
-        </dl>
+    <section aria-labelledby="valores-empresa" className="overflow-hidden rounded-xl border border-border/60 bg-card">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3.5">
+        <h2 id="valores-empresa" className="flex items-center gap-2 text-sm font-bold text-foreground">
+          <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Valores por Empresa
+        </h2>
+        <span className="text-[13px] text-muted-foreground">
+          Total mensal: <strong className="tabular-nums text-foreground"><PrivacyValue value={reais(total)} /></strong> · {comSeguro} com seguro
+        </span>
       </header>
-
-      {total > 0 && (
-        <div className="flex flex-col gap-2.5">
-          <div role="img" aria-label={"Participação no total mensal: " + lista.map(e => `${e.empresaNome} ${pctFmt(pct(e))}`).join(", ")}
-            className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-muted">
-            {lista.filter(e => e.totalMensal > 0).map(e => (
-              <span key={e.empresaId} className="block h-full" style={{ width: `${pct(e)}%`, background: corEmpresa(e.empresaNome).cor }} />
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] border-collapse">
+          <thead>
+            <tr>
+              <th scope="col" className={`${th} text-left`}>Empresa</th>
+              <th scope="col" className={`${th} text-right`}>Valor mensal</th>
+              <th scope="col" className={`${th} text-right`}>Com seguro</th>
+              <th scope="col" className={`${th} text-right`}>Total / mês</th>
+              <th scope="col" className={`${th} w-12`}><span className="sr-only">Ações</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && Array.from({ length: 4 }).map((_, i) => (
+              <tr key={i}><td colSpan={5} className="px-4 py-3"><Skeleton className="h-5 w-full" /></td></tr>
             ))}
-          </div>
-          <ul className="flex flex-wrap gap-x-5 gap-y-1.5">
             {lista.map(e => (
-              <li key={e.empresaId} className="flex items-center gap-2 text-xs text-foreground/75">
-                <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: corEmpresa(e.empresaNome).cor }} />
-                <span className="font-semibold text-foreground">{e.empresaNome}</span>
-                <span className="tabular-nums">{pctFmt(pct(e))}</span>
-              </li>
+              <tr key={e.empresaId} className="border-b border-border/40 last:border-0">
+                <td className="px-4 py-3 text-sm font-semibold">
+                  <span className="inline-flex items-center gap-2.5">
+                    <span className="h-2 w-2 rounded-full" style={{ background: corEmpresa(e.empresaNome).cor }} />
+                    {e.empresaNome}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums"><PrivacyValue value={reais(e.valor)} /></td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums text-foreground/75">{e.comSeguro}</td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums"><PrivacyValue value={reais(e.totalMensal)} /></td>
+                <td className="px-3 py-1.5 text-right">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" title="Alterar valor"
+                    aria-label={`Alterar valor da ${e.empresaNome}`} onClick={() => setEditando(e)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </td>
+              </tr>
             ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 2xl:grid-cols-4">
-        {isLoading && Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
-        {lista.map(e => {
-          const c = corEmpresa(e.empresaNome);
-          const p = pct(e);
-          return (
-            <article key={e.empresaId} className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-[18px]"
-              style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(16,24,40,0.04)" }}>
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-extrabold" style={{ background: c.clara, color: c.cor }}>
-                  {e.empresaNome?.charAt(0)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-bold tracking-wide">{e.empresaNome}</h3>
-                  <p className="whitespace-nowrap text-xs text-muted-foreground">{pctFmt(p)} do total</p>
-                </div>
-                <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-[10px] text-xs font-semibold" aria-label={`Alterar valor da ${e.empresaNome}`} onClick={() => setEditando(e)}>
-                  <Pencil className="h-3.5 w-3.5" /> Alterar
-                </Button>
-              </div>
-              <p className="flex items-baseline gap-1.5">
-                <span className="text-sm font-semibold text-muted-foreground">R$</span>
-                <span className="text-[32px] font-bold leading-none tracking-tight tabular-nums">
-                  <PrivacyValue value={e.valor !== null ? formatarReais(e.valor) : "—"} />
-                </span>
-                <span className="text-[13px] text-muted-foreground">/mês</span>
-              </p>
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-                <span className="block h-full rounded-full" style={{ width: `${Math.max(p, e.totalMensal > 0 ? 2 : 0)}%`, background: c.cor }} />
-              </div>
-              <dl className="grid grid-cols-2 gap-3">
-                <div>
-                  <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Com seguro</dt>
-                  <dd className="text-base font-bold tabular-nums">{e.comSeguro}</dd>
-                </div>
-                <div>
-                  <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total / mês</dt>
-                  <dd className="whitespace-nowrap text-base font-bold tabular-nums"><PrivacyValue value={reais(e.totalMensal)} /></dd>
-                </div>
-              </dl>
-            </article>
-          );
-        })}
+          </tbody>
+        </table>
       </div>
       {editando && <AlterarValorDialog empresa={editando} onFechar={() => setEditando(null)} />}
     </section>
