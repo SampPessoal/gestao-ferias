@@ -143,7 +143,7 @@ import {
   getAuxilioNotebookAtivos,
   getAuxilioCrecheAtivos,
   getBonusIndicacaoPanel,
-  getDb, getResumoSeguroPorEmpresa, alterarValorSeguroEmpresa, getPlanejamentosFerias, getComplementosExportacaoMovimentacao
+  getDb, getResumoSeguroPorEmpresa, alterarValorSeguroEmpresa, getPlanejamentosFerias, getComplementosExportacaoMovimentacao, getPlanosAtuaisColaboradores
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -1549,6 +1549,8 @@ export const appRouter = router({
 
     // Plano de Saúde
     planoSaude: router({
+      /** Plano atual de cada colaborador (para preencher a janela na hora). */
+      planosAtuais: protectedProcedure.query(async () => getPlanosAtuaisColaboradores()),
       list: protectedProcedure
         .input(z.object({
           empresa: z.string().optional(),
