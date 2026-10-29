@@ -23,6 +23,8 @@ import {
   ChevronDown, ChevronUp, Search, Building2,
   Download, FileSpreadsheet, FileText,
 } from "lucide-react";
+import { lerReais, formatarReais } from "@/lib/mascaras";
+import { PrivacyValue } from "@/components/PrivacyValue";
 import { baixarExcelMovimentacao, NOMES_SECAO, type SecaoExport } from "@/lib/excelMovimentacao";
 
 import { InputMoeda } from "@/components/InputMoeda";
@@ -172,6 +174,11 @@ function ModalExcluir({ aberto, onClose, onConfirm, nome }: {
 
 // ─── Aba Seguro de Vida ───────────────────────────────────────────────────────
 function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: number; empresa: string; onDataLoad?: (data: any[]) => void }) {
+  const { data: empresasSeguro = [] } = trpc.empresas.list.useQuery();
+  const valorSeguroEmpresa = (nome?: string | null) => {
+    const e = (empresasSeguro as any[]).find(x => (x.nome ?? "").toUpperCase() === (nome ?? "").toUpperCase());
+    return lerReais(e?.valorSeguroVida);
+  };
   const [modal, setModal] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [excluirId, setExcluirId] = useState<number | null>(null);
@@ -216,7 +223,12 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{data?.length ?? 0} registro(s) no período</p>
+        <p className="text-sm text-muted-foreground">
+          {data?.length ?? 0} registro(s) no período
+          {(data?.length ?? 0) > 0 && (
+            <> · Total: <strong className="text-foreground tabular-nums"><PrivacyValue value={`R$ ${formatarReais((data ?? []).reduce((t: number, r: any) => t + (valorSeguroEmpresa(r.empresa) ?? 0), 0))}`} /></strong></>
+          )}
+        </p>
         <Button size="sm" onClick={() => setModal(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Novo Registro
         </Button>
@@ -231,6 +243,7 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Empresa</th>
                 <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor mensal</th>
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Observação</th>
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registrado por</th>
                 <th className="px-4 py-2.5" />
@@ -238,7 +251,7 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
             </thead>
             <tbody>
               {(!data || data.length === 0) ? (
-                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground text-sm">Nenhum registro encontrado</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground text-sm">Nenhum registro encontrado</td></tr>
               ) : data.map((r, i) => (
                 <tr key={r.id} className={`border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors ${i % 2 !== 0 ? "bg-muted/10" : ""}`}>
                   <td className="px-4 py-2.5 text-foreground font-medium">{r.nomeColaborador ?? "—"}</td>
@@ -249,6 +262,9 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
                     </Badge>
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">{fmtDate(r.data)}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                    {valorSeguroEmpresa(r.empresa) !== null ? <PrivacyValue value={`R$ ${formatarReais(valorSeguroEmpresa(r.empresa))}`} /> : <span className="text-muted-foreground">—</span>}
+                  </td>
                   <td className="px-4 py-2.5 text-muted-foreground max-w-[200px] truncate">{r.observacao ?? "—"}</td>
                   <td className="px-4 py-2.5 text-muted-foreground text-xs">{r.createdByNome ?? "—"}</td>
                   <td className="px-4 py-2.5">
