@@ -1389,16 +1389,43 @@ export default function RelacaoFerias() {
 function HistoricoCancelamentos() {
   const [filtroEmpresaId, setFiltroEmpresaId] = useState<string>("all");
   const [busca, setBusca] = useState("");
+  const [filtroAno, setFiltroAno] = useState<string>("all");
+  const [filtroMes, setFiltroMes] = useState<string>("all");
+  const [basePeriodo, setBasePeriodo] = useState<"saida" | "cancelamento">("saida");
   const { data: empresas = [] } = trpc.empresas.list.useQuery();
   const { data: cancelamentos = [], isLoading } = trpc.historicoFerias.listCancelamentos.useQuery({});
+
+  /** Ano e mês ("YYYY-MM") da data escolhida em "Considerar". */
+  const anoMes = (c: any): string | null => {
+    const d = basePeriodo === "saida" ? c.dataSaida : c.canceladoEm;
+    if (!d) return null;
+    if (typeof d === "string" && /^\d{4}-\d{2}/.test(d) && basePeriodo === "saida") return d.slice(0, 7);
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return null;
+    // Data de saída é só data (UTC); cancelamento é data e hora (horário local)
+    return basePeriodo === "saida"
+      ? `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}`
+      : `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const anosDisponiveis = useMemo(() => {
+    const anos = new Set<string>();
+    for (const c of cancelamentos as any[]) { const am = anoMes(c); if (am) anos.add(am.slice(0, 4)); }
+    return Array.from(anos).sort().reverse();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cancelamentos, basePeriodo]);
 
   const filtrados = useMemo(() => {
     return (cancelamentos as any[]).filter((c) => {
       const matchEmpresa = filtroEmpresaId === "all" || String(c.empresaId) === filtroEmpresaId;
       const matchBusca = !busca || contemTexto((c.colaboradorNome ?? ""), busca);
-      return matchEmpresa && matchBusca;
+      const am = anoMes(c);
+      const matchAno = filtroAno === "all" || (am !== null && am.slice(0, 4) === filtroAno);
+      const matchMes = filtroMes === "all" || (am !== null && Number(am.slice(5, 7)) === Number(filtroMes));
+      return matchEmpresa && matchBusca && matchAno && matchMes;
     });
-  }, [cancelamentos, filtroEmpresaId, busca]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cancelamentos, filtroEmpresaId, busca, filtroAno, filtroMes, basePeriodo]);
 
   const toStr = (d: any) => {
     if (!d) return "—";
@@ -1423,6 +1450,36 @@ function HistoricoCancelamentos() {
                   {(empresas as any[]).map((e) => (
                     <SelectItem key={e.id} value={String(e.id)}>{e.nome}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Ano</Label>
+              <Select value={filtroAno} onValueChange={setFiltroAno}>
+                <SelectTrigger className="w-28 h-8 text-sm" aria-label="Ano"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {anosDisponiveis.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Mês</Label>
+              <Select value={filtroMes} onValueChange={setFiltroMes}>
+                <SelectTrigger className="w-36 h-8 text-sm" aria-label="Mês"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os meses</SelectItem>
+                  {MESES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Considerar</Label>
+              <Select value={basePeriodo} onValueChange={(v) => setBasePeriodo(v as "saida" | "cancelamento")}>
+                <SelectTrigger className="w-56 h-8 text-sm" aria-label="Considerar a data"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="saida">Data de saída</SelectItem>
+                  <SelectItem value="cancelamento">Data do cancelamento</SelectItem>
                 </SelectContent>
               </Select>
             </div>
