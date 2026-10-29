@@ -206,10 +206,10 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
 
   const [editingFicha, setEditingFicha] = useState(false);
   const [abaFicha, setAbaFicha] = useState<"dados" | "beneficios">("dados");
-  const [baixandoFicha, setBaixandoFicha] = useState<null | "pdf" | "xlsx">(null);
+  const [baixandoFicha, setBaixandoFicha] = useState<null | "pdf" | "xlsx" | "docx">(null);
 
   // Baixa a ficha gerada no servidor com os dados atuais do cadastro (PDF ou Excel)
-  async function baixarFicha(formato: "pdf" | "xlsx") {
+  async function baixarFicha(formato: "pdf" | "xlsx" | "docx") {
     setBaixandoFicha(formato);
     try {
       const headers: Record<string, string> = {};
@@ -232,7 +232,7 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
       a.href = url; a.download = nome;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      toast.success(formato === "pdf" ? "Ficha em PDF baixada." : "Ficha em Excel baixada.");
+      toast.success(formato === "pdf" ? "Ficha em PDF baixada." : formato === "docx" ? "Ficha em Word baixada." : "Ficha em Excel baixada.");
     } catch (e) {
       toast.error((e as Error).message || "Não foi possível gerar a ficha.");
     } finally {
@@ -454,6 +454,8 @@ export default function ColaboradorDetalhe({ id }: { id: number }) {
                       Icone: FileDown, tom: "oklch(0.58 0.19 25)", fundo: "oklch(0.96 0.03 25)" },
                     { formato: "xlsx", titulo: "Planilha Excel", detalhe: "Para consultar e editar",
                       Icone: FileSpreadsheet, tom: "oklch(0.52 0.13 155)", fundo: "oklch(0.96 0.03 155)" },
+                    { formato: "docx", titulo: "Documento Word", detalhe: "Para editar no Word",
+                      Icone: FileText, tom: "oklch(0.50 0.15 255)", fundo: "oklch(0.96 0.03 255)" },
                   ] as const).map(({ formato, titulo, detalhe, Icone, tom, fundo }) => (
                     <DropdownMenuItem key={formato} onSelect={() => baixarFicha(formato)}
                       className="group gap-3 rounded-md px-2 py-2 cursor-pointer focus:bg-muted data-[highlighted]:bg-muted focus:text-foreground data-[highlighted]:text-foreground">
