@@ -4068,10 +4068,15 @@ export async function getMovimentacaoPlanoSaude(filters: {
 export async function createMovimentacaoPlanoSaude(data: {
   colaboradorId: number; nomeColaborador?: string; empresa: string;
   tipo: "incluir" | "excluir"; tipoPlano?: string; categoria?: "titular" | "dependente";
+  nomeDependente?: string;
   dataNascimento?: string; valor?: number; valorEmpresa?: number; valorColaborador?: number;
   observacao?: string; competenciaMes?: number; competenciaAno?: number;
   createdByUserId?: number; createdByNome?: string;
 }) {
+  // Dependente paga o valor integral: a empresa não subsidia
+  if (data.categoria === "dependente") {
+    data = { ...data, valorEmpresa: 0, valorColaborador: data.valor ?? data.valorColaborador };
+  }
   const db = await getDb();
   if (!db) return;
   await db.insert(movimentacaoPlanoSaude).values({
@@ -4081,6 +4086,7 @@ export async function createMovimentacaoPlanoSaude(data: {
     tipo: data.tipo,
     tipoPlano: data.tipoPlano,
     categoria: data.categoria ?? "titular",
+    nomeDependente: data.categoria === "dependente" ? (data.nomeDependente?.trim() || null) : null,
     dataNascimento: data.dataNascimento ?? undefined,
     valor: data.valor != null ? String(data.valor) : undefined,
     valorEmpresa: data.valorEmpresa != null ? String(data.valorEmpresa) : undefined,
@@ -4101,12 +4107,18 @@ export async function deleteMovimentacaoPlanoSaude(id: number) {
 
 export async function updateMovimentacaoPlanoSaude(id: number, data: {
   tipo?: "incluir" | "excluir"; tipoPlano?: string; categoria?: "titular" | "dependente";
+  nomeDependente?: string;
   dataNascimento?: string; valor?: number; valorEmpresa?: number; valorColaborador?: number;
   observacao?: string;
 }) {
   const db = await getDb();
   if (!db) return;
+  if (data.categoria === "dependente") {
+    data = { ...data, valorEmpresa: 0, ...(data.valor !== undefined ? { valorColaborador: data.valor } : {}) };
+  }
   const set: any = {};
+  if (data.nomeDependente !== undefined) set.nomeDependente = data.nomeDependente.trim() || null;
+  if (data.categoria === "titular") set.nomeDependente = null;
   if (data.tipo !== undefined) set.tipo = data.tipo;
   if (data.tipoPlano !== undefined) set.tipoPlano = data.tipoPlano;
   if (data.categoria !== undefined) set.categoria = data.categoria;

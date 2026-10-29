@@ -490,7 +490,7 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [excluirId, setExcluirId] = useState<number | null>(null);
   const [excluirNome, setExcluirNome] = useState("");
-  const FORM_INICIAL_PS = { colaborador: null as { id: number; nome: string; empresa: string; dataNascimento?: string | Date | null } | null, tipo: "incluir" as "incluir" | "excluir", tipoPlano: "", categoria: "titular" as "titular" | "dependente", dataNascimento: "", valor: "", observacao: "" };
+  const FORM_INICIAL_PS = { colaborador: null as { id: number; nome: string; empresa: string; dataNascimento?: string | Date | null } | null, tipo: "incluir" as "incluir" | "excluir", tipoPlano: "", categoria: "titular" as "titular" | "dependente", nomeDependente: "", dataNascimento: "", valor: "", observacao: "" };
   const [form, setForm] = useState(FORM_INICIAL_PS);
 
   const utils = trpc.useUtils();
@@ -516,13 +516,14 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
   const abrirEdicao = (r: any) => {
     setEditandoId(r.id);
     const dtStr = r.dataNascimento ? (r.dataNascimento instanceof Date ? `${r.dataNascimento.getUTCFullYear()}-${String(r.dataNascimento.getUTCMonth()+1).padStart(2,'0')}-${String(r.dataNascimento.getUTCDate()).padStart(2,'0')}` : String(r.dataNascimento).slice(0,10)) : "";
-    setForm({ colaborador: { id: r.colaboradorId, nome: r.nomeColaborador ?? "", empresa: r.empresa ?? "" }, tipo: r.tipo, tipoPlano: r.tipoPlano ?? "", categoria: r.categoria ?? "titular", dataNascimento: dtStr, valor: r.valor != null ? String(r.valor) : "", observacao: r.observacao ?? "" });
+    setForm({ colaborador: { id: r.colaboradorId, nome: r.nomeColaborador ?? "", empresa: r.empresa ?? "" }, tipo: r.tipo, tipoPlano: r.tipoPlano ?? "", categoria: r.categoria ?? "titular", nomeDependente: r.nomeDependente ?? "", dataNascimento: dtStr, valor: r.valor != null ? String(r.valor) : "", observacao: r.observacao ?? "" });
     setModal(true);
   };
 
   const handleSalvar = () => {
+      if (modoDependentes) { void salvarDependentes(); return; }
       if (editandoId) {
-      atualizar.mutate({ id: editandoId, tipo: form.tipo, tipoPlano: form.tipoPlano || undefined, categoria: form.categoria, dataNascimento: form.dataNascimento || undefined, valor: form.valor ? parseFloat(form.valor) : undefined, valorEmpresa: calculoSubsidio?.subsidio ?? undefined, valorColaborador: calculoSubsidio?.valorColaborador ?? undefined, observacao: form.observacao || undefined });
+      atualizar.mutate({ id: editandoId, tipo: form.tipo, tipoPlano: form.tipoPlano || undefined, categoria: form.categoria, nomeDependente: form.categoria === "dependente" ? form.nomeDependente : undefined, dataNascimento: form.dataNascimento || undefined, valor: form.valor ? parseFloat(form.valor) : undefined, valorEmpresa: calculoSubsidio?.subsidio ?? undefined, valorColaborador: calculoSubsidio?.valorColaborador ?? undefined, observacao: form.observacao || undefined });
       return;
     }
     if (!form.colaborador) return toast.error("Selecione um colaborador");
@@ -595,6 +596,71 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
   };
   const [origemPlano, setOrigemPlano] = useState<"atual" | "padrao" | null>(null);
 
+  // ── Dependentes (categoria "dependente" num lançamento novo): até 3 de uma vez ──
+  type DepForm = { nome: string; dataNascimento: string; tipoPlano: string };
+  const MAX_DEPENDENTES = 3;
+  const [deps, setDeps] = useState<DepForm[]>([]);
+  const [carregandoDeps, setCarregandoDeps] = useState(false);
+  const modoDependentes = form.categoria === "dependente" && !editandoId;
+
+  /** Valor da tabela de preços para dependente, pela faixa etária (valor integral). */
+  const precoDependente = (tipoPlano: string, nasc: string): number | null => {
+    const idade = calcIdade(nasc);
+    if (!tipoPlano || !empresaForm || idade === null) return null;
+    const faixa = (precos as any[]).find(p => p.empresa === empresaForm && p.codigoPlano === tipoPlano && p.faixaInicio <= idade && p.faixaFim >= idade);
+    return faixa ? Number(faixa.valorDependente) : null;
+  };
+
+  /** Abre os blocos: dependentes cadastrados do colaborador (até 3) ou um bloco em branco. */
+  const prepararDependentes = async (colabId: number | undefined, planoTitular: string) => {
+    const plano = planoTitular || PLANO_BASE;
+    if (!colabId) { setDeps([{ nome: "", dataNascimento: "", tipoPlano: plano }]); return; }
+    setCarregandoDeps(true);
+    const cadastrados = await utils.registroEmpregado.dependentesDe.fetch({ colaboradorId: colabId }).catch(() => [] as any[]);
+    setCarregandoDeps(false);
+    const iso = (d: any) => (d ? (typeof d === "string" ? d.slice(0, 10) : new Date(d).toISOString().slice(0, 10)) : "");
+    const lista = (cadastrados as any[]).slice(0, MAX_DEPENDENTES).map(d => ({ nome: d.nome ?? "", dataNascimento: iso(d.dataNascimento), tipoPlano: plano }));
+    setDeps(lista.length ? lista : [{ nome: "", dataNascimento: "", tipoPlano: plano }]);
+  };
+
+  // Ao escolher "Dependente" (ou trocar de colaborador nesse modo), monta os blocos
+  useEffect(() => {
+    if (modoDependentes) void prepararDependentes(form.colaborador?.id, form.tipoPlano);
+    else setDeps([]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modoDependentes, form.colaborador?.id]);
+
+  const depsCalculados = deps.map(d => ({ ...d, idade: calcIdade(d.dataNascimento), valor: precoDependente(d.tipoPlano, d.dataNascimento) }));
+  const totalDependentes = depsCalculados.reduce((t, d) => t + (d.valor ?? 0), 0);
+  const criarDependente = trpc.movimentacao.planoSaude.create.useMutation();
+  const [salvandoDeps, setSalvandoDeps] = useState(false);
+
+  const salvarDependentes = async () => {
+    if (!form.colaborador) return toast.error("Selecione um colaborador");
+    const validos = depsCalculados.filter(d => d.nome.trim());
+    if (!validos.length) return toast.error("Informe o nome de pelo menos um dependente");
+    const faltando = validos.find(d => !d.dataNascimento || !d.tipoPlano || d.valor === null);
+    if (faltando) return toast.error(`Complete a data de nascimento e o plano de ${faltando.nome.trim()} (o valor vem da tabela pela idade).`);
+    setSalvandoDeps(true);
+    try {
+      for (const d of validos) {
+        await criarDependente.mutateAsync({
+          colaboradorId: form.colaborador.id, nomeColaborador: form.colaborador.nome,
+          empresa: form.colaborador.empresa || empresa, tipo: form.tipo,
+          tipoPlano: d.tipoPlano, categoria: "dependente", nomeDependente: d.nome.trim().toUpperCase(),
+          dataNascimento: d.dataNascimento, valor: d.valor!, valorEmpresa: 0, valorColaborador: d.valor!,
+          observacao: form.observacao || undefined, competenciaMes: mes, competenciaAno: ano,
+        });
+      }
+      utils.movimentacao.planoSaude.list.invalidate();
+      toast.success(`${validos.length} dependente${validos.length > 1 ? "s" : ""} registrado${validos.length > 1 ? "s" : ""}!`);
+      setModal(false); setForm(FORM_INICIAL_PS); setDeps([]);
+    } catch (e: any) {
+      utils.movimentacao.planoSaude.list.invalidate();
+      toast.error(e?.message || "Não foi possível registrar todos os dependentes.");
+    } finally { setSalvandoDeps(false); }
+  };
+
   // Formata nome do plano de forma amigável
   const fmtPlano = (nome: string) => {
     if (!nome) return nome;
@@ -626,7 +692,8 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
         p.faixaInicio <= idadeForm && p.faixaFim >= idadeForm
     );
     const valorPrata = faixaPrata ? (form.categoria === "titular" ? Number(faixaPrata.valorTitular) : Number(faixaPrata.valorDependente)) : 0;
-    const subsidio = valorPrata * 0.7;
+    // Dependente paga o valor integral: a empresa só subsidia o titular
+    const subsidio = form.categoria === "dependente" ? 0 : valorPrata * 0.7;
     const isPrata = form.tipoPlano === PLANO_BASE;
     const valorColaborador = Math.max(0, valorAutomatico - subsidio);
     return { valorBruto: valorAutomatico, subsidio, valorColaborador, isPrata };
@@ -663,7 +730,12 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
                 <tr><td colSpan={8} className="text-center py-8 text-muted-foreground text-sm">Nenhum registro encontrado</td></tr>
               ) : data.map((r, i) => (
                 <tr key={r.id} className={`border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors ${i % 2 !== 0 ? "bg-muted/10" : ""}`}>
-                  <td className="px-4 py-2.5 text-foreground font-medium">{r.nomeColaborador ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-foreground font-medium">
+                    {r.nomeColaborador ?? "—"}
+                    {r.categoria === "dependente" && r.nomeDependente && (
+                      <span className="block text-[11px] font-normal text-muted-foreground">Dependente: {r.nomeDependente}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5"><Badge variant="outline" className="text-[10px]">{r.empresa}</Badge></td>
                   <td className="px-4 py-2.5 text-center">
                     <Badge className={r.tipo === "incluir" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-red-100 text-red-700 border-red-200"}>
@@ -689,7 +761,7 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       <button onClick={() => abrirEdicao(r)} className="text-muted-foreground/40 hover:text-primary transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => { setExcluirId(r.id); setExcluirNome(r.nomeColaborador ?? ""); }} className="text-muted-foreground/40 hover:text-destructive transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { setExcluirId(r.id); setExcluirNome(r.categoria === "dependente" && r.nomeDependente ? `${r.nomeDependente} (dependente de ${r.nomeColaborador ?? ""})` : (r.nomeColaborador ?? "")); }} className="text-muted-foreground/40 hover:text-destructive transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -736,6 +808,84 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
                 </Select>
               </div>
             </div>
+            {modoDependentes ? (
+              <section aria-label="Dependentes" className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Dependentes <span className="font-normal">(até {MAX_DEPENDENTES})</span></p>
+                  {carregandoDeps && <span className="text-[11px] text-muted-foreground">Buscando dependentes cadastrados…</span>}
+                </div>
+                {!form.colaborador && <p className="text-xs text-muted-foreground">Escolha o colaborador titular primeiro.</p>}
+                {form.colaborador && depsCalculados.map((d, idx) => (
+                  <div key={idx} className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-foreground">Dependente {idx + 1}</p>
+                      {deps.length > 1 && (
+                        <button type="button" aria-label={`Remover dependente ${idx + 1}`} className="h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          onClick={() => setDeps(ds => ds.filter((_, k) => k !== idx))}>×</button>
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor={`dep-nome-${idx}`} className="text-[11px] font-semibold text-muted-foreground mb-1 block">Nome *</label>
+                      <Input id={`dep-nome-${idx}`} value={d.nome} maxLength={200} placeholder="Nome completo do dependente"
+                        onChange={e => { const v = e.target.value; setDeps(ds => ds.map((x, k) => k === idx ? { ...x, nome: v } : x)); }} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label htmlFor={`dep-nasc-${idx}`} className="text-[11px] font-semibold text-muted-foreground mb-1 block">Data de nascimento *</label>
+                        <Input id={`dep-nasc-${idx}`} type="date" value={d.dataNascimento}
+                          onChange={e => { const v = e.target.value; setDeps(ds => ds.map((x, k) => k === idx ? { ...x, dataNascimento: v } : x)); }} />
+                        {d.idade !== null && <p className="text-[11px] text-blue-600 mt-1 font-medium">{d.idade} {d.idade === 1 ? "ano" : "anos"}</p>}
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">Plano</label>
+                        <Select value={d.tipoPlano} onValueChange={v => setDeps(ds => ds.map((x, k) => k === idx ? { ...x, tipoPlano: v } : x))}>
+                          <SelectTrigger aria-label={`Plano do dependente ${idx + 1}`}><SelectValue placeholder="Plano..." /></SelectTrigger>
+                          <SelectContent>
+                            {planosDisponiveis.map(p => <SelectItem key={p.codigo} value={p.codigo}>{fmtPlano(p.nome)}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md bg-card px-3 py-2 text-sm border border-border/40">
+                      <span className="text-[11px] text-muted-foreground">Valor integral (pago pelo colaborador)</span>
+                      <span className="font-bold tabular-nums">{d.valor !== null ? `R$ ${formatarReais(d.valor)}` : <span className="font-normal text-muted-foreground text-xs">informe nascimento e plano</span>}</span>
+                    </div>
+                  </div>
+                ))}
+                {form.colaborador && deps.length < MAX_DEPENDENTES && (
+                  <Button type="button" variant="outline" size="sm" className="w-full"
+                    onClick={() => setDeps(ds => [...ds, { nome: "", dataNascimento: "", tipoPlano: ds[0]?.tipoPlano || form.tipoPlano || PLANO_BASE }])}>
+                    + Adicionar dependente
+                  </Button>
+                )}
+                {form.colaborador && depsCalculados.some(d => d.valor !== null) && (
+                  <div className="rounded-lg border p-3" style={{ background: "oklch(0.97 0.01 150)", borderColor: "oklch(0.85 0.06 150)" }}>
+                    <p className="text-[11px] font-bold mb-2" style={{ color: "oklch(0.30 0.10 150)" }}>Resumo · dependentes pagam o valor integral</p>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-md p-2" style={{ background: "oklch(0.93 0.03 150)" }}>
+                        <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "oklch(0.45 0.08 150)" }}>Total</p>
+                        <p className="text-sm font-bold" style={{ color: "oklch(0.25 0.10 150)" }}>R$ {formatarReais(totalDependentes)}</p>
+                      </div>
+                      <div className="rounded-md p-2" style={{ background: "oklch(0.93 0.05 250)" }}>
+                        <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "oklch(0.40 0.10 250)" }}>Empresa</p>
+                        <p className="text-sm font-bold" style={{ color: "oklch(0.25 0.12 250)" }}>R$ 0,00</p>
+                      </div>
+                      <div className="rounded-md p-2" style={{ background: "oklch(0.93 0.05 30)" }}>
+                        <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "oklch(0.45 0.10 30)" }}>Colaborador</p>
+                        <p className="text-sm font-bold" style={{ color: "oklch(0.30 0.14 30)" }}>R$ {formatarReais(totalDependentes)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+            ) : (
+              <>
+            {editandoId && form.categoria === "dependente" && (
+              <div>
+                <label htmlFor="edit-nome-dep" className="text-xs font-semibold text-muted-foreground mb-1 block">Nome do dependente</label>
+                <Input id="edit-nome-dep" value={form.nomeDependente} maxLength={200} onChange={e => setForm(f => ({ ...f, nomeDependente: e.target.value }))} />
+              </div>
+            )}
             {/* Data de Nascimento */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground mb-1 block">Data de Nascimento</label>
@@ -779,7 +929,7 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
             {calculoSubsidio !== null && (
               <div className="rounded-lg border p-3 space-y-2" style={{ background: "oklch(0.97 0.01 150)", borderColor: "oklch(0.85 0.06 150)" }}>
                 <p className="text-[11px] font-bold" style={{ color: "oklch(0.30 0.10 150)" }}>
-                  Resumo · {idadeForm} anos · {calculoSubsidio.isPrata ? "Prata QC (70% subsidiado)" : "Plano superior"}
+                  Resumo · {idadeForm} anos · {form.categoria === "dependente" ? "Dependente (valor integral)" : calculoSubsidio.isPrata ? "Prata QC (70% subsidiado)" : "Plano superior"}
                 </p>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-md p-2" style={{ background: "oklch(0.93 0.03 150)" }}>
@@ -795,10 +945,12 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
                     <p className="text-sm font-bold" style={{ color: "oklch(0.30 0.14 30)" }}>R$ {calculoSubsidio.valorColaborador.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                   </div>
                 </div>
-                {!calculoSubsidio.isPrata && (
+                {!calculoSubsidio.isPrata && form.categoria !== "dependente" && (
                   <p className="text-[10px]" style={{ color: "oklch(0.45 0.08 150)" }}>Subsídio = 70% do Prata QC na mesma faixa etária</p>
                 )}
               </div>
+            )}
+              </>
             )}
             {/* Observação */}
             <div>
@@ -808,7 +960,7 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
           </div>
           <div className="flex gap-2 justify-end mt-4 pt-2 border-t border-border/40">
             <Button variant="outline" size="sm" onClick={() => { setModal(false); setEditandoId(null); setForm(FORM_INICIAL_PS); }}>Cancelar</Button>
-            <Button size="sm" onClick={handleSalvar} disabled={criar.isPending || atualizar.isPending}>
+            <Button size="sm" onClick={handleSalvar} disabled={criar.isPending || atualizar.isPending || salvandoDeps}>
               {(criar.isPending || atualizar.isPending) ? <Spinner className="w-3 h-3 mr-1" /> : null}Salvar
             </Button>
           </div>

@@ -217,6 +217,15 @@ export async function lerRegistroEmpregado(colaboradorId: number) {
 
 export const registroEmpregadoRouter = router({
   /** Diagnóstico somente leitura: campos do registro ainda ausentes no catálogo. */
+  /** Dependentes cadastrados do colaborador (consulta leve, sem montar a ficha inteira). */
+  dependentesDe: protectedProcedure
+    .input(z.object({ colaboradorId: z.number().int().positive() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      return db.select({ id: dependentes.id, nome: dependentes.nome, parentesco: dependentes.parentesco, dataNascimento: dependentes.dataNascimento })
+        .from(dependentes).where(eq(dependentes.colaboradorId, input.colaboradorId)).orderBy(dependentes.id);
+    }),
   estrutura: protectedProcedure.query(async () => {
     const existentes = await colunasExistentes("colaboradores");
     return { faltando: CAMPOS_REGISTRO.map(c => c.chave).filter(c => !existentes.has(c)) };

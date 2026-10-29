@@ -188,12 +188,13 @@ function montarSecao(wb: Workbook, secao: SecaoExport, d: DadosExport, subtitulo
   switch (secao) {
     case "planoSaude":
       return aba(wb, nome, subtitulo,
-        [...BASE, C("Plano", 10, "centro"), C("Categoria", 12, "centro"), C("Nascimento", 13, "data"), C("Idade", 8, "centro"),
+        [...BASE, C("Plano", 10, "centro"), C("Categoria", 12, "centro"), C("Dependente", 32), C("Nascimento", 13, "data"), C("Idade", 8, "centro"),
           C("Valor do plano", 15, "moeda"), C("Empresa paga", 15, "moeda"), C("Colaborador paga", 17, "moeda"), ...REGISTRO],
-        d.planoSaude.map(r => [...base(r), r.tipoPlano ?? "", categoria(r.categoria), soData(r.dataNascimento), idade(r.dataNascimento),
+        d.planoSaude.map(r => [...base(r), r.tipoPlano ?? "", categoria(r.categoria), r.categoria === "dependente" ? (r.nomeDependente ?? "") : "",
+          soData(r.dataNascimento), idade(r.dataNascimento),
           numero(r.valor), numero(r.valorEmpresa), numero(r.valorColaborador), ...reg(r)]),
-        { totais: [8, 9, 10], colMov: 3, colValor: 8,
-          nota: "Empresa paga = 70% do valor do plano Prata QC (967067) na mesma faixa etária; o restante é descontado do colaborador." });
+        { totais: [9, 10, 11], colMov: 3, colValor: 9,
+          nota: "Titular: empresa paga 70% do Prata QC (967067) na mesma faixa etária; o restante é do colaborador. Dependentes: valor integral, pago pelo colaborador." });
     case "seguroVida":
       return aba(wb, nome, subtitulo,
         [...BASE, C("Data", 13, "data"), C("Valor mensal da empresa", 16, "moeda"), ...REGISTRO],
