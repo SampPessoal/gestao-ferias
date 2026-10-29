@@ -37,6 +37,9 @@ export const REQUIRED_DATABASE_COLUMN_TYPES: Readonly<Record<string, Readonly<Re
   systemUsers: {
     sessionVersion: "integer",
   },
+  movimentacaoPlanoSaude: {
+    nomeDependente: "character varying(200)",
+  },
 };
 
 export const REQUIRED_DATABASE_COLUMNS: Readonly<Record<string, readonly string[]>> =
@@ -148,6 +151,14 @@ export class DatabaseSchemaError extends Error {
 
 type PostgresClient = ReturnType<typeof postgres>;
 
+/** Tabelas consultadas na pré-checagem: as mesmas das colunas obrigatórias (nomes fixos do código). */
+const TABELAS_VERIFICADAS = Object.keys(REQUIRED_DATABASE_COLUMN_TYPES)
+  .map(t => {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(t)) throw new Error(`Nome de tabela inválido: ${t}`);
+    return `'${t}'`;
+  })
+  .join(", ");
+
 /** Pré-checagem somente leitura usada na inicialização; o runtime nunca executa DDL. */
 export async function assertRequiredDatabaseSchema(client: PostgresClient): Promise<void> {
   const columns = await client.unsafe<DatabaseColumn[]>(`
@@ -162,7 +173,7 @@ export async function assertRequiredDatabaseSchema(client: PostgresClient): Prom
       JOIN pg_namespace n ON n.oid = c.relnamespace
       LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
      WHERE n.nspname = 'public'
-       AND c.relname IN ('historicoFerias', 'colaboradores', 'dependentes', 'systemUsers')
+       AND c.relname IN (${TABELAS_VERIFICADAS})
        AND a.attnum > 0
        AND NOT a.attisdropped
   `);
