@@ -553,6 +553,41 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
     return Array.from(map.entries()).map(([codigo, nome]) => ({ codigo, nome }));
   }, [precos, empresaForm]);
 
+  /** Encontra o código do plano (tabela de preços) a partir do nome gravado no Plano de Saúde ("PRATA QC"...). */
+  const codigoDoPlano = (nomeAtual: string | null | undefined, emp: string): string | null => {
+    if (!nomeAtual) return null;
+    const limpa = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()
+      .replace(/\b(COPART|TP|PJ_PME)\b/g, " ").replace(/\s+/g, " ").trim();
+    const alvo = limpa(nomeAtual);
+    const planos = new Map<string, string>();
+    (precos as any[]).forEach(p => { if (p.empresa === emp) planos.set(p.codigoPlano, p.nomePlano); });
+    for (const [codigo, nome] of Array.from(planos.entries())) {
+      if (codigo === nomeAtual.trim()) return codigo;
+      const n = limpa(nome ?? "");
+      if (n === alvo || n.startsWith(alvo + " ") || alvo.startsWith(n + " ")) return codigo;
+    }
+    return null;
+  };
+
+  /** Ao escolher o colaborador: data de nascimento do cadastro e plano atual (ou o padrão Prata QC). */
+  const preencherDoColaborador = async (c: { id: number; empresa: string } | null) => {
+    if (!c || editandoId) return;
+    const [ficha, reg] = await Promise.all([
+      utils.colaboradores.byId.fetch({ id: c.id }).catch(() => null),
+      utils.registroEmpregado.get.fetch({ colaboradorId: c.id }).catch(() => null),
+    ]);
+    const nasc = (ficha as any)?.dataNascimento ? String((ficha as any).dataNascimento).slice(0, 10) : "";
+    const planoAtual = codigoDoPlano((reg as any)?.beneficios?.planoSaude?.plano, c.empresa);
+    const temPadrao = (precos as any[]).some(p => p.empresa === c.empresa && p.codigoPlano === PLANO_BASE);
+    setForm(f => f.colaborador?.id !== c.id ? f : {
+      ...f,
+      dataNascimento: f.dataNascimento || nasc,
+      tipoPlano: f.tipoPlano || planoAtual || (temPadrao ? PLANO_BASE : ""),
+    });
+    setOrigemPlano(planoAtual ? "atual" : temPadrao ? "padrao" : null);
+  };
+  const [origemPlano, setOrigemPlano] = useState<"atual" | "padrao" | null>(null);
+
   // Formata nome do plano de forma amigável
   const fmtPlano = (nome: string) => {
     if (!nome) return nome;
@@ -669,7 +704,7 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
             {/* Colaborador */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground mb-1 block">Colaborador *</label>
-              <BuscaColaborador value={form.colaborador} onChange={c => setForm(f => ({ ...f, colaborador: c, tipoPlano: "" }))} />
+              <BuscaColaborador value={form.colaborador} onChange={c => { setForm(f => ({ ...f, colaborador: c, tipoPlano: "", dataNascimento: editandoId ? f.dataNascimento : "" })); setOrigemPlano(null); void preencherDoColaborador(c); }} />
             </div>
             {/* Tipo + Categoria */}
             <div className="grid grid-cols-2 gap-3">
@@ -706,6 +741,11 @@ function AbaPlanoSaude({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
             <div>
               <label className="text-xs font-semibold text-muted-foreground mb-1 block">
                 Plano {empresaForm ? <span className="text-blue-500">({empresaForm})</span> : ""}
+                {origemPlano && form.tipoPlano && (
+                  <span className="ml-2 rounded border border-border/60 bg-card px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {origemPlano === "atual" ? "Plano atual do colaborador" : "Plano padrão (Prata QC)"}
+                  </span>
+                )}
               </label>
               {planosDisponiveis.length > 0 ? (
                 <Select value={form.tipoPlano} onValueChange={v => setForm(f => ({ ...f, tipoPlano: v }))}>
