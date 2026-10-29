@@ -84,8 +84,8 @@ const ABAS: { id: TipoMovimentacao; label: string; icon: React.ReactNode; cor: s
 function BuscaColaborador({
   value, onChange, placeholder = "Buscar colaborador...", incluirInativos = false,
 }: {
-  value: { id: number; nome: string; empresa: string; valorSeguroVida?: string | null } | null;
-  onChange: (c: { id: number; nome: string; empresa: string; valorSeguroVida?: string | null } | null) => void;
+  value: { id: number; nome: string; empresa: string; valorSeguroVida?: string | null; admissao?: string | Date | null } | null;
+  onChange: (c: { id: number; nome: string; empresa: string; valorSeguroVida?: string | null; admissao?: string | Date | null } | null) => void;
   placeholder?: string;
   incluirInativos?: boolean;
 }) {
@@ -133,7 +133,7 @@ function BuscaColaborador({
                 <button
                   key={c.id}
                   className="w-full text-left px-3 py-2.5 text-sm text-foreground hover:bg-muted/50 border-b border-border/30 last:border-0 transition-colors"
-                  onMouseDown={() => { onChange({ id: c.id, nome: c.nome, empresa: c.empresaNome ?? "" }); setBusca(""); setAberto(false); }}
+                  onMouseDown={() => { onChange({ id: c.id, nome: c.nome, empresa: c.empresaNome ?? "", admissao: c.admissao ?? null }); setBusca(""); setAberto(false); }}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium truncate">{c.nome}</span>
@@ -174,6 +174,14 @@ function ModalExcluir({ aberto, onClose, onConfirm, nome }: {
 
 // ─── Aba Seguro de Vida ───────────────────────────────────────────────────────
 function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: number; empresa: string; onDataLoad?: (data: any[]) => void }) {
+  /** Data sugerida: inclusão = admissão do colaborador; exclusão = hoje. */
+  const dataSugerida = (tipo: string, c: { admissao?: string | Date | null } | null) => {
+    if (tipo === "incluir" && c?.admissao) {
+      return typeof c.admissao === "string" ? c.admissao.slice(0, 10) : new Date(c.admissao).toISOString().slice(0, 10);
+    }
+    const h = new Date();
+    return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}-${String(h.getDate()).padStart(2, "0")}`;
+  };
   const { data: empresasSeguro = [] } = trpc.empresas.list.useQuery();
   const valorSeguroEmpresa = (nome?: string | null) => {
     const e = (empresasSeguro as any[]).find(x => (x.nome ?? "").toUpperCase() === (nome ?? "").toUpperCase());
@@ -183,7 +191,7 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [excluirId, setExcluirId] = useState<number | null>(null);
   const [excluirNome, setExcluirNome] = useState("");
-  const [form, setForm] = useState({ colaborador: null as { id: number; nome: string; empresa: string; valorSeguroVida?: string | null } | null, tipo: "incluir" as "incluir" | "excluir", data: "", valor: "", observacao: "" });
+  const [form, setForm] = useState({ colaborador: null as { id: number; nome: string; empresa: string; valorSeguroVida?: string | null; admissao?: string | Date | null } | null, tipo: "incluir" as "incluir" | "excluir", data: "", valor: "", observacao: "" });
 
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.movimentacao.seguroVida.list.useQuery({ empresa: empresa || undefined, mes, ano });
@@ -285,7 +293,7 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Shield className="w-4 h-4 text-primary" /> {editandoId ? "Editar" : "Novo"} — Seguro de Vida</DialogTitle></DialogHeader>
           <div className="space-y-3 mt-2">
-            <div><label className="text-xs text-muted-foreground mb-1 block">Colaborador *</label><BuscaColaborador value={form.colaborador} onChange={c => setForm(f => ({ ...f, colaborador: c, valor: c?.valorSeguroVida ? String(c.valorSeguroVida) : f.valor }))} /></div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">Colaborador *</label><BuscaColaborador value={form.colaborador} onChange={c => setForm(f => ({ ...f, colaborador: c, valor: c?.valorSeguroVida ? String(c.valorSeguroVida) : f.valor, data: c && !editandoId ? dataSugerida(f.tipo, c) : f.data }))} /></div>
             {/* Empresa preenchida automaticamente */}
             {form.colaborador && (
               <div><label className="text-xs text-muted-foreground mb-1 block">Empresa</label>
@@ -297,7 +305,11 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
             )}
             <div className="grid grid-cols-2 gap-3">
               <div><label className="text-xs text-muted-foreground mb-1 block">Tipo *</label>
-                <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v as any }))}>
+                <Select value={form.tipo} onValueChange={v => setForm(f => ({
+                  ...f, tipo: v as any,
+                  // A data acompanha o tipo enquanto for a sugerida (não sobrescreve uma data digitada)
+                  data: f.colaborador && !editandoId && (!f.data || f.data === dataSugerida(f.tipo, f.colaborador)) ? dataSugerida(v, f.colaborador) : f.data,
+                }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="incluir">Incluir</SelectItem>
