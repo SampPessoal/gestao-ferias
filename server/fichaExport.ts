@@ -9,6 +9,10 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
+import {
+  AlignmentType, BorderStyle, Document, Footer, Packer, PageNumber, Paragraph, ShadingType,
+  Table, TableCell, TableRow, TextRun, VerticalAlign, WidthType,
+} from "docx";
 import { getColaboradorById } from "./db";
 import { escolherModelo, preencherModelo, desenharFichaPdf } from "./fichaRegistro";
 import { carregarDadosFichaRegistro, montarMapaFichaRegistro } from "./fichaRegistro/dados";
@@ -126,6 +130,104 @@ export async function gerarFichaExcel(
  * equivalente sem acento ou por "?" para nunca gerar símbolos corrompidos.
  */
 const WINANSI_EXTRA = new Set("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ");
+// ─── Word (.docx) ─────────────────────────────────────────────────────────────
+
+/** Ficha cadastral em Word: mesmo conteúdo e ordem do PDF e do Excel. Página A4 retrato. */
+export async function gerarFichaWord(
+  nome: string, empresa: string, secoes: SecaoFicha[], emissao: DadosEmissao,
+): Promise<Buffer> {
+  const FONTE = "Arial";
+  const LARGURA = 9638;            // A4 (11906) menos margens de 1134 dos dois lados
+  const COL_ROTULO = 3600;
+  const COL_VALOR = LARGURA - COL_ROTULO;
+  const borda = { style: BorderStyle.SINGLE, size: 4, color: "D0D5DD" };
+  const bordas = { top: borda, bottom: borda, left: borda, right: borda };
+  const margemCelula = { top: 60, bottom: 60, left: 120, right: 120 };
+
+  const tituloSecao = (titulo: string) => new TableRow({
+    cantSplit: true,
+    children: [new TableCell({
+      columnSpan: 2, width: { size: LARGURA, type: WidthType.DXA }, borders: bordas, margins: margemCelula,
+      shading: { type: ShadingType.CLEAR, color: "auto", fill: "E8EEF5" },
+      children: [new Paragraph({ keepNext: true, children: [new TextRun({ text: titulo.toUpperCase(), bold: true, font: FONTE, size: 20, color: "1E3A5F" })] })],
+    })],
+  });
+
+  const linhaCampo = (rotulo: string, valor: string) => {
+    const vazio = valor === VALOR_VAZIO;
+    const paragrafosValor = (valor || VALOR_VAZIO).split("\n").map(t => new Paragraph({
+      children: [new TextRun({ text: t, font: FONTE, size: 20, italics: vazio, color: vazio ? "9CA3AF" : "111827" })],
+    }));
+    return new TableRow({
+      cantSplit: true,
+      children: [
+        new TableCell({
+          width: { size: COL_ROTULO, type: WidthType.DXA }, borders: bordas, margins: margemCelula, verticalAlign: VerticalAlign.TOP,
+          children: [new Paragraph({ children: [new TextRun({ text: rotulo, bold: true, font: FONTE, size: 20, color: "374151" })] })],
+        }),
+        new TableCell({
+          width: { size: COL_VALOR, type: WidthType.DXA }, borders: bordas, margins: margemCelula, verticalAlign: VerticalAlign.TOP,
+          children: paragrafosValor,
+        }),
+      ],
+    });
+  };
+
+  const cabecalhoTabela = new TableRow({
+    tableHeader: true,
+    children: ["Campo / Informação", "Dados do colaborador"].map((t, i) => new TableCell({
+      width: { size: i === 0 ? COL_ROTULO : COL_VALOR, type: WidthType.DXA }, borders: bordas, margins: margemCelula,
+      shading: { type: ShadingType.CLEAR, color: "auto", fill: "334155" },
+      children: [new Paragraph({ children: [new TextRun({ text: t, bold: true, font: FONTE, size: 20, color: "FFFFFF" })] })],
+    })),
+  });
+
+  const linhas: TableRow[] = [cabecalhoTabela];
+  for (const secao of secoes) {
+    linhas.push(tituloSecao(secao.titulo));
+    for (const campo of secao.campos) linhas.push(linhaCampo(campo.rotulo, campo.valor));
+  }
+
+  const doc = new Document({
+    creator: "Gestão RH",
+    title: `Ficha cadastral — ${nome}`,
+    styles: { default: { document: { run: { font: FONTE, size: 20 } } } },
+    sections: [{
+      properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } } },
+      footers: {
+        default: new Footer({
+          children: [new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            children: [
+              new TextRun({ text: "Página ", font: FONTE, size: 16, color: "6B7280" }),
+              new TextRun({ children: [PageNumber.CURRENT], font: FONTE, size: 16, color: "6B7280" }),
+              new TextRun({ text: " de ", font: FONTE, size: 16, color: "6B7280" }),
+              new TextRun({ children: [PageNumber.TOTAL_PAGES], font: FONTE, size: 16, color: "6B7280" }),
+            ],
+          })],
+        }),
+      },
+      children: [
+        new Paragraph({
+          shading: { type: ShadingType.CLEAR, color: "auto", fill: "1E3A5F" },
+          spacing: { after: 120 },
+          children: [new TextRun({ text: " FICHA CADASTRAL DO COLABORADOR", bold: true, font: FONTE, size: 28, color: "FFFFFF" })],
+        }),
+        new Paragraph({
+          spacing: { after: 40 },
+          children: [new TextRun({ text: `${nome}${empresa ? " — " + empresa : ""}`, bold: true, font: FONTE, size: 22 })],
+        }),
+        new Paragraph({
+          spacing: { after: 200 },
+          children: [new TextRun({ text: `Emitido em ${emissao.dataHoraBR}. Documento com dados pessoais — uso restrito do RH (LGPD).`, italics: true, font: FONTE, size: 18, color: "6B7280" })],
+        }),
+        new Table({ width: { size: LARGURA, type: WidthType.DXA }, columnWidths: [COL_ROTULO, COL_VALOR], rows: linhas }),
+      ],
+    }],
+  });
+  return Buffer.from(await Packer.toBuffer(doc));
+}
+
 export function textoPdf(s: string): string {
   let out = "";
   for (const ch of s) {
@@ -279,7 +381,7 @@ export function registerFichaExportRoutes(
     const id = Number(req.params.id);
     const formato = String(req.query.formato ?? "");
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "Colaborador inválido" });
-    if (formato !== "pdf" && formato !== "xlsx") return res.status(400).json({ error: "Formato inválido" });
+    if (formato !== "pdf" && formato !== "xlsx" && formato !== "docx") return res.status(400).json({ error: "Formato inválido" });
 
     try {
       // Leitura direta do banco, sem cache: sempre os dados atuais do cadastro
@@ -303,13 +405,17 @@ export function registerFichaExportRoutes(
               `Ficha de Registro — ${colaborador.nome}`,
             )
           : await gerarFichaPdf(colaborador.nome, empresa, secoes, emissao);
+      } else if (formato === "docx") {
+        buffer = await gerarFichaWord(colaborador.nome, empresa, secoes, emissao);
       } else {
         buffer = await gerarFichaExcel(colaborador.nome, empresa, secoes, emissao);
       }
 
       res.setHeader("Content-Type", formato === "pdf"
         ? "application/pdf"
-        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        : formato === "docx"
+          ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="${arquivo}.${formato}"`);
       res.setHeader("Cache-Control", "no-store, private");
       res.setHeader("Content-Length", String(buffer.length));

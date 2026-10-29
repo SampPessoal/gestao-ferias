@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import ExcelJS from "exceljs";
+import { inflateRawSync } from "node:zlib";
 import { montarFichaColaborador, dataBR, nomeArquivoFicha, VALOR_VAZIO } from "../shared/fichaColaborador";
-import { gerarFichaExcel, gerarFichaPdf, textoPdf, emissaoAgora } from "./fichaExport";
+import { gerarFichaExcel, gerarFichaPdf, gerarFichaWord, textoPdf, emissaoAgora } from "./fichaExport";
 
 const completo = {
   codigo: "000123",
@@ -140,5 +141,39 @@ describe("Arquivos gerados", () => {
     const buf = await gerarFichaPdf(completo.nome, "SOLAR", secoes, emissao);
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
     expect(buf.length).toBeGreaterThan(2000);
+  });
+});
+
+/** Lê um arquivo de dentro de um ZIP (pelo diretório central), só com o zlib do Node. */
+function lerArquivoDoZip(zip: Buffer, nome: string): string {
+  const eocd = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  let p = zip.readUInt32LE(eocd + 16);
+  const total = zip.readUInt16LE(eocd + 10);
+  for (let i = 0; i < total; i++) {
+    const metodo = zip.readUInt16LE(p + 10), tamanho = zip.readUInt32LE(p + 20);
+    const nLen = zip.readUInt16LE(p + 28), eLen = zip.readUInt16LE(p + 30), cLen = zip.readUInt16LE(p + 32);
+    const local = zip.readUInt32LE(p + 42);
+    if (zip.toString("utf8", p + 46, p + 46 + nLen) === nome) {
+      const ini = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
+      const dados = zip.subarray(ini, ini + tamanho);
+      return (metodo === 8 ? inflateRawSync(dados) : dados).toString("utf8");
+    }
+    p += 46 + nLen + eLen + cLen;
+  }
+  throw new Error(`${nome} não encontrado no ZIP`);
+}
+
+describe("Ficha em Word (.docx)", () => {
+  it("gera um .docx válido com os mesmos campos e valores da ficha", async () => {
+    const secoes = [
+      { titulo: "Dados pessoais", campos: [{ rotulo: "Nome completo", valor: "MARIA DA SILVA" }, { rotulo: "CPF", valor: "012.345.678-90" }] },
+      { titulo: "Contato", campos: [{ rotulo: "Telefone", valor: VALOR_VAZIO }] },
+    ];
+    const buf = await gerarFichaWord("MARIA DA SILVA", "SOLAR", secoes, emissaoAgora(new Date("2026-10-29T15:00:00Z")));
+    expect(buf.subarray(0, 2).toString()).toBe("PK"); // arquivo ZIP (formato do Word)
+    const xml = lerArquivoDoZip(buf, "word/document.xml");
+    for (const t of ["FICHA CADASTRAL DO COLABORADOR", "MARIA DA SILVA — SOLAR", "DADOS PESSOAIS", "012.345.678-90", VALOR_VAZIO]) {
+      expect(xml).toContain(t);
+    }
   });
 });
