@@ -4744,3 +4744,21 @@ export async function getPlanejamentosFerias(filtros: { ano?: number; empresaId?
   }
   return { planejados, naoLidos };
 }
+
+// ─── Exportação da Movimentação do Mês: dados complementares ──────────────────
+
+/** CPF de cada colaborador citado e o valor do seguro de vida configurado em cada empresa. */
+export async function getComplementosExportacaoMovimentacao(colaboradorIds: number[]) {
+  const db = await getDb();
+  if (!db) return { cpfs: {} as Record<number, string>, valorSeguroEmpresa: {} as Record<string, number | null> };
+  const ids = Array.from(new Set(colaboradorIds.filter(n => Number.isInteger(n) && n > 0)));
+  const cpfs: Record<number, string> = {};
+  if (ids.length) {
+    const linhas = await db.select({ id: colaboradores.id, cpf: colaboradores.cpf }).from(colaboradores).where(inArray(colaboradores.id, ids));
+    for (const l of linhas) if (l.cpf) cpfs[l.id] = l.cpf;
+  }
+  const emps = await db.select({ nome: empresas.nome, valor: empresas.valorSeguroVida }).from(empresas);
+  const valorSeguroEmpresa: Record<string, number | null> = {};
+  for (const e of emps) valorSeguroEmpresa[(e.nome ?? "").toUpperCase()] = lerValorReais(e.valor);
+  return { cpfs, valorSeguroEmpresa };
+}
