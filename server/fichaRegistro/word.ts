@@ -27,10 +27,11 @@ const alinhamento = (a: string | null) =>
 const borda = (b: Borda) =>
   b ? { style: BorderStyle.SINGLE, size: Math.max(2, b.sz), color: b.c } : { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
 
-// Folgas para o Word: a medida de texto do Word difere um pouco da do PDF. Com a letra
-// um pouco menor e as linhas ocupando 95% da página, nada corta e tudo cabe em 2 páginas.
-const ESCALA_LETRA = 0.9;
-const ESCALA_ALTURA = 0.95;
+// Folgas para o Word: o Microsoft Word desenha as linhas um pouco mais altas que o
+// cálculo do PDF (bordas, métricas da fonte). Com as linhas ocupando 85% da página e a
+// letra um pouco menor, a última linha não "vaza" para outra página: sempre 2 páginas.
+const ESCALA_LETRA = 0.88;
+const ESCALA_ALTURA = 0.85;
 
 /** Um parágrafo do modelo (já com a letra do layout), com quebras de linha e cores. */
 function paragrafo(p: Paragrafo): Paragraph {
