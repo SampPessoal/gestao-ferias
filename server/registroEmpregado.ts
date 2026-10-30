@@ -130,7 +130,17 @@ const dataStr = (v: unknown): string | null => {
  * Campos do registro que já existem no banco. Esta descoberta é somente leitura:
  * o runtime nunca cria ou altera objetos do banco.
  */
+// A estrutura do banco é garantida pelas migrações e conferida ao iniciar o sistema;
+// por isso a lista de colunas fica guardada por 10 min (antes: 1 consulta a cada ficha).
+let _camposCache: { quando: number; campos: Set<string> } | null = null;
 async function camposDisponiveis(): Promise<Set<string>> {
+  if (_camposCache && Date.now() - _camposCache.quando < 10 * 60_000) return _camposCache.campos;
+  const campos = await descobrirCamposDisponiveis();
+  _camposCache = { quando: Date.now(), campos };
+  return campos;
+}
+
+async function descobrirCamposDisponiveis(): Promise<Set<string>> {
   const existentes = await colunasExistentes("colaboradores");
   const faltando = CAMPOS_REGISTRO.filter(c => !existentes.has(c.chave));
   if (faltando.length) {
@@ -143,49 +153,56 @@ export async function lerRegistroEmpregado(colaboradorId: number) {
   const db = await dbOuErro();
   const disponiveis = await camposDisponiveis();
   const sel = Object.fromEntries(CAMPOS_REGISTRO.filter(c => disponiveis.has(c.chave)).map(c => [c.chave, (colaboradores as any)[c.chave]]));
-  const [linha] = await db.select(sel as any).from(colaboradores).where(eq(colaboradores.id, colaboradorId)).limit(1);
+  // Benefícios que já existiam no cadastro (VR, VT, seguro de vida, auxílios): mesma linha do colaborador
+  const selBen = {
+    valorVR: colaboradores.valorVR, valorVT: colaboradores.valorVT,
+    temSeguroVida: colaboradores.temSeguroVida, valorSeguroVida: colaboradores.valorSeguroVida,
+    auxilioVeiculo: colaboradores.auxilioVeiculo, auxilioVeiculoFolha: colaboradores.auxilioVeiculoFolha,
+    auxilioCelularFolha: colaboradores.auxilioCelularFolha,
+  };
+
+  // Consultas independentes rodam ao mesmo tempo (antes eram 7 em fila: ~0,3 s cada no banco remoto)
+  const [linhas, deps, movs, planoComDeps, movCreche] = await Promise.all([
+    db.select({ ...sel, ...selBen } as any).from(colaboradores).where(eq(colaboradores.id, colaboradorId)).limit(1),
+    db.select().from(dependentes).where(eq(dependentes.colaboradorId, colaboradorId)).orderBy(dependentes.id),
+    // Auxílio notebook: ativo se a movimentação mais recente for uma inclusão
+    db.select().from(movimentacaoAuxilioNotebook)
+      .where(eq(movimentacaoAuxilioNotebook.colaboradorId, colaboradorId))
+      .orderBy(desc(movimentacaoAuxilioNotebook.dataInicio), desc(movimentacaoAuxilioNotebook.id))
+      .limit(1),
+    // Plano de saúde do titular e, em seguida, os dependentes na mesma competência
+    (async () => {
+      const [plano] = await db.select({
+        plano: planoSaude.plano, mes: planoSaude.mesReferencia, ano: planoSaude.anoReferencia,
+        empresa: planoSaude.empresa, numero: planoSaude.numeroBeneficiario,
+      })
+        .from(planoSaude)
+        .where(and(eq(planoSaude.colaboradorId, colaboradorId), eq(planoSaude.tipo, "T"), eq(planoSaude.ativo, true)))
+        .orderBy(desc(planoSaude.anoReferencia), desc(planoSaude.mesReferencia))
+        .limit(1);
+      if (!plano) return { plano: undefined, dependentesPlano: 0 };
+      const depsPlano = await db.select({ id: planoSaude.id }).from(planoSaude).where(and(
+        eq(planoSaude.empresa, plano.empresa), eq(planoSaude.titularNumeroBeneficiario, plano.numero),
+        eq(planoSaude.tipo, "D"), eq(planoSaude.ativo, true),
+        eq(planoSaude.mesReferencia, plano.mes), eq(planoSaude.anoReferencia, plano.ano),
+      ));
+      return { plano, dependentesPlano: depsPlano.length };
+    })(),
+    // Auxílio creche: por filho; ativo quando o último lançamento do filho é uma inclusão
+    db.select().from(movimentacaoAuxilioCreche)
+      .where(eq(movimentacaoAuxilioCreche.colaboradorId, colaboradorId))
+      .orderBy(movimentacaoAuxilioCreche.competenciaAno, movimentacaoAuxilioCreche.competenciaMes, movimentacaoAuxilioCreche.id),
+  ]);
+  const linha = (linhas as any[])[0];
   if (!linha) return null;
   const campos: RegistroEmpregado = {};
   for (const c of CAMPOS_REGISTRO) {
     const v = (linha as any)[c.chave];
     campos[c.chave] = c.tipo === "data" ? dataStr(v) : v === null || v === undefined ? null : String(v);
   }
-  const deps = await db.select().from(dependentes)
-    .where(eq(dependentes.colaboradorId, colaboradorId)).orderBy(dependentes.id);
-  // Auxílio notebook: ativo se a movimentação mais recente for uma inclusão
-  const [mov] = await db.select().from(movimentacaoAuxilioNotebook)
-    .where(eq(movimentacaoAuxilioNotebook.colaboradorId, colaboradorId))
-    .orderBy(desc(movimentacaoAuxilioNotebook.dataInicio), desc(movimentacaoAuxilioNotebook.id))
-    .limit(1);
-  // Benefícios que já existiam no cadastro (VR, VT e seguro de vida) e o plano de saúde
-  const [ben] = await db.select({
-    valorVR: colaboradores.valorVR, valorVT: colaboradores.valorVT,
-    temSeguroVida: colaboradores.temSeguroVida, valorSeguroVida: colaboradores.valorSeguroVida,
-    auxilioVeiculo: colaboradores.auxilioVeiculo, auxilioVeiculoFolha: colaboradores.auxilioVeiculoFolha,
-    auxilioCelularFolha: colaboradores.auxilioCelularFolha,
-  }).from(colaboradores).where(eq(colaboradores.id, colaboradorId)).limit(1);
-  const [plano] = await db.select({
-    plano: planoSaude.plano, mes: planoSaude.mesReferencia, ano: planoSaude.anoReferencia,
-    empresa: planoSaude.empresa, numero: planoSaude.numeroBeneficiario,
-  })
-    .from(planoSaude)
-    .where(and(eq(planoSaude.colaboradorId, colaboradorId), eq(planoSaude.tipo, "T"), eq(planoSaude.ativo, true)))
-    .orderBy(desc(planoSaude.anoReferencia), desc(planoSaude.mesReferencia))
-    .limit(1);
-  // Dependentes no plano de saúde (mesma competência do titular)
-  let dependentesPlano = 0;
-  if (plano) {
-    const deps = await db.select({ id: planoSaude.id }).from(planoSaude).where(and(
-      eq(planoSaude.empresa, plano.empresa), eq(planoSaude.titularNumeroBeneficiario, plano.numero),
-      eq(planoSaude.tipo, "D"), eq(planoSaude.ativo, true),
-      eq(planoSaude.mesReferencia, plano.mes), eq(planoSaude.anoReferencia, plano.ano),
-    ));
-    dependentesPlano = deps.length;
-  }
-  // Auxílio creche: por filho; ativo quando o último lançamento do filho é uma inclusão
-  const movCreche = await db.select().from(movimentacaoAuxilioCreche)
-    .where(eq(movimentacaoAuxilioCreche.colaboradorId, colaboradorId))
-    .orderBy(movimentacaoAuxilioCreche.competenciaAno, movimentacaoAuxilioCreche.competenciaMes, movimentacaoAuxilioCreche.id);
+  const ben = linha as any;
+  const mov = movs[0];
+  const { plano, dependentesPlano } = planoComDeps;
   const ultimoPorFilho = new Map<string, typeof movCreche[number]>();
   for (const m of movCreche) ultimoPorFilho.set(m.nomeFilho.trim().toUpperCase(), m);
   const crecheAtivos = Array.from(ultimoPorFilho.values()).filter(m => m.tipo === "incluir");

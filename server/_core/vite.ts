@@ -58,10 +58,23 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Arquivos em /assets têm um código no nome que muda a cada versão publicada:
+  // podem ficar guardados no navegador por 1 ano (evita uma consulta ao servidor por
+  // arquivo a cada abertura). A página principal é sempre conferida, para pegar a versão nova.
+  app.use("/assets", express.static(path.resolve(distPath, "assets"), {
+    maxAge: "365d",
+    immutable: true,
+    fallthrough: false,
+  }));
+  app.use(express.static(distPath, {
+    setHeaders: (res, arquivo) => {
+      if (arquivo.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
+    },
+  }));
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

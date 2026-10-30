@@ -3,6 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import helmet from "helmet";
+import compression from "compression";
 import { rateLimit } from "express-rate-limit";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
@@ -41,6 +42,14 @@ async function startServer() {
   const server = createServer(app);
   // Trust proxy (necessário no Cloud Run / ambientes com load balancer)
   app.set('trust proxy', 1);
+
+  // ─── Compactação (gzip) das respostas ─────────────────────────────────────
+  // Listas de 80–100 KB (colaboradores, plano de saúde, férias) viajam ~10x menores.
+  // Downloads de arquivos (PDF/Excel/Word) já são compactados ou binários: ficam como estão.
+  app.use(compression({
+    threshold: 1024,
+    filter: (req, res) => !req.path.startsWith("/api/colaboradores/") && compression.filter(req, res),
+  }));
 
   // ─── Security headers (helmet) ────────────────────────────────────────────
   app.use(
