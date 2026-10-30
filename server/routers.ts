@@ -14,7 +14,9 @@ function calcPeriodoFeriasBackend(periodoAquisitivoIso: string): { periodoAquisi
   limDate.setDate(limDate.getDate() + 1);
   return { periodoAquisitivo: periodoAquisitivoIso, vencimento: toIso(vencDate), dataLimite: toIso(limDate) };
 }
+
 import jwt from "jsonwebtoken";
+import { periodoInicialPelaAdmissao } from "../shared/periodoFerias";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -353,6 +355,14 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         await updateColaborador(id, data);
+        // Admissão preenchida depois do cadastro: calcula o período de férias se ainda não houver
+        if (input.admissao) {
+          const atual = await getColaboradorById(id);
+          if (atual && !atual.periodoAquisitivo) {
+            const calc = calcPeriodoFeriasBackend(periodoInicialPelaAdmissao(input.admissao));
+            await updateColaborador(id, calc as any);
+          }
+        }
         return { success: true };
       }),
     toggleStatus: protectedProcedure

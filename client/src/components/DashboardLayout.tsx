@@ -240,7 +240,7 @@ function DashboardLayoutContent({ children, setSidebarWidth, noPadding, stickyHe
             {isCollapsed ? (
               <div className="flex items-center justify-center w-full">
                 <img
-                  src="/manus-storage/logo-gestao-rh_c85a262f.png"
+                  src="/logo-gestao-rh.svg"
                   alt="Gestão de RH"
                   className="w-8 h-8 rounded-lg object-contain"
                   style={{ background: "oklch(0.18 0.06 252)" }}
@@ -249,7 +249,7 @@ function DashboardLayoutContent({ children, setSidebarWidth, noPadding, stickyHe
             ) : (
               <div className="flex items-center gap-3 w-full overflow-hidden">
                 <img
-                  src="/manus-storage/logo-gestao-rh_c85a262f.png"
+                  src="/logo-gestao-rh.svg"
                   alt="Gestão de RH"
                   className="w-9 h-9 rounded-xl object-contain shrink-0 shadow-sm"
                   style={{ background: "oklch(0.18 0.06 252)" }}

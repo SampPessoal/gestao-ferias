@@ -198,7 +198,7 @@ export default function Dashboard() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <img
-                src="/manus-storage/logo-gestao-rh_c85a262f.png"
+                src="/logo-gestao-rh.svg"
                 alt="Gestão de RH"
                 className="w-8 h-8 rounded-xl object-contain"
                 style={{ background: "oklch(0.18 0.06 252)", boxShadow: "0 2px 8px oklch(0.45 0.18 250 / 0.35)" }}
