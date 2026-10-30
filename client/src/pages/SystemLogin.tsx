@@ -85,7 +85,7 @@ export default function SystemLogin({ onSuccess }: SystemLoginProps) {
         <div className="relative z-10">
           <div className="flex items-center gap-3">
             <img
-              src="/manus-storage/logo-gestao-rh_c85a262f.png"
+              src="/logo-gestao-rh.svg"
               alt="Gestão de RH"
               className="w-12 h-12 rounded-2xl object-contain shadow-lg"
               style={{ background: "oklch(0.18 0.06 252)" }}
@@ -154,7 +154,7 @@ export default function SystemLogin({ onSuccess }: SystemLoginProps) {
         {/* Logo mobile */}
         <div className="lg:hidden flex items-center gap-3 mb-10">
           <img
-            src="/manus-storage/logo-gestao-rh_c85a262f.png"
+            src="/logo-gestao-rh.svg"
             alt="Gestão de RH"
             className="w-11 h-11 rounded-2xl object-contain"
             style={{ background: "oklch(0.18 0.06 252)" }}
