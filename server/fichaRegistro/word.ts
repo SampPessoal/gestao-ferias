@@ -27,11 +27,14 @@ const alinhamento = (a: string | null) =>
 const borda = (b: Borda) =>
   b ? { style: BorderStyle.SINGLE, size: Math.max(2, b.sz), color: b.c } : { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
 
-// Folgas para o Word: o Microsoft Word desenha as linhas um pouco mais altas que o
-// cálculo do PDF (bordas, métricas da fonte). Com as linhas ocupando 85% da página e a
-// letra um pouco menor, a última linha não "vaza" para outra página: sempre 2 páginas.
+// Ajustes para o Microsoft Word, medidos numa ficha aberta no Word do RH:
+// - o Word desenha cada linha da tabela cerca de 2,5 pt mais alta (bordas e métricas);
+//   esse acréscimo é descontado de cada página, e o restante estica as linhas até a
+//   margem de baixo, deixando só uma folga de segurança pequena;
+// - letra um pouco menor que a do PDF, para o texto nunca cortar dentro das caixas.
 const ESCALA_LETRA = 0.88;
-const ESCALA_ALTURA = 0.85;
+const ACRESCIMO_WORD_POR_LINHA = 2.8; // pt
+const FOLGA_SEGURANCA = 8;            // pt no fim de cada página
 
 /** Um parágrafo do modelo (já com a letra do layout), com quebras de linha e cores. */
 function paragrafo(p: Paragrafo): Paragraph {
@@ -58,7 +61,7 @@ type LinhaLayout = Extract<ItemPagina, { tipo: "linha" }>;
  * Como cada linha do modelo tem divisões diferentes, monta-se uma grade comum com todas
  * as divisões e cada célula ocupa as colunas da grade correspondentes (columnSpan).
  */
-function tabelaDasLinhas(linhas: LinhaLayout[], larguraTotal: number): Table {
+function tabelaDasLinhas(linhas: LinhaLayout[], larguraTotal: number, escalaAltura: number): Table {
   const ENCAIXE = 40; // divisões a menos de 2 pt umas das outras viram a mesma
   const cortesPorLinha = linhas.map(l => {
     const total = l.celulas.reduce((s, q) => s + q.w, 0);
@@ -101,7 +104,7 @@ function tabelaDasLinhas(linhas: LinhaLayout[], larguraTotal: number): Table {
     });
     return new TableRow({
       cantSplit: true,
-      height: { value: TW(it.altura * ESCALA_ALTURA), rule: HeightRule.EXACT },
+      height: { value: TW(it.altura * escalaAltura), rule: HeightRule.EXACT },
       children: celulas,
     });
   });
@@ -122,16 +125,24 @@ function tabelaDasLinhas(linhas: LinhaLayout[], larguraTotal: number): Table {
 export async function desenharFichaWord(modelo: ModeloFicha, titulo: string): Promise<Buffer> {
   const pg = modelo.page;
   const medidor = new PDFDocument({ size: [pg.w / 20, pg.h / 20], margins: { top: 0, bottom: 0, left: 0, right: 0 } });
-  const { paginas, larguraUtil } = calcularLayoutFicha(medidor, modelo);
+  const { paginas, larguraUtil, alturaUtil } = calcularLayoutFicha(medidor, modelo);
   medidor.end();
   const paisagem = pg.w > pg.h;
   const margem = TW(MARGEM_IMPRESSAO);
   const larguraTotal = TW(larguraUtil);
 
   const conteudoDaPagina = (itens: ItemPagina[]) => {
+    // Altura das linhas desta página: ocupa a folha até a margem de baixo, descontando o
+    // acréscimo que o Word põe em cada linha e o texto avulso (título), com folga pequena.
+    const linhasDaPagina = itens.filter(it => it.tipo === "linha") as LinhaLayout[];
+    const somaLinhas = linhasDaPagina.reduce((s, it) => s + it.altura, 0);
+    const somaTextos = itens.reduce((s, it) => s + (it.tipo === "p" ? it.h * ESCALA_LETRA : 0), 0);
+    const disponivel = alturaUtil - somaTextos - FOLGA_SEGURANCA - ACRESCIMO_WORD_POR_LINHA * linhasDaPagina.length;
+    const escalaAltura = somaLinhas > 0 ? Math.min(1, disponivel / somaLinhas) : 1;
+
     const saida: (Table | Paragraph)[] = [];
     let grupo: LinhaLayout[] = [];
-    const fecharGrupo = () => { if (grupo.length) { saida.push(tabelaDasLinhas(grupo, larguraTotal)); grupo = []; } };
+    const fecharGrupo = () => { if (grupo.length) { saida.push(tabelaDasLinhas(grupo, larguraTotal, escalaAltura)); grupo = []; } };
     for (const it of itens) {
       if (it.tipo === "linha") grupo.push(it);
       else { fecharGrupo(); saida.push(paragrafo(it.p)); }
