@@ -256,6 +256,10 @@ describe("Ficha de Registro em Word (mesmo modelo do PDF)", () => {
       expect(buf.subarray(0, 2).toString()).toBe("PK");
       const xml = lerDoZip(buf, "word/document.xml");
       expect((xml.match(/<w:sectPr/g) ?? []).length).toBe(2);          // uma seção por página do PDF
+      // Sem tabelas coladas (o Word as junta e desalinha): no máximo 2 tabelas por página
+      expect((xml.match(/<w:tbl>/g) ?? []).length).toBeLessThanOrEqual(4);
+      // Linhas com altura fixa (nada empurra a ficha para uma 3ª página)
+      expect(xml).toContain('w:hRule="exact"');
       expect(xml).toContain('w:orient="landscape"');
       expect(xml).toContain("FICHA DE REGISTRO DO COLABORADOR");
       expect(xml).toContain(doColab.nome);

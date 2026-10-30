@@ -27,9 +27,14 @@ const alinhamento = (a: string | null) =>
 const borda = (b: Borda) =>
   b ? { style: BorderStyle.SINGLE, size: Math.max(2, b.sz), color: b.c } : { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
 
-/** Um parágrafo do modelo (já com a letra ampliada pelo layout), com quebras de linha e cores. */
+// Folgas para o Word: a medida de texto do Word difere um pouco da do PDF. Com a letra
+// um pouco menor e as linhas ocupando 95% da página, nada corta e tudo cabe em 2 páginas.
+const ESCALA_LETRA = 0.9;
+const ESCALA_ALTURA = 0.95;
+
+/** Um parágrafo do modelo (já com a letra do layout), com quebras de linha e cores. */
 function paragrafo(p: Paragrafo): Paragraph {
-  const tam = (x: number) => Math.max(2, Math.round(x));
+  const tam = (x: number) => Math.max(2, Math.round(x * ESCALA_LETRA));
   const runs: TextRun[] = [];
   for (const r of p.runs) {
     r.t.split("\n").forEach((pedaco, i) => {
@@ -38,61 +43,116 @@ function paragrafo(p: Paragrafo): Paragraph {
   }
   return new Paragraph({
     alignment: alinhamento(p.align),
-    spacing: { before: Math.round(p.before), after: Math.round(p.after), line: p.line || 240, lineRule: LineRuleType.AUTO },
+    spacing: { before: Math.round(p.before * ESCALA_LETRA), after: Math.round(p.after * ESCALA_LETRA), line: 240, lineRule: LineRuleType.AUTO },
     run: { size: tam(p.sz), font: FONTE },
     children: runs.length ? runs : [new TextRun({ text: "", size: tam(p.sz), font: FONTE })],
   });
 }
 
 const TW = (pt: number) => Math.round(pt * 20); // pontos → twips
+type LinhaLayout = Extract<ItemPagina, { tipo: "linha" }>;
 
-/** Uma linha do layout vira uma tabela de uma linha, com larguras e altura iguais às do PDF. */
-function tabelaDaLinha(it: Extract<ItemPagina, { tipo: "linha" }>, escalaAltura: number): Table {
-  const larguras = it.celulas.map(q => TW(q.w));
-  return new Table({
-    layout: TableLayoutType.FIXED,
-    width: { size: larguras.reduce((s, w) => s + w, 0), type: WidthType.DXA },
-    columnWidths: larguras,
-    rows: [new TableRow({
-      cantSplit: true,
-      // Altura fixa, igual à do PDF (levemente reduzida para caber o fim de página do Word)
-      height: { value: TW(it.altura * escalaAltura), rule: HeightRule.EXACT },
-      children: it.celulas.map(({ c, w, ml, mr, ps }) => new TableCell({
-        width: { size: TW(w), type: WidthType.DXA },
+/**
+ * Linhas seguidas viram UMA tabela (o Word junta tabelas coladas e desalinha as colunas).
+ * Como cada linha do modelo tem divisões diferentes, monta-se uma grade comum com todas
+ * as divisões e cada célula ocupa as colunas da grade correspondentes (columnSpan).
+ */
+function tabelaDasLinhas(linhas: LinhaLayout[], larguraTotal: number): Table {
+  const ENCAIXE = 40; // divisões a menos de 2 pt umas das outras viram a mesma
+  const cortesPorLinha = linhas.map(l => {
+    const total = l.celulas.reduce((s, q) => s + q.w, 0);
+    let acc = 0;
+    return l.celulas.map(q => { acc += q.w; return Math.round((acc / total) * larguraTotal); });
+  });
+  const todos = Array.from(new Set(cortesPorLinha.flat())).sort((x, y) => x - y);
+  const grade: number[] = [];
+  for (const c of todos) {
+    if (c >= larguraTotal - ENCAIXE) continue;
+    if (!grade.length || c - grade[grade.length - 1] >= ENCAIXE) grade.push(c);
+  }
+  grade.push(larguraTotal);
+  const larguras = grade.map((c, i) => c - (i ? grade[i - 1] : 0));
+  const indiceDoCorte = (c: number) => {
+    if (c >= larguraTotal - ENCAIXE) return grade.length - 1;
+    let melhor = 0;
+    grade.forEach((g, i) => { if (Math.abs(g - c) < Math.abs(grade[melhor] - c)) melhor = i; });
+    return melhor;
+  };
+
+  const rows = linhas.map((it, li) => {
+    let inicio = 0;
+    const celulas = it.celulas.map(({ c, ml, mr, ps }, ci) => {
+      const fim = ci === it.celulas.length - 1 ? grade.length - 1 : indiceDoCorte(cortesPorLinha[li][ci]);
+      const span = Math.max(1, fim - inicio + 1);
+      const largura = larguras.slice(inicio, inicio + span).reduce((s, w) => s + w, 0);
+      inicio += span;
+      return new TableCell({
+        width: { size: largura, type: WidthType.DXA },
+        ...(span > 1 ? { columnSpan: span } : {}),
         ...(c.fill && c.fill !== "auto" ? { shading: { type: ShadingType.CLEAR, color: "auto", fill: c.fill } } : {}),
         // Mesmo critério do PDF: conteúdo centralizado na altura quando a linha cresce
         verticalAlign: c.valign === "bottom" ? VerticalAlign.BOTTOM
           : c.valign === "center" || !it.fixa ? VerticalAlign.CENTER : VerticalAlign.TOP,
-        margins: { top: c.mar.top, bottom: c.mar.bottom, left: TW(ml), right: TW(mr) },
+        margins: { top: Math.round(c.mar.top * ESCALA_LETRA), bottom: Math.round(c.mar.bottom * ESCALA_LETRA), left: TW(ml), right: TW(mr) },
         borders: { top: borda(c.borders.top), bottom: borda(c.borders.bottom), left: borda(c.borders.left), right: borda(c.borders.right) },
         children: ps.length ? ps.map(q => paragrafo(q.p)) : [new Paragraph({ children: [] })],
-      })),
-    })],
+      });
+    });
+    return new TableRow({
+      cantSplit: true,
+      height: { value: TW(it.altura * ESCALA_ALTURA), rule: HeightRule.EXACT },
+      children: celulas,
+    });
+  });
+
+  return new Table({
+    layout: TableLayoutType.FIXED,
+    width: { size: larguraTotal, type: WidthType.DXA },
+    columnWidths: larguras,
+    margins: { left: 0, right: 0, top: 0, bottom: 0 },
+    rows,
   });
 }
 
 /**
- * Gera o .docx da Ficha de Registro a partir do modelo já preenchido, com o MESMO
- * layout do PDF (calcularLayoutFicha): mesma letra, larguras, alturas e páginas.
+ * Gera o .docx da Ficha de Registro a partir do modelo já preenchido, com o mesmo
+ * layout do PDF (calcularLayoutFicha): mesmas proporções, colunas e 2 páginas.
  */
 export async function desenharFichaWord(modelo: ModeloFicha, titulo: string): Promise<Buffer> {
   const pg = modelo.page;
   const medidor = new PDFDocument({ size: [pg.w / 20, pg.h / 20], margins: { top: 0, bottom: 0, left: 0, right: 0 } });
-  const { paginas, alturaUtil } = calcularLayoutFicha(medidor, modelo);
-  // Folga de 4 pt por página para o parágrafo final que o Word exige em cada seção
-  const escalaAltura = (alturaUtil - 4) / alturaUtil;
-  const fimDeSecao = () => new Paragraph({
-    spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT },
-    run: { size: 2 },
-    children: [new TextRun({ text: "", size: 2 })],
-  });
+  const { paginas, larguraUtil } = calcularLayoutFicha(medidor, modelo);
   medidor.end();
   const paisagem = pg.w > pg.h;
   const margem = TW(MARGEM_IMPRESSAO);
+  const larguraTotal = TW(larguraUtil);
+
+  const conteudoDaPagina = (itens: ItemPagina[]) => {
+    const saida: (Table | Paragraph)[] = [];
+    let grupo: LinhaLayout[] = [];
+    const fecharGrupo = () => { if (grupo.length) { saida.push(tabelaDasLinhas(grupo, larguraTotal)); grupo = []; } };
+    for (const it of itens) {
+      if (it.tipo === "linha") grupo.push(it);
+      else { fecharGrupo(); saida.push(paragrafo(it.p)); }
+    }
+    fecharGrupo();
+    // Parágrafo final que o Word exige em cada seção: mínimo, para não criar página extra
+    saida.push(new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT }, run: { size: 2 }, children: [new TextRun({ text: "", size: 2 })] }));
+    return saida;
+  };
+
   const doc = new Document({
     creator: "Gestão RH",
     title: titulo,
-    styles: { default: { document: { run: { font: FONTE } } } },
+    // Sem espaçamentos automáticos do Word (o estilo Normal do Word adiciona espaço depois)
+    styles: {
+      default: {
+        document: {
+          run: { font: FONTE, size: 18 },
+          paragraph: { spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO } },
+        },
+      },
+    },
     // Uma seção por página do PDF (cada seção começa numa página nova)
     sections: paginas.map(itens => ({
       properties: {
@@ -103,7 +163,7 @@ export async function desenharFichaWord(modelo: ModeloFicha, titulo: string): Pr
           margin: { top: margem, right: margem, bottom: margem, left: margem, header: 0, footer: 0 },
         },
       },
-      children: [...itens.map(it => (it.tipo === "p" ? paragrafo(it.p) : tabelaDaLinha(it, escalaAltura))), fimDeSecao()],
+      children: conteudoDaPagina(itens),
     })),
   });
   return Buffer.from(await Packer.toBuffer(doc));
