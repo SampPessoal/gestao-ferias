@@ -28,12 +28,14 @@ const borda = (b: Borda) =>
   b ? { style: BorderStyle.SINGLE, size: Math.max(2, b.sz), color: b.c } : { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
 
 // Ajustes para o Microsoft Word, medidos numa ficha aberta no Word do RH:
-// - o Word desenha cada linha da tabela cerca de 2,5 pt mais alta (bordas e métricas);
+// - o Word desenha cada linha da tabela cerca de 3,9 pt mais alta (bordas e métricas);
+//   medido comparando duas versões abertas no Word do RH (468 pt coube rente à margem;
+//   486 pt passou da página);
 //   esse acréscimo é descontado de cada página, e o restante estica as linhas até a
 //   margem de baixo, deixando só uma folga de segurança pequena;
 // - letra um pouco menor que a do PDF, para o texto nunca cortar dentro das caixas.
 const ESCALA_LETRA = 0.88;
-const ACRESCIMO_WORD_POR_LINHA = 2.8; // pt
+const ACRESCIMO_WORD_POR_LINHA = 3.9; // pt
 const FOLGA_SEGURANCA = 8;            // pt no fim de cada página
 
 /** Um parágrafo do modelo (já com a letra do layout), com quebras de linha e cores. */
