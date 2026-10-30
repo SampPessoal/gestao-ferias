@@ -259,10 +259,10 @@ function desenharParagrafo(doc: PDFKit.PDFDocument, p: Paragrafo, linhas: LinhaT
 }
 
 /** Margem de segurança para impressão (pt). O conteúdo ocupa todo o resto da folha. */
-const MARGEM_IMPRESSAO = 14;
+export const MARGEM_IMPRESSAO = 14;
 
-type CelulaPronta = { c: Celula; x: number; w: number; ml: number; mr: number; ps: { p: Paragrafo; linhas: LinhaTexto[] }[]; h: number };
-type ItemPagina =
+export type CelulaPronta = { c: Celula; x: number; w: number; ml: number; mr: number; ps: { p: Paragrafo; linhas: LinhaTexto[] }[]; h: number };
+export type ItemPagina =
   | { tipo: "p"; p: Paragrafo; linhas: LinhaTexto[]; h: number }
   | { tipo: "linha"; celulas: CelulaPronta[]; natural: number; fixa: boolean; altura: number };
 
@@ -325,6 +325,38 @@ function montarPaginas(doc: PDFKit.PDFDocument, modelo: ModeloFicha, fs: number,
 
 const alturaItem = (it: ItemPagina) => (it.tipo === "p" ? it.h : it.natural);
 
+/**
+ * Layout final da ficha, usado pelo PDF e pelo Word: maior letra (fs) em que tudo cabe
+ * nas páginas, colunas esticadas na largura da folha e a altura de cada linha (a sobra
+ * de espaço é distribuída entre as linhas de campos, para a ficha ocupar a página inteira).
+ * "doc" serve só para medir os textos (fontes do PDF).
+ */
+export function calcularLayoutFicha(doc: PDFKit.PDFDocument, modelo: ModeloFicha) {
+  const pg = modelo.page;
+  const larguraUtil = PT(pg.w) - 2 * MARGEM_IMPRESSAO;
+  const alturaUtil = PT(pg.h) - 2 * MARGEM_IMPRESSAO;
+
+  // Maior letra (igual nas duas páginas) em que todo o conteúdo cabe na folha;
+  // textos muito longos reduzem a letra em vez de criar uma terceira página.
+  let paginas: ItemPagina[][] = [];
+  let fsUsado = 1;
+  for (let fs = 1.4; fs >= 0.55; fs -= 0.025) {
+    paginas = montarPaginas(doc, modelo, fs, larguraUtil);
+    fsUsado = fs;
+    if (paginas.every(itens => itens.reduce((s, it) => s + alturaItem(it), 0) <= alturaUtil)) break;
+  }
+
+  for (const itens of paginas) {
+    // Distribui o espaço que sobra entre as linhas de campos, para a ficha ocupar a página inteira
+    const natural = itens.reduce((s, it) => s + alturaItem(it), 0);
+    const elasticas = itens.filter(it => it.tipo === "linha" && !it.fixa) as Extract<ItemPagina, { tipo: "linha" }>[];
+    const somaElasticas = elasticas.reduce((s, it) => s + it.natural, 0);
+    const sobra = Math.max(0, alturaUtil - natural);
+    for (const it of elasticas) it.altura = it.natural + (somaElasticas ? sobra * (it.natural / somaElasticas) : 0);
+  }
+  return { paginas, fs: fsUsado, larguraUtil, alturaUtil };
+}
+
 export function desenharFichaPdf(modelo: ModeloFicha, titulo: string): Promise<Buffer> {
   const pg = modelo.page;
   const doc = new PDFDocument({
@@ -337,26 +369,10 @@ export function desenharFichaPdf(modelo: ModeloFicha, titulo: string): Promise<B
   doc.on("data", (c: Buffer) => chunks.push(c));
   const fim = new Promise<Buffer>(resolve => doc.on("end", () => resolve(Buffer.concat(chunks))));
 
-  const larguraUtil = PT(pg.w) - 2 * MARGEM_IMPRESSAO;
-  const alturaUtil = PT(pg.h) - 2 * MARGEM_IMPRESSAO;
-
-  // Maior letra (igual nas duas páginas) em que todo o conteúdo cabe na folha;
-  // textos muito longos reduzem a letra em vez de criar uma terceira página.
-  let paginas: ItemPagina[][] = [];
-  for (let fs = 1.4; fs >= 0.55; fs -= 0.025) {
-    paginas = montarPaginas(doc, modelo, fs, larguraUtil);
-    if (paginas.every(itens => itens.reduce((s, it) => s + alturaItem(it), 0) <= alturaUtil)) break;
-  }
+  const { paginas, larguraUtil } = calcularLayoutFicha(doc, modelo);
 
   paginas.forEach((itens, n) => {
     if (n > 0) doc.addPage();
-    // Distribui o espaço que sobra entre as linhas de campos, para a ficha ocupar a página inteira
-    const natural = itens.reduce((s, it) => s + alturaItem(it), 0);
-    const elasticas = itens.filter(it => it.tipo === "linha" && !it.fixa) as Extract<ItemPagina, { tipo: "linha" }>[];
-    const somaElasticas = elasticas.reduce((s, it) => s + it.natural, 0);
-    const sobra = Math.max(0, alturaUtil - natural);
-    for (const it of elasticas) it.altura = it.natural + (somaElasticas ? sobra * (it.natural / somaElasticas) : 0);
-
     let y = MARGEM_IMPRESSAO;
     for (const it of itens) {
       if (it.tipo === "p") {

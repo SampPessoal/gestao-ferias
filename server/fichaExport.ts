@@ -15,6 +15,7 @@ import {
 } from "docx";
 import { getColaboradorById } from "./db";
 import { escolherModelo, preencherModelo, desenharFichaPdf } from "./fichaRegistro";
+import { desenharFichaWord } from "./fichaRegistro/word";
 import { carregarDadosFichaRegistro, montarMapaFichaRegistro } from "./fichaRegistro/dados";
 import {
   montarFichaColaborador,
@@ -406,7 +407,15 @@ export function registerFichaExportRoutes(
             )
           : await gerarFichaPdf(colaborador.nome, empresa, secoes, emissao);
       } else if (formato === "docx") {
-        buffer = await gerarFichaWord(colaborador.nome, empresa, secoes, emissao);
+        // Word: mesma Ficha de Registro oficial do PDF (editável). Outra empresa usa a ficha padrão.
+        const escolha = escolherModelo(colaborador.empresaNome);
+        const dados = escolha ? await carregarDadosFichaRegistro(id) : null;
+        buffer = escolha && dados
+          ? await desenharFichaWord(
+              preencherModelo(escolha.modelo, montarMapaFichaRegistro(dados, emissao.dataIso)),
+              `Ficha de Registro — ${colaborador.nome}`,
+            )
+          : await gerarFichaWord(colaborador.nome, empresa, secoes, emissao);
       } else {
         buffer = await gerarFichaExcel(colaborador.nome, empresa, secoes, emissao);
       }

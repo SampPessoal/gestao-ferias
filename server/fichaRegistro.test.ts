@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { MODELOS, escolherModelo, preencherModelo, desenharFichaPdf } from "./fichaRegistro";
 import { montarMapaFichaRegistro, type DadosFichaRegistro } from "./fichaRegistro/dados";
 import type { ModeloFicha } from "./fichaRegistro/tipos";
+import { desenharFichaWord } from "./fichaRegistro/word";
+import { inflateRawSync } from "node:zlib";
 
 const colab = {
   id: 1, nome: "MARIA JOSÉ DA CONCEIÇÃO", empresaNome: "JOANES", setorNome: "FINANCEIRO", cargo: "Analista",
@@ -224,6 +226,39 @@ describe("Campo Empresa: nome da própria empresa em cada modelo", () => {
       expect(propria).toContain(`(X) ${empresa}`);
       const antigo = campoEmpresa(preencherModelo(MODELOS[empresa], montarMapaFichaRegistro(comEmpresa(empresa, "sudoeste"), "2026-10-13")));
       expect(antigo).toContain(`(X) ${empresa}`);
+    });
+  }
+});
+
+/** Lê um arquivo de dentro de um ZIP (pelo diretório central), só com o zlib do Node. */
+function lerDoZip(zip: Buffer, nome: string): string {
+  const eocd = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  let p = zip.readUInt32LE(eocd + 16);
+  for (let i = 0, total = zip.readUInt16LE(eocd + 10); i < total; i++) {
+    const metodo = zip.readUInt16LE(p + 10), tamanho = zip.readUInt32LE(p + 20);
+    const nLen = zip.readUInt16LE(p + 28), eLen = zip.readUInt16LE(p + 30), cLen = zip.readUInt16LE(p + 32);
+    const local = zip.readUInt32LE(p + 42);
+    if (zip.toString("utf8", p + 46, p + 46 + nLen) === nome) {
+      const ini = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
+      const dados = zip.subarray(ini, ini + tamanho);
+      return (metodo === 8 ? inflateRawSync(dados) : dados).toString("utf8");
+    }
+    p += 46 + nLen + eLen + cLen;
+  }
+  throw new Error(`${nome} não encontrado`);
+}
+
+describe("Ficha de Registro em Word (mesmo modelo do PDF)", () => {
+  for (const empresa of Object.keys(MODELOS)) {
+    it(`${empresa}: .docx com 2 páginas (seções), paisagem e os dados preenchidos`, async () => {
+      const doColab = { ...colab, empresaNome: empresa } as unknown as DadosFichaRegistro;
+      const buf = await desenharFichaWord(preencherModelo(MODELOS[empresa], montarMapaFichaRegistro(doColab, "2026-10-13")), "teste");
+      expect(buf.subarray(0, 2).toString()).toBe("PK");
+      const xml = lerDoZip(buf, "word/document.xml");
+      expect((xml.match(/<w:sectPr/g) ?? []).length).toBe(2);          // uma seção por página do PDF
+      expect(xml).toContain('w:orient="landscape"');
+      expect(xml).toContain("FICHA DE REGISTRO DO COLABORADOR");
+      expect(xml).toContain(doColab.nome);
     });
   }
 });
