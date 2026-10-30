@@ -107,10 +107,14 @@ export async function getDb() {
       }
       let client: ReturnType<typeof postgres> | null = null;
       try {
-        client = postgres(url, { max: 10, idle_timeout: 60, connect_timeout: 8 });
+        // Conexões mantidas abertas: abrir uma conexão nova com o banco custa várias idas e
+        // voltas (TLS + autenticação); com idle_timeout de 60 s, o primeiro clique depois de
+        // qualquer pausa pagava ~3 s. Agora ficam 15 min e um "sinal de vida" as mantém prontas.
+        client = postgres(url, { max: 10, idle_timeout: 900, connect_timeout: 8, keep_alive: 30 });
         await withTimeout(assertRequiredDatabaseSchema(client));
         _client = client;
         _db = drizzle(client);
+        manterConexoesProntas(client);
         console.log("[Database] Connected to PostgreSQL; required schema verified");
         return _db;
       } catch (error) {
@@ -123,6 +127,19 @@ export async function getDb() {
     })();
   }
   return _initPromise;
+}
+
+/**
+ * Mantém algumas conexões do pool aquecidas com um SELECT 1 a cada 45 s (custo mínimo),
+ * para o primeiro acesso depois de uma pausa não ter de reabrir conexão com o banco.
+ */
+let _sinalDeVida: ReturnType<typeof setInterval> | null = null;
+function manterConexoesProntas(client: ReturnType<typeof postgres>, conexoes = 3) {
+  if (_sinalDeVida) return;
+  const aquecer = () => Promise.all(Array.from({ length: conexoes }, () => client`select 1`)).catch(() => undefined);
+  void aquecer(); // abre as conexões já no início
+  _sinalDeVida = setInterval(aquecer, 45_000);
+  _sinalDeVida.unref?.(); // não impede o processo de encerrar
 }
 
 /** Usado no boot de produção para não servir uma versão incompatível com o banco. */
