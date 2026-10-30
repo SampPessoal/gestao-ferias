@@ -27,17 +27,17 @@ const alinhamento = (a: string | null) =>
 const borda = (b: Borda) =>
   b ? { style: BorderStyle.SINGLE, size: Math.max(2, b.sz), color: b.c } : { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
 
-// Ajustes para o Microsoft Word, medidos numa ficha aberta no Word do RH:
-// - o Word desenha cada linha da tabela cerca de 2,5 pt mais alta (bordas e métricas);
-//   esse acréscimo é descontado de cada página, e o restante estica as linhas até a
-//   margem de baixo, deixando só uma folga de segurança pequena;
-// - letra um pouco menor que a do PDF, para o texto nunca cortar dentro das caixas.
-const ESCALA_LETRA = 0.88;
-const ACRESCIMO_WORD_POR_LINHA = 2.8; // pt
-const FOLGA_SEGURANCA = 8;            // pt no fim de cada página
+// Mesmas regras do PDF (calcularLayoutFicha): margens de 14 pt, colunas esticadas na folha,
+// mesma letra (fs) e a altura de cada linha preenchendo a página até a margem de baixo.
+// Diferença do Word: o espaço interno de cima/baixo da célula (tcMar) é SOMADO à altura
+// da linha, enquanto no PDF ele já está dentro dela. Por isso, no Word, o espaço interno
+// vertical é zero e o recuo do topo vai dentro do texto (spacing.before), sem somar altura.
+const ESCALA_LETRA = 1;
+const FOLGA_POR_LINHA = 0.3; // pt (bordas)
+const FOLGA_SEGURANCA = 4;   // pt no fim de cada página (parágrafo final exigido pelo Word)
 
 /** Um parágrafo do modelo (já com a letra do layout), com quebras de linha e cores. */
-function paragrafo(p: Paragrafo): Paragraph {
+function paragrafo(p: Paragrafo, recuoTopo = 0): Paragraph {
   const tam = (x: number) => Math.max(2, Math.round(x * ESCALA_LETRA));
   const runs: TextRun[] = [];
   for (const r of p.runs) {
@@ -47,7 +47,7 @@ function paragrafo(p: Paragrafo): Paragraph {
   }
   return new Paragraph({
     alignment: alinhamento(p.align),
-    spacing: { before: Math.round(p.before * ESCALA_LETRA), after: Math.round(p.after * ESCALA_LETRA), line: 240, lineRule: LineRuleType.AUTO },
+    spacing: { before: Math.round(p.before * ESCALA_LETRA) + recuoTopo, after: Math.round(p.after * ESCALA_LETRA), line: 240, lineRule: LineRuleType.AUTO },
     run: { size: tam(p.sz), font: FONTE },
     children: runs.length ? runs : [new TextRun({ text: "", size: tam(p.sz), font: FONTE })],
   });
@@ -97,9 +97,13 @@ function tabelaDasLinhas(linhas: LinhaLayout[], larguraTotal: number, escalaAltu
         // Mesmo critério do PDF: conteúdo centralizado na altura quando a linha cresce
         verticalAlign: c.valign === "bottom" ? VerticalAlign.BOTTOM
           : c.valign === "center" || !it.fixa ? VerticalAlign.CENTER : VerticalAlign.TOP,
-        margins: { top: Math.round(c.mar.top * ESCALA_LETRA), bottom: Math.round(c.mar.bottom * ESCALA_LETRA), left: TW(ml), right: TW(mr) },
+        // Espaço interno vertical zero (no Word ele somaria à altura da linha); como no PDF,
+        // o conteúdo alinhado ao topo começa depois do espaço interno de cima do modelo
+        margins: { top: 0, bottom: 0, left: TW(ml), right: TW(mr) },
         borders: { top: borda(c.borders.top), bottom: borda(c.borders.bottom), left: borda(c.borders.left), right: borda(c.borders.right) },
-        children: ps.length ? ps.map(q => paragrafo(q.p)) : [new Paragraph({ children: [] })],
+        children: ps.length
+          ? ps.map((q, k) => paragrafo(q.p, k === 0 && c.valign !== "bottom" && c.valign !== "center" && it.fixa ? c.mar.top : 0))
+          : [new Paragraph({ children: [] })],
       });
     });
     return new TableRow({
@@ -132,12 +136,12 @@ export async function desenharFichaWord(modelo: ModeloFicha, titulo: string): Pr
   const larguraTotal = TW(larguraUtil);
 
   const conteudoDaPagina = (itens: ItemPagina[]) => {
-    // Altura das linhas desta página: ocupa a folha até a margem de baixo, descontando o
-    // acréscimo que o Word põe em cada linha e o texto avulso (título), com folga pequena.
+    // Altura das linhas desta página: como no PDF, ocupa a folha até a margem de baixo
+    // (descontado o título e uma folga mínima para o parágrafo final do Word).
     const linhasDaPagina = itens.filter(it => it.tipo === "linha") as LinhaLayout[];
     const somaLinhas = linhasDaPagina.reduce((s, it) => s + it.altura, 0);
     const somaTextos = itens.reduce((s, it) => s + (it.tipo === "p" ? it.h * ESCALA_LETRA : 0), 0);
-    const disponivel = alturaUtil - somaTextos - FOLGA_SEGURANCA - ACRESCIMO_WORD_POR_LINHA * linhasDaPagina.length;
+    const disponivel = alturaUtil - somaTextos - FOLGA_SEGURANCA - FOLGA_POR_LINHA * linhasDaPagina.length;
     const escalaAltura = somaLinhas > 0 ? Math.min(1, disponivel / somaLinhas) : 1;
 
     const saida: (Table | Paragraph)[] = [];
