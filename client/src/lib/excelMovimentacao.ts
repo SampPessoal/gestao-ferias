@@ -217,10 +217,10 @@ function montarSecao(wb: Workbook, secao: SecaoExport, d: DadosExport, subtitulo
       return aba(wb, nome, subtitulo,
         [C("Indicador", 34), C("Indicado", 34), C("Empresa", 12, "centro"), C("Admissão do indicado", 14, "data"),
           C("Pagamento previsto", 14, "data"), C("Pagamento efetivo", 14, "data"), C("Valor do bônus", 14, "moeda"),
-          C("Situação", 12, "centro"), C("Observação", 28), C("Registrado por", 18)],
+          C("Situação", 12, "centro"), ...REGISTRO],
         d.bonusIndicacao.map(r => [r.nomeIndicador ?? "", r.nomeIndicado ?? "", r.empresa ?? "", soData(r.dataAdmissaoIndicado),
           soData(r.dataPagamentoPrevisto), soData(r.dataPagamentoEfetivo), numero(r.valorBonus), situacaoBonus(r.status),
-          r.observacao ?? "", r.createdByNome ?? ""]),
+          ...reg(r)]),
         { totais: [6], colValor: 6 });
   }
 }
