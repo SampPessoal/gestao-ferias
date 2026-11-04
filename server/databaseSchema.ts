@@ -20,9 +20,12 @@ export const REQUIRED_DATABASE_COLUMN_TYPES: Readonly<Record<string, Readonly<Re
     dataLimiteAnterior: "date",
     saldoAnterior: "integer",
   },
-  colaboradores: Object.fromEntries(
-    CAMPOS_REGISTRO.map(campo => [campo.chave, catalogType(tipoSql(campo))]),
-  ),
+  colaboradores: Object.fromEntries([
+    ...CAMPOS_REGISTRO.map(campo => [campo.chave, catalogType(tipoSql(campo))]),
+    ["planejamento1Venda", "boolean"],
+    ["planejamento2Venda", "boolean"],
+    ["planejamento3Venda", "boolean"],
+  ]),
   dependentes: {
     id: "integer",
     colaboradorId: "integer",
