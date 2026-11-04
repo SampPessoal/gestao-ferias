@@ -245,7 +245,11 @@ export const registroEmpregadoRouter = router({
     }),
   estrutura: protectedProcedure.query(async () => {
     const existentes = await colunasExistentes("colaboradores");
-    return { faltando: CAMPOS_REGISTRO.map(c => c.chave).filter(c => !existentes.has(c)) };
+    // Somente leitura: confere se a migração da venda de 10 dias por planejamento já está no banco
+    const vendaPlanejamento = Object.fromEntries(
+      ["planejamento1Venda", "planejamento2Venda", "planejamento3Venda"].map(c => [c, existentes.has(c)]),
+    );
+    return { faltando: CAMPOS_REGISTRO.map(c => c.chave).filter(c => !existentes.has(c)), vendaPlanejamento };
   }),
 
   get: protectedProcedure
