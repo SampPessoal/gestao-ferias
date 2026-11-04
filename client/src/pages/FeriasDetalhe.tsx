@@ -15,35 +15,6 @@ import { toast } from "sonner";
 import { calcularStatus, statusColor, statusLabel, formatDate, diasRestantes, toDateStr, calcPeriodoFerias } from "@/lib/ferias";
 
 import { mascaraInteiro, mascaraPeriodo } from "@/lib/mascaras";
-import { lerPlanejamento } from "@shared/planejamento";
-/** Um planejamento na ficha: datas e, embaixo, dias de descanso, venda de 10 dias e total. */
-function PlanejamentoRow({ numero, texto, venda }: { numero: number; texto: string | null | undefined; venda: boolean }) {
-  const lido = lerPlanejamento(texto);
-  return (
-    <div className="py-2.5 border-b border-border/40 last:border-0">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">Planejamento {numero}</span>
-        <span className="text-sm font-semibold text-foreground text-right">{texto || "—"}</span>
-      </div>
-      {lido && (
-        <div className="mt-1.5 flex flex-wrap justify-end gap-1.5">
-          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-900 dark:bg-blue-950 dark:text-blue-100">
-            {lido.dias} {lido.dias === 1 ? "dia" : "dias"} de descanso
-          </span>
-          {venda ? (
-            <>
-              <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-semibold text-orange-900 dark:bg-orange-950 dark:text-orange-100">+10 vendidos</span>
-              <span className="rounded-full bg-slate-900 px-2.5 py-0.5 text-[11px] font-bold text-white dark:bg-slate-100 dark:text-slate-900">Total {lido.dias + 10} dias</span>
-            </>
-          ) : (
-            <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">Sem venda</span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function InfoRow({ label, value, highlight }: { label: string; value: React.ReactNode; highlight?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-2 py-2 border-b border-border/40 last:border-0">
@@ -96,9 +67,6 @@ export default function FeriasDetalhe({ id }: { id: number }) {
       planejamento1: colaborador.planejamento1 ?? "",
       planejamento2: colaborador.planejamento2 ?? "",
       planejamento3: colaborador.planejamento3 ?? "",
-      planejamento1Venda: !!(colaborador as any).planejamento1Venda,
-      planejamento2Venda: !!(colaborador as any).planejamento2Venda,
-      planejamento3Venda: !!(colaborador as any).planejamento3Venda,
       observacoes: colaborador.observacoes ?? "",
       admissao: toDateStr(colaborador.admissao as any) ?? "",
       periodoAquisitivo: toDateStr(colaborador.periodoAquisitivo as any) ?? "",
@@ -118,10 +86,6 @@ export default function FeriasDetalhe({ id }: { id: number }) {
       planejamento1: form.planejamento1 || null,
       planejamento2: form.planejamento2 || null,
       planejamento3: form.planejamento3 || null,
-      // Venda só vale para planejamento preenchido
-      planejamento1Venda: !!form.planejamento1 && !!form.planejamento1Venda,
-      planejamento2Venda: !!form.planejamento2 && !!form.planejamento2Venda,
-      planejamento3Venda: !!form.planejamento3 && !!form.planejamento3Venda,
       observacoes: form.observacoes || null,
       admissao: form.admissao || null,
       periodoAquisitivo: form.periodoAquisitivo || null,
@@ -422,41 +386,14 @@ export default function FeriasDetalhe({ id }: { id: number }) {
                 { key: "planejamento1", label: "Planejamento 1", placeholder: "Ex: 01/01/2026 a 15/01/2026" },
                 { key: "planejamento2", label: "Planejamento 2", placeholder: "Ex: 01/07/2026 a 15/07/2026" },
                 { key: "planejamento3", label: "Planejamento 3", placeholder: "Opcional: dd/mm/aaaa a dd/mm/aaaa" },
-              ].map(f => {
-                const lido = lerPlanejamento(form[f.key]);
-                const chaveVenda = `${f.key}Venda`;
-                const venda = !!form[chaveVenda];
-                return (
-                  <div key={f.key} className="space-y-1.5">
-                    <Label htmlFor={`campo-${f.key}`} className="text-xs text-muted-foreground uppercase tracking-wide">{f.label}</Label>
-                    <div className="flex items-center gap-2">
-                      <Input id={`campo-${f.key}`} className="h-8 text-sm" value={form[f.key]}
-                        onChange={e => setForm({ ...form, [f.key]: mascaraPeriodo(e.target.value) })} inputMode="numeric"
-                        placeholder={f.placeholder} />
-                      <span className="min-w-[52px] text-right text-xs font-semibold text-blue-900 dark:text-blue-200">
-                        {lido ? `${lido.dias} ${lido.dias === 1 ? "dia" : "dias"}` : ""}
-                      </span>
-                    </div>
-                    {form[f.key] && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Venda de 10 dias?</span>
-                        <div role="group" aria-label={`Venda de 10 dias no ${f.label.toLowerCase()}`} className="inline-flex overflow-hidden rounded-md border border-border">
-                          {[false, true].map(v => (
-                            <button key={String(v)} type="button" aria-pressed={venda === v}
-                              onClick={() => setForm({ ...form, [chaveVenda]: v })}
-                              className={`h-7 px-3 text-xs font-semibold transition-colors ${venda === v ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "bg-background text-foreground hover:bg-muted"}`}>
-                              {v ? "Sim" : "Não"}
-                            </button>
-                          ))}
-                        </div>
-                        {venda && lido && (
-                          <span className="text-xs font-semibold text-orange-800 dark:text-orange-300">= {lido.dias} + 10 vendidos = {lido.dias + 10} dias</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              ].map(f => (
+                <div key={f.key} className="space-y-1">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">{f.label}</Label>
+                  <Input className="h-8 text-sm" value={form[f.key]}
+                    onChange={e => setForm({ ...form, [f.key]: mascaraPeriodo(e.target.value) })} inputMode="numeric"
+                    placeholder={f.placeholder} />
+                </div>
+              ))}
               <div className="space-y-1 pt-1">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Observações</Label>
                 <Textarea value={form.observacoes}
@@ -467,9 +404,9 @@ export default function FeriasDetalhe({ id }: { id: number }) {
             </div>
           ) : (
             <div>
-              <PlanejamentoRow numero={1} texto={colaborador.planejamento1} venda={!!(colaborador as any).planejamento1Venda} />
-              <PlanejamentoRow numero={2} texto={colaborador.planejamento2} venda={!!(colaborador as any).planejamento2Venda} />
-              <PlanejamentoRow numero={3} texto={colaborador.planejamento3} venda={!!(colaborador as any).planejamento3Venda} />
+              <InfoRow label="Planejamento 1" value={colaborador.planejamento1} />
+              <InfoRow label="Planejamento 2" value={colaborador.planejamento2} />
+              <InfoRow label="Planejamento 3" value={colaborador.planejamento3} />
               {colaborador.observacoes && (
                 <div className="mt-3 pt-3 border-t border-border/40">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Observações</p>
