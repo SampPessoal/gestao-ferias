@@ -108,10 +108,6 @@ export const colaboradores = pgTable("colaboradores", {
   planejamento1: varchar("planejamento1", { length: 200 }),
   planejamento2: varchar("planejamento2", { length: 200 }),
   planejamento3: varchar("planejamento3", { length: 200 }),
-  // Venda de 10 dias (abono pecuniário) em cada planejamento
-  planejamento1Venda: boolean("planejamento1Venda").default(false).notNull(),
-  planejamento2Venda: boolean("planejamento2Venda").default(false).notNull(),
-  planejamento3Venda: boolean("planejamento3Venda").default(false).notNull(),
   observacoes: text("observacoes"),
   // Ficha Técnica
   dataNascimento: date("dataNascimento"),

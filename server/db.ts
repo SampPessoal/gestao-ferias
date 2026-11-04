@@ -520,9 +520,6 @@ export async function getColaboradorById(id: number) {
       planejamento1: colaboradores.planejamento1,
       planejamento2: colaboradores.planejamento2,
       planejamento3: colaboradores.planejamento3,
-      planejamento1Venda: colaboradores.planejamento1Venda,
-      planejamento2Venda: colaboradores.planejamento2Venda,
-      planejamento3Venda: colaboradores.planejamento3Venda,
       observacoes: colaboradores.observacoes,
       empresaId: colaboradores.empresaId,
       setorId: colaboradores.setorId,
@@ -609,9 +606,6 @@ export async function updateColaborador(
     planejamento1?: string | null;
     planejamento2?: string | null;
     planejamento3?: string | null;
-    planejamento1Venda?: boolean;
-    planejamento2Venda?: boolean;
-    planejamento3Venda?: boolean;
     observacoes?: string | null;
     status?: "ativo" | "inativo";
     dataDemissao?: string | null;
@@ -970,9 +964,6 @@ export async function getColaboradoresPorSetor(setorId: number) {
       planejamento1: colaboradores.planejamento1,
       planejamento2: colaboradores.planejamento2,
       planejamento3: colaboradores.planejamento3,
-      planejamento1Venda: colaboradores.planejamento1Venda,
-      planejamento2Venda: colaboradores.planejamento2Venda,
-      planejamento3Venda: colaboradores.planejamento3Venda,
       empresaNome: empresas.nome,
       setorNome: setores.nome,
     })
@@ -1034,9 +1025,6 @@ export async function exportColaboradoresCSV(empresaId?: number, setorId?: numbe
       planejamento1: colaboradores.planejamento1,
       planejamento2: colaboradores.planejamento2,
       planejamento3: colaboradores.planejamento3,
-      planejamento1Venda: colaboradores.planejamento1Venda,
-      planejamento2Venda: colaboradores.planejamento2Venda,
-      planejamento3Venda: colaboradores.planejamento3Venda,
       observacoes: colaboradores.observacoes,
       empresaNome: empresas.nome,
       setorNome: setores.nome,
@@ -4761,7 +4749,6 @@ export async function getPlanejamentosFerias(filtros: { ano?: number; empresaId?
     id: colaboradores.id, nome: colaboradores.nome, empresaId: colaboradores.empresaId, setorId: colaboradores.setorId,
     empresaNome: empresas.nome, setorNome: setores.nome,
     p1: colaboradores.planejamento1, p2: colaboradores.planejamento2, p3: colaboradores.planejamento3,
-    v1: colaboradores.planejamento1Venda, v2: colaboradores.planejamento2Venda, v3: colaboradores.planejamento3Venda,
   }).from(colaboradores)
     .leftJoin(empresas, eq(colaboradores.empresaId, empresas.id))
     .leftJoin(setores, eq(colaboradores.setorId, setores.id))
@@ -4772,7 +4759,7 @@ export async function getPlanejamentosFerias(filtros: { ano?: number; empresaId?
   const jaLancado = new Set(lancadas.map(l => `${l.colaboradorId}|${String(l.dataSaida).slice(0, 10)}`));
   const planejados: any[] = []; const naoLidos: any[] = [];
   for (const c of colabs) {
-    ([[1, c.p1, c.v1], [2, c.p2, c.v2], [3, c.p3, c.v3]] as const).forEach(([numero, texto, venda]) => {
+    ([[1, c.p1], [2, c.p2], [3, c.p3]] as const).forEach(([numero, texto]) => {
       if (!texto || !texto.trim()) return;
       const lido = lerPlanejamento(texto);
       if (!lido) { naoLidos.push({ colaboradorId: c.id, colaboradorNome: c.nome, numero, texto }); return; }
@@ -4781,7 +4768,6 @@ export async function getPlanejamentosFerias(filtros: { ano?: number; empresaId?
       planejados.push({
         colaboradorId: c.id, colaboradorNome: c.nome, empresaId: c.empresaId, setorId: c.setorId,
         empresaNome: c.empresaNome, setorNome: c.setorNome, numero, texto, ...lido,
-        vendaDezDias: !!venda,
       });
     });
   }

@@ -81,7 +81,7 @@ type RegistroFerias = {
 type Planejado = {
   colaboradorId: number; colaboradorNome: string; empresaId: number | null; setorId: number | null;
   empresaNome: string | null; setorNome: string | null; numero: 1 | 2 | 3; texto: string;
-  inicio: string; fim: string; dias: number; vendaDezDias?: boolean;
+  inicio: string; fim: string; dias: number;
 };
 
 type FormData = {
@@ -309,8 +309,6 @@ export default function RelacaoFerias() {
       dataFim: p.fim,
       dataRetorno: calcRetorno(p.fim),
       diasGozados: String(p.dias),
-      // Venda de 10 dias marcada no planejamento da ficha
-      ...(p.vendaDezDias ? { venda10: "SIM" as const, diasVendidos: "10" } : {}),
       periodoRef: periodoDoColab(c),
       observacao: `Planejamento ${p.numero}`,
     });
@@ -1021,9 +1019,6 @@ export default function RelacaoFerias() {
                             <TableCell className="text-center"><span className="text-muted-foreground/50 text-xs">—</span></TableCell>
                             <TableCell>
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#fdebd6] text-[#8a4510] whitespace-nowrap">Planejado · {p.numero}</span>
-                              {p.vendaDezDias && (
-                                <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-900 whitespace-nowrap">+10 vendidos</span>
-                              )}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">—</TableCell>
                             <TableCell className="text-sm text-muted-foreground">—</TableCell>
