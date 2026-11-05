@@ -300,6 +300,9 @@ export const appRouter = router({
           planejamento1: z.string().max(200).optional().nullable(),
           planejamento2: z.string().max(200).optional().nullable(),
           planejamento3: z.string().max(200).optional().nullable(),
+          planejamento1Venda: z.boolean().optional(),
+          planejamento2Venda: z.boolean().optional(),
+          planejamento3Venda: z.boolean().optional(),
           observacoes: z.string().max(1000).optional().nullable(),
           // Ficha Técnica
           dataNascimento: z.string().max(10).optional().nullable(),

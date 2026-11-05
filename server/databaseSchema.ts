@@ -20,9 +20,12 @@ export const REQUIRED_DATABASE_COLUMN_TYPES: Readonly<Record<string, Readonly<Re
     dataLimiteAnterior: "date",
     saldoAnterior: "integer",
   },
-  colaboradores: Object.fromEntries(
-    CAMPOS_REGISTRO.map(campo => [campo.chave, catalogType(tipoSql(campo))]),
-  ),
+  colaboradores: Object.fromEntries([
+    ...CAMPOS_REGISTRO.map(campo => [campo.chave, catalogType(tipoSql(campo))]),
+    ["planejamento1Venda", "boolean"],
+    ["planejamento2Venda", "boolean"],
+    ["planejamento3Venda", "boolean"],
+  ]),
   dependentes: {
     id: "integer",
     colaboradorId: "integer",
@@ -51,7 +54,13 @@ export const REQUIRED_DATABASE_COLUMNS: Readonly<Record<string, readonly string[
   );
 
 export const REQUIRED_DATABASE_INDEXES = ["idx_dependentes_colab"] as const;
+export const PLANEJAMENTO_VENDA_COLUMNS = new Set([
+  "colaboradores.planejamento1Venda",
+  "colaboradores.planejamento2Venda",
+  "colaboradores.planejamento3Venda",
+]);
 export const REQUIRED_NOT_NULL_COLUMNS = new Set([
+  ...Array.from(PLANEJAMENTO_VENDA_COLUMNS),
   "dependentes.id",
   "dependentes.colaboradorId",
   "dependentes.nome",
@@ -61,6 +70,7 @@ export const REQUIRED_NOT_NULL_COLUMNS = new Set([
   "systemUsers.sessionVersion",
 ]);
 export const REQUIRED_DEFAULT_COLUMNS = new Set([
+  ...Array.from(PLANEJAMENTO_VENDA_COLUMNS),
   "dependentes.id",
   "dependentes.dependenteIR",
   "dependentes.createdAt",
@@ -105,6 +115,9 @@ export function findDatabaseSchemaIssues(snapshot: DatabaseSchemaSnapshot): stri
     }
     if (REQUIRED_DEFAULT_COLUMNS.has(objectName) && !column.has_default) {
       issues.push(`${objectName} (esperado DEFAULT)`);
+    }
+    if (PLANEJAMENTO_VENDA_COLUMNS.has(objectName) && column.default_expression !== "false") {
+      issues.push(`${objectName} (esperado DEFAULT false)`);
     }
     if (
       objectName === "systemUsers.sessionVersion" &&

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   DatabaseSchemaError,
+  PLANEJAMENTO_VENDA_COLUMNS,
   findDatabaseSchemaIssues,
   REQUIRED_DATABASE_COLUMNS,
   REQUIRED_DATABASE_COLUMN_TYPES,
@@ -15,13 +16,13 @@ const completeSnapshot = () => ({
       table_name,
       column_name,
       actual_type: REQUIRED_DATABASE_COLUMN_TYPES[table_name][column_name],
-      is_not_null: (table_name === "dependentes" && [
+      is_not_null: PLANEJAMENTO_VENDA_COLUMNS.has(`${table_name}.${column_name}`) || (table_name === "dependentes" && [
         "id", "colaboradorId", "nome", "parentesco", "dependenteIR", "createdAt",
       ].includes(column_name)) || (table_name === "systemUsers" && column_name === "sessionVersion"),
-      has_default: (table_name === "dependentes" && [
+      has_default: PLANEJAMENTO_VENDA_COLUMNS.has(`${table_name}.${column_name}`) || (table_name === "dependentes" && [
         "id", "dependenteIR", "createdAt",
       ].includes(column_name)) || (table_name === "systemUsers" && column_name === "sessionVersion"),
-      default_expression: table_name === "systemUsers" && column_name === "sessionVersion" ? "0" : null,
+      default_expression: PLANEJAMENTO_VENDA_COLUMNS.has(`${table_name}.${column_name}`) ? "false" : table_name === "systemUsers" && column_name === "sessionVersion" ? "0" : null,
     })),
   ),
   indexes: [...REQUIRED_DATABASE_INDEXES],
@@ -36,6 +37,29 @@ describe("database schema preflight", () => {
   it("accepts the complete required schema", () => {
     expect(findDatabaseSchemaIssues(completeSnapshot())).toEqual([]);
   });
+
+  it.each([0, 1, 2])("rejects a missing or partial Venda structure (%i present)", count => {
+    const snapshot = completeSnapshot();
+    let seen = 0;
+    snapshot.columns = snapshot.columns.filter(column =>
+      !PLANEJAMENTO_VENDA_COLUMNS.has(`${column.table_name}.${column.column_name}`) || ++seen <= count);
+    const issues = findDatabaseSchemaIssues(snapshot);
+    expect(issues.filter(issue => /planejamento[123]Venda.*ausente/.test(issue))).toHaveLength(3 - count);
+  });
+
+  it.each(["planejamento1Venda", "planejamento2Venda", "planejamento3Venda"])(
+    "rejects incompatible type, nullability and default for %s", name => {
+      const snapshot = completeSnapshot();
+      const column = snapshot.columns.find(c => c.column_name === name)!;
+      column.actual_type = "text";
+      column.is_not_null = false;
+      column.default_expression = "true";
+      expect(findDatabaseSchemaIssues(snapshot)).toEqual([
+        `colaboradores.${name} (esperado boolean; encontrado text)`,
+        `colaboradores.${name} (esperado NOT NULL)`,
+        `colaboradores.${name} (esperado DEFAULT false)`,
+      ]);
+    });
 
   it("reports a missing application column without reading employee data", () => {
     const snapshot = completeSnapshot();
