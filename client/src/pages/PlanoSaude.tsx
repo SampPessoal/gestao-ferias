@@ -1218,6 +1218,16 @@ function Beneficiarios() {
   const [editBenefTipoDepend, setEditBenefTipoDepend] = useState<"Filho/Filha"|"Conjuge"|"Agregado"|"">("Filho/Filha");
   const [editBenefTitularNum, setEditBenefTitularNum] = useState("");
 
+  const [excluirBenef, setExcluirBenef] = useState<Beneficiario | null>(null);
+  const excluirBenefMutation = trpc.planoSaude.excluir.useMutation({
+    onSuccess: (r) => {
+      toast.success(r.excluidos.length > 1 ? `Removidos do plano: ${r.excluidos.join(", ")}` : `${r.excluidos[0]} removido(a) do plano`);
+      setExcluirBenef(null);
+      utils.planoSaude.list.invalidate();
+      utils.planoSaude.resumo.invalidate();
+    },
+    onError: (err) => toast.error("Erro ao remover do plano: " + err.message),
+  });
   const updateBenefMutation = trpc.planoSaude.update.useMutation({
     onSuccess: () => {
       toast.success("Beneficiário atualizado com sucesso!");
@@ -2037,7 +2047,7 @@ function Beneficiarios() {
                               <TableCell className="text-right text-sm" style={{ color: "oklch(0.40 0.10 160)" }}>
                                 {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, familia.titular.idade, "T", familia.titular.mensalidade); return v === null ? "—" : formatMoeda(v); })()}
                               </TableCell>
-                              <TableCell className="text-center">
+                              <TableCell className="text-center whitespace-nowrap">
                                 <Button
                                   size="icon"
                                   variant="ghost"
@@ -2046,6 +2056,15 @@ function Beneficiarios() {
                                   title="Editar beneficiário"
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-red-600 hover:text-red-700"
+                                  onClick={(e) => { e.stopPropagation(); setExcluirBenef(familia.titular); }}
+                                  title="Remover do plano"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </TableCell>
                             </TableRow>
@@ -2073,7 +2092,7 @@ function Beneficiarios() {
                                 <TableCell className="text-right text-sm" style={{ color: "oklch(0.40 0.10 160)" }}>
                                   {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, dep.idade, "D", dep.mensalidade); return v === null ? "—" : formatMoeda(v); })()}
                                 </TableCell>
-                                <TableCell className="text-center">
+                                <TableCell className="text-center whitespace-nowrap">
                                   <Button
                                     size="icon"
                                     variant="ghost"
@@ -2082,6 +2101,15 @@ function Beneficiarios() {
                                     title="Editar dependente"
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-red-600 hover:text-red-700"
+                                    onClick={(e) => { e.stopPropagation(); setExcluirBenef(dep); }}
+                                    title="Remover do plano"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </TableCell>
                               </TableRow>
@@ -2106,6 +2134,29 @@ function Beneficiarios() {
       )}
 
       {/* Modal de Edição de Beneficiário */}
+      <AlertDialog open={excluirBenef !== null} onOpenChange={(open) => { if (!open) setExcluirBenef(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover do plano de saúde?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {excluirBenef?.tipo === "T"
+                ? <>O titular <strong>{excluirBenef?.nome}</strong> sai do plano junto com os dependentes dele. O histórico fica guardado.</>
+                : <>O dependente <strong>{excluirBenef?.nome}</strong> sai do plano; o titular e os outros dependentes continuam. O histórico fica guardado.</>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={excluirBenefMutation.isPending}
+              onClick={() => excluirBenef && excluirBenefMutation.mutate({ id: excluirBenef.id })}
+            >
+              Remover do plano
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={editBenefModal} onOpenChange={(open) => { if (!open) { setEditBenefModal(false); setEditBenefItem(null); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
