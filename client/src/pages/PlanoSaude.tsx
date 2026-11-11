@@ -117,17 +117,17 @@ function formatPlano(plano: string): string {
     .replace("AMIL S750 R1 QP NAC COPART", "AMIL S750");
 }
 
-// Subsídio da empresa — mesma regra do Simulador: 70% do valor do Prata QC (967067)
-// da mesma empresa, faixa etária e tipo (titular/dependente), limitado ao valor do plano.
+// Subsídio da empresa — mesma regra do Simulador: 70% do valor do Prata QC (967067) de titular
+// da mesma empresa e faixa etária, limitado ao valor do plano. Dependente não tem subsídio.
 function calcularSubsidioEmpresa(
   precos: FaixaPreco[], empresa: string, idade: number, tipo: "T" | "D", mensalidade: number,
 ): number | null {
   const faixa = precos.find(
     (p) => p.empresa === empresa && p.codigoPlano === "967067" && p.faixaInicio <= idade && p.faixaFim >= idade,
   );
+  if (tipo === "D") return 0; // subsídio só vale para o funcionário (titular); dependente paga integral
   if (!faixa) return null;
-  const base = tipo === "T" ? Number(faixa.valorTitular) : Number(faixa.valorDependente);
-  return Math.min(base * 0.7, Number(mensalidade));
+  return Math.min(Number(faixa.valorTitular) * 0.7, Number(mensalidade));
 }
 
 function faixaLabel(inicio: number, fim: number): string {
@@ -289,7 +289,7 @@ function Simulador() {
         p.faixaInicio <= idade && p.faixaFim >= idade
     );
     const valorPrata = faixaPrata ? (categoria === "titular" ? Number(faixaPrata.valorTitular) : Number(faixaPrata.valorDependente)) : 0;
-    const subsidio = valorPrata * 0.7;
+    const subsidio = categoria === "titular" ? valorPrata * 0.7 : 0; // dependente não tem subsídio
     const isPrata = plano === PLANO_BASE;
     const valorColaborador = Math.max(0, valorPlano - subsidio);
     return { valorPlano, subsidio, valorColaborador, isPrata, faixaLbl: faixaLabel(faixaPlano.faixaInicio, faixaPlano.faixaFim) };
@@ -428,7 +428,7 @@ function Simulador() {
                   <div className="rounded-xl p-4 text-center border border-border/40" style={{ background: "oklch(0.96 0.02 250)" }}>
                     <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "oklch(0.40 0.10 250)" }}>Empresa Paga</p>
                     <p className="text-2xl font-bold" style={{ color: "oklch(0.22 0.12 250)" }}>{formatMoeda(resultado.subsidio)}</p>
-                    <p className="text-[11px] mt-1.5 font-medium" style={{ color: "oklch(0.50 0.08 250)" }}>70% do Prata QC</p>
+                    <p className="text-[11px] mt-1.5 font-medium" style={{ color: "oklch(0.50 0.08 250)" }}>{categoria === "titular" ? "70% do Prata QC" : "Dependente — sem subsídio"}</p>
                   </div>
                   <div className="rounded-xl p-4 text-center border-2" style={{ background: "oklch(0.96 0.03 30)", borderColor: "oklch(0.75 0.12 30)" }}>
                     <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "oklch(0.45 0.10 30)" }}>Colaborador Paga</p>
@@ -452,8 +452,10 @@ function Simulador() {
                   </div>
                 ) : (
                   <div className="rounded-xl px-4 py-3 border border-border/40" style={{ background: "oklch(0.97 0.005 245)" }}>
-                    <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Plano base — Prata QC</p>
-                    <p className="text-sm text-muted-foreground">A empresa subsidia <strong>70%</strong> do valor total. O colaborador paga os <strong>30%</strong> restantes.</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{categoria === "titular" ? "Plano base — Prata QC" : "Dependente"}</p>
+                    <p className="text-sm text-muted-foreground">{categoria === "titular"
+                      ? <>A empresa subsidia <strong>70%</strong> do valor total. O colaborador paga os <strong>30%</strong> restantes.</>
+                      : <>O subsídio de 70% vale só para o funcionário. Para dependente, o colaborador paga o <strong>valor integral</strong>.</>}</p>
                   </div>
                 )}
               </div>
@@ -1330,7 +1332,7 @@ function Beneficiarios() {
         p.faixaInicio <= idadeCalculada && p.faixaFim >= idadeCalculada
     );
     const valorPrataQC = faixaPrataQC ? (nTipo === "T" ? faixaPrataQC.valorTitular : faixaPrataQC.valorDependente) : 0;
-    const subsidio = valorPrataQC * 0.7; // empresa subsidia 70% do Prata QC
+    const subsidio = nTipo === "T" ? valorPrataQC * 0.7 : 0; // empresa subsidia 70% do Prata QC só para o funcionário
     if (isPlanoPrata(nPlano)) {
       // Prata QC / Prata Enfermaria: colaborador paga 30%
       return { valorBruto, subsidio, valorColaborador: valorBruto - subsidio, isPrata: true };
@@ -1812,7 +1814,7 @@ function Beneficiarios() {
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-xs font-bold" style={{ color: "oklch(0.30 0.10 150)" }}>
                     Resumo do Plano · {idadeCalculada} anos
-                    {calculoSubsidio.isPrata ? " · Prata (70% subsidiado)" : " · Plano superior"}
+                    {nTipo === "D" ? " · Dependente (sem subsídio)" : calculoSubsidio.isPrata ? " · Prata (70% subsidiado)" : " · Plano superior"}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
