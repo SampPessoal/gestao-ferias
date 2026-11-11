@@ -1490,7 +1490,8 @@ function Beneficiarios() {
       Tipo: b.tipo === "T" ? "Titular" : (DEP_LABELS[b.tipoDepend] || "Dependente"),
       Plano: formatPlano(b.plano),
       "Valor do plano (R$)": Number(b.mensalidade),
-      "Subsídio empresa (R$)": calcularSubsidioEmpresa(precos as FaixaPreco[], b.empresa, b.idade, b.tipo, b.mensalidade) ?? "",
+      "Empresa paga (R$)": calcularSubsidioEmpresa(precos as FaixaPreco[], b.empresa, b.idade, b.tipo, b.mensalidade) ?? "",
+      "Colaborador paga (R$)": (() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], b.empresa, b.idade, b.tipo, b.mensalidade); return v === null ? "" : Math.round((Number(b.mensalidade) - v) * 100) / 100; })(),
     }));
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
@@ -1900,7 +1901,8 @@ function Beneficiarios() {
                         <TableHead className="text-center">Tipo</TableHead>
                         <TableHead className="hidden md:table-cell">Plano</TableHead>
                         <TableHead className="text-right">Valor do plano</TableHead>
-                        <TableHead className="text-right">Subsídio empresa</TableHead>
+                        <TableHead className="text-right">Empresa paga</TableHead>
+                        <TableHead className="text-right">Colaborador paga</TableHead>
                         <TableHead className="w-10" />
                       </TableRow>
                     </TableHeader>
@@ -1945,9 +1947,10 @@ function Beneficiarios() {
                               </TableCell>
                               <TableCell className="hidden md:table-cell text-xs">{formatPlano(familia.titular.plano)}</TableCell>
                               <TableCell className="text-right font-semibold text-sm">{formatMoeda(familia.titular.mensalidade)}</TableCell>
-                              <TableCell className="text-right text-sm" style={{ color: "oklch(0.40 0.10 160)" }}>
-                                {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, familia.titular.idade, "T", familia.titular.mensalidade); return v === null ? "—" : formatMoeda(v); })()}
-                              </TableCell>
+                              {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, familia.titular.idade, "T", familia.titular.mensalidade); return (<>
+                                <TableCell className="text-right text-sm font-medium" style={{ color: "oklch(0.30 0.10 252)" }}>{v === null ? "—" : formatMoeda(v)}</TableCell>
+                                <TableCell className="text-right text-sm font-medium" style={{ color: "oklch(0.40 0.14 25)" }}>{v === null ? "—" : formatMoeda(Math.max(0, Number(familia.titular.mensalidade) - v))}</TableCell>
+                              </>); })()}
                               <TableCell className="text-center whitespace-nowrap">
                                 <Button
                                   size="icon"
@@ -1990,9 +1993,10 @@ function Beneficiarios() {
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell text-xs">{formatPlano(dep.plano)}</TableCell>
                                 <TableCell className="text-right font-semibold text-sm">{formatMoeda(dep.mensalidade)}</TableCell>
-                                <TableCell className="text-right text-sm" style={{ color: "oklch(0.40 0.10 160)" }}>
-                                  {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, dep.idade, "D", dep.mensalidade); return v === null ? "—" : formatMoeda(v); })()}
-                                </TableCell>
+                                {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, dep.idade, "D", dep.mensalidade); return (<>
+                                  <TableCell className="text-right text-sm font-medium" style={{ color: "oklch(0.30 0.10 252)" }}>{v === null ? "—" : formatMoeda(v)}</TableCell>
+                                  <TableCell className="text-right text-sm font-medium" style={{ color: "oklch(0.40 0.14 25)" }}>{v === null ? "—" : formatMoeda(Math.max(0, Number(dep.mensalidade) - v))}</TableCell>
+                                </>); })()}
                                 <TableCell className="text-center whitespace-nowrap">
                                   <Button
                                     size="icon"
@@ -2020,7 +2024,7 @@ function Beneficiarios() {
                       })}
                       {familias.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                             Nenhum beneficiário encontrado
                           </TableCell>
                         </TableRow>
