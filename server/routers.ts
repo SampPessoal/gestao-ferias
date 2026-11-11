@@ -1242,11 +1242,11 @@ export const appRouter = router({
       }),
     resumo: protectedProcedure
       .input(z.object({
-        mesReferencia: z.number().int().min(1).max(12).default(7),
-        anoReferencia: z.number().int().min(2020).max(2100).default(2026),
-      }))
+        mesReferencia: z.number().int().min(1).max(12).optional(),
+        anoReferencia: z.number().int().min(2020).max(2100).optional(),
+      }).optional())
       .query(async ({ input }) => {
-        return await getPlanoSaudeResumo(input.mesReferencia, input.anoReferencia);
+        return await getPlanoSaudeResumo(input?.mesReferencia, input?.anoReferencia);
       }),
     // Gera próximo número de beneficiário disponível
     proximoNumero: protectedProcedure
@@ -1276,7 +1276,7 @@ export const appRouter = router({
         const criado = await createPlanoSaude(input);
         const { recalcularTotalFamilia } = await import("./planoSaudeExclusao");
         const titular = input.tipo === "T" ? input.numeroBeneficiario : input.titularNumeroBeneficiario;
-        if (titular) await recalcularTotalFamilia(titular, input.mesReferencia, input.anoReferencia);
+        if (titular) await recalcularTotalFamilia(titular);
         return criado;
       }),
     update: protectedProcedure
