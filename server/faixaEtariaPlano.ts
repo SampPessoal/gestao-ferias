@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { colaboradores, dependentes, planoSaude, tabelaPrecos } from "../drizzle/schema";
 import { getDb } from "./db";
 import { decidirFaixa, idadeNaData, type FaixaPrecoBase } from "../shared/faixaEtaria";
@@ -78,7 +78,8 @@ export async function atualizarFaixasEtariasPlanoSaude(hoje: Date = new Date()):
     if (decisao.acao === "faixa" && Math.abs(decisao.mensalidade - Number(b.mensalidade)) > 0.004) {
       upd.mensalidade = decisao.mensalidade.toFixed(2);
       res.valoresAlterados.push({ nome: b.nome, numeroBeneficiario: b.numeroBeneficiario, idade: decisao.idade, de: Number(b.mensalidade), para: decisao.mensalidade });
-      titularesAfetados.add(`${b.mesReferencia}|${b.anoReferencia}|${b.tipo === "T" ? b.numeroBeneficiario : b.titularNumeroBeneficiario ?? ""}`);
+      const numTitular = b.tipo === "T" ? b.numeroBeneficiario : b.titularNumeroBeneficiario;
+      if (numTitular) titularesAfetados.add(numTitular);
     }
     if (Object.keys(upd).length) {
       upd.updatedAt = new Date();
@@ -87,16 +88,8 @@ export async function atualizarFaixasEtariasPlanoSaude(hoje: Date = new Date()):
   }
 
   // Recalcula o total da família dos titulares cujo valor (dele ou de dependente) mudou.
-  for (const chave of Array.from(titularesAfetados)) {
-    const [mes, ano, numTitular] = chave.split("|");
-    if (!numTitular) continue;
-    const filtroMes = and(eq(planoSaude.mesReferencia, Number(mes)), eq(planoSaude.anoReferencia, Number(ano)), eq(planoSaude.ativo, true));
-    const [titular] = await db.select().from(planoSaude).where(and(filtroMes, eq(planoSaude.numeroBeneficiario, numTitular), eq(planoSaude.tipo, "T")));
-    if (!titular) continue;
-    const deps2 = await db.select().from(planoSaude).where(and(filtroMes, eq(planoSaude.titularNumeroBeneficiario, numTitular)));
-    const total = Number(titular.mensalidade) + deps2.reduce((a, d) => a + Number(d.mensalidade), 0);
-    await db.update(planoSaude).set({ totalFamilia: total.toFixed(2) }).where(eq(planoSaude.id, titular.id));
-  }
+  const { recalcularTotalFamilia } = await import("./planoSaudeExclusao");
+  for (const numTitular of Array.from(titularesAfetados)) await recalcularTotalFamilia(numTitular);
 
   if (res.valoresAlterados.length) {
     console.log(`[faixa etária] ${res.valoresAlterados.length} mensalidade(s) atualizada(s):`,
