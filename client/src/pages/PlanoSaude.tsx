@@ -609,8 +609,6 @@ function Coparticipacao() {
     {
       busca: buscaBenefDebounced || undefined,
       empresa: formEmpresa && formEmpresa !== "todas" ? formEmpresa : undefined,
-      mesReferencia: 7,
-      anoReferencia: 2026,
     },
     { enabled: buscaBenefDebounced.length >= 2 }
   );
@@ -1181,17 +1179,13 @@ function Beneficiarios() {
     return Array.from({ length: 6 }, (_, i) => cur - 2 + i);
   }, []);
 
+  // Cadastro vivo: sempre os beneficiários ativos, sem competência
   const { data: beneficiarios = [], isLoading } = trpc.planoSaude.list.useQuery({
     empresa: empresaFiltro !== "todas" ? empresaFiltro : undefined,
     busca: buscaDebounced || undefined,
-    mesReferencia: mes,
-    anoReferencia: ano,
   });
 
-  const { data: resumo = [] } = trpc.planoSaude.resumo.useQuery({
-    mesReferencia: mes,
-    anoReferencia: ano,
-  });
+  const { data: resumo = [] } = trpc.planoSaude.resumo.useQuery({});
 
   const { data: precos = [] } = trpc.tabelaPrecos.list.useQuery({ empresa: undefined });
 
@@ -1356,22 +1350,6 @@ function Beneficiarios() {
 
   const utils = trpc.useUtils();
 
-  // Gerar competência do próximo mês
-  const [gerarModal, setGerarModal] = useState(false);
-  const gerarMutation = trpc.planoSaude.gerarCompetencia.useMutation({
-    onSuccess: (result) => {
-      utils.planoSaude.list.invalidate();
-      utils.planoSaude.resumo.invalidate();
-      toast.success(`Competência gerada com sucesso! ${result.inseridos} beneficiário(s) copiado(s).`);
-      setGerarModal(false);
-      // Navegar para o mês destino automaticamente
-      const destMes = mes === 12 ? 1 : mes + 1;
-      const destAno = mes === 12 ? ano + 1 : ano;
-      setMes(destMes);
-      setAno(destAno);
-    },
-    onError: (err) => toast.error("Erro ao gerar competência: " + err.message),
-  });
 
   const createMutation = trpc.planoSaude.create.useMutation({
     onSuccess: () => {
@@ -1517,7 +1495,7 @@ function Beneficiarios() {
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Plano de Saúde");
-    XLSX.writeFile(wb, `plano_saude_jul_2026${empresaFiltro !== "todas" ? `_${empresaFiltro}` : ""}.xlsx`);
+    XLSX.writeFile(wb, `plano_saude_${new Date().toISOString().slice(0, 10)}${empresaFiltro !== "todas" ? `_${empresaFiltro}` : ""}.xlsx`);
   };
 
   const empresasExibir = empresaFiltro !== "todas" ? [empresaFiltro] : EMPRESAS;
@@ -1587,34 +1565,10 @@ function Beneficiarios() {
         </div>
       </div>
 
-      {/* Seletor de competência */}
-      <div className="flex items-center gap-2">
-        <Label className="text-sm font-medium shrink-0">Competência:</Label>
-        <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-          <SelectTrigger className="w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MESES_LABELS.map((m, i) => (
-              <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
-          <SelectTrigger className="w-24">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {anos.map((a) => (
-              <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-xs text-muted-foreground ml-1">
-          {(beneficiarios as Beneficiario[]).length > 0
-            ? `${(beneficiarios as Beneficiario[]).length} beneficiário${(beneficiarios as Beneficiario[]).length !== 1 ? "s" : ""}`
-            : isLoading ? "Carregando..." : "Nenhum beneficiário neste mês"}
-        </span>
+      <div className="text-xs text-muted-foreground">
+        {(beneficiarios as Beneficiario[]).length > 0
+          ? `${(beneficiarios as Beneficiario[]).length} beneficiário${(beneficiarios as Beneficiario[]).length !== 1 ? "s" : ""} ativo${(beneficiarios as Beneficiario[]).length !== 1 ? "s" : ""}`
+          : isLoading ? "Carregando..." : "Nenhum beneficiário encontrado"}
       </div>
 
       {/* Filtros + Exportar + Novo */}
@@ -1645,16 +1599,6 @@ function Beneficiarios() {
         </Button>
         <Button
           size="sm"
-          variant="outline"
-          onClick={() => setGerarModal(true)}
-          className="gap-2 shrink-0"
-          title="Gerar competência do próximo mês copiando os beneficiários atuais"
-        >
-          <span className="text-base leading-none">📋</span>
-          Gerar Próximo Mês
-        </Button>
-        <Button
-          size="sm"
           onClick={abrirNovoModal}
           className="gap-2 shrink-0 text-white"
           style={{ background: "oklch(0.20 0.08 252)" }}
@@ -1663,49 +1607,6 @@ function Beneficiarios() {
           Novo Beneficiário
         </Button>
       </div>
-
-      {/* Modal Gerar Competência */}
-      <AlertDialog open={gerarModal} onOpenChange={setGerarModal}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Gerar Competência {mes === 12 ? 1 : mes + 1}/{mes === 12 ? ano + 1 : ano}</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                Esta ação irá copiar todos os <strong>{(beneficiarios as Beneficiario[]).length} beneficiário(s)</strong> da
-                competência <strong>{MESES_LABELS[mes - 1]}/{ano}</strong> para
-                <strong> {MESES_LABELS[(mes === 12 ? 0 : mes)]}/{mes === 12 ? ano + 1 : ano}</strong>.
-              </p>
-              <p className="text-sm">
-                As idades serão recalculadas automaticamente e os valores serão atualizados conforme a tabela de preços vigente.
-                Beneficiários que mudaram de faixa etária terão o valor corrigido.
-              </p>
-              {(beneficiarios as Beneficiario[]).length === 0 && (
-                <p className="text-red-500 text-sm font-medium">
-                  ⚠️ Não há beneficiários na competência atual para copiar.
-                </p>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={gerarMutation.isPending || (beneficiarios as Beneficiario[]).length === 0}
-              onClick={() => {
-                const destMes = mes === 12 ? 1 : mes + 1;
-                const destAno = mes === 12 ? ano + 1 : ano;
-                gerarMutation.mutate({
-                  origemMes: mes,
-                  origemAno: ano,
-                  destinoMes: destMes,
-                  destinoAno: destAno,
-                });
-              }}
-            >
-              {gerarMutation.isPending ? "Gerando..." : "Confirmar e Gerar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Modal Novo Beneficiário */}
       <Dialog open={novoModal} onOpenChange={(open) => { if (!open) fecharNovoModal(); }}>
