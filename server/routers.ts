@@ -378,7 +378,13 @@ export const appRouter = router({
       )
       .mutation(async ({ input }) => {
         await toggleStatusColaborador(input.id, input.status, input.dataDemissao);
-        return { success: true };
+        // Ao desligar o colaborador, ele (e os dependentes) também sai do plano de saúde
+        let planoSaudeExcluidos: string[] = [];
+        if (input.status === "inativo") {
+          const { inativarPlanoDoColaborador } = await import("./planoSaudeExclusao");
+          planoSaudeExcluidos = (await inativarPlanoDoColaborador(input.id)).excluidos;
+        }
+        return { success: true, planoSaudeExcluidos };
       }),
 
     delete: protectedProcedure
@@ -1267,7 +1273,11 @@ export const appRouter = router({
         anoReferencia: z.number().int().min(2020).max(2100),
       }))
       .mutation(async ({ input }) => {
-        return await createPlanoSaude(input);
+        const criado = await createPlanoSaude(input);
+        const { recalcularTotalFamilia } = await import("./planoSaudeExclusao");
+        const titular = input.tipo === "T" ? input.numeroBeneficiario : input.titularNumeroBeneficiario;
+        if (titular) await recalcularTotalFamilia(titular, input.mesReferencia, input.anoReferencia);
+        return criado;
       }),
     update: protectedProcedure
       .input(z.object({
@@ -1287,6 +1297,15 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { id, ...rest } = input;
         await updatePlanoSaude(id, rest);
+        const { recalcularFamiliaDoBeneficiario } = await import("./planoSaudeExclusao");
+        await recalcularFamiliaDoBeneficiario(id);
+      }),
+    // Tira um beneficiário do plano (titular sai com os dependentes); mantém o histórico
+    excluir: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input }) => {
+        const { excluirBeneficiarioDoPlano } = await import("./planoSaudeExclusao");
+        return await excluirBeneficiarioDoPlano(input.id);
       }),
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
