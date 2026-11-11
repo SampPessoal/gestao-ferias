@@ -117,6 +117,19 @@ function formatPlano(plano: string): string {
     .replace("AMIL S750 R1 QP NAC COPART", "AMIL S750");
 }
 
+// Subsídio da empresa — mesma regra do Simulador: 70% do valor do Prata QC (967067)
+// da mesma empresa, faixa etária e tipo (titular/dependente), limitado ao valor do plano.
+function calcularSubsidioEmpresa(
+  precos: FaixaPreco[], empresa: string, idade: number, tipo: "T" | "D", mensalidade: number,
+): number | null {
+  const faixa = precos.find(
+    (p) => p.empresa === empresa && p.codigoPlano === "967067" && p.faixaInicio <= idade && p.faixaFim >= idade,
+  );
+  if (!faixa) return null;
+  const base = tipo === "T" ? Number(faixa.valorTitular) : Number(faixa.valorDependente);
+  return Math.min(base * 0.7, Number(mensalidade));
+}
+
 function faixaLabel(inicio: number, fim: number): string {
   if (fim >= 999) return `59 anos ou mais`;
   if (inicio === 0) return `Até 18 anos`;
@@ -1485,14 +1498,11 @@ function Beneficiarios() {
       Empresa: EMPRESA_LABELS[b.empresa] ?? b.empresa,
       "Nº Beneficiário": b.numeroBeneficiario,
       Nome: b.nome,
-      Matrícula: b.matriculaFuncional || "",
       CPF: formatCPF(b.cpf || ""),
-      Plano: b.plano,
-      Tipo: TIPO_LABELS[b.tipo] ?? b.tipo,
-      Idade: b.idade,
-      Dependência: DEP_LABELS[b.tipoDepend] ?? b.tipoDepend,
-      "Mensalidade (R$)": b.mensalidade,
-      "Total Família (R$)": b.totalFamilia ?? "",
+      Tipo: b.tipo === "T" ? "Titular" : (DEP_LABELS[b.tipoDepend] || "Dependente"),
+      Plano: formatPlano(b.plano),
+      "Valor do plano (R$)": Number(b.mensalidade),
+      "Subsídio empresa (R$)": calcularSubsidioEmpresa(precos as FaixaPreco[], b.empresa, b.idade, b.tipo, b.mensalidade) ?? "",
     }));
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
@@ -1976,12 +1986,11 @@ function Beneficiarios() {
                         <TableHead>Nº Beneficiário</TableHead>
                         <TableHead>Nome</TableHead>
                         <TableHead className="hidden md:table-cell">CPF</TableHead>
-                        <TableHead className="hidden lg:table-cell">Matrícula</TableHead>
-                        <TableHead className="hidden lg:table-cell">Plano</TableHead>
                         <TableHead className="text-center">Tipo</TableHead>
-                        <TableHead className="text-center hidden md:table-cell">Idade</TableHead>
-                        <TableHead className="text-right">Mensalidade</TableHead>
-                        <TableHead className="text-right hidden sm:table-cell">Total Família</TableHead>
+                        <TableHead className="hidden md:table-cell">Plano</TableHead>
+                        <TableHead className="text-right">Valor do plano</TableHead>
+                        <TableHead className="text-right">Subsídio empresa</TableHead>
+                        <TableHead className="w-10" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2005,7 +2014,7 @@ function Beneficiarios() {
                               <TableCell className="font-mono text-xs">{familia.titular.numeroBeneficiario}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  <span className="truncate max-w-[200px]" title={familia.titular.nome}>{familia.titular.nome}</span>
+                                  <span className="whitespace-normal break-words">{familia.titular.nome}</span>
                                   {hasDeps && <Badge variant="secondary" className="text-xs shrink-0">+{familia.dependentes.length} dep.</Badge>}
                                   {mudaFaixa && (
                                     <span title="Muda de faixa etária no próximo aniversário">
@@ -2014,29 +2023,19 @@ function Beneficiarios() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground">
-                                {formatCPF(familia.titular.cpf || "")}
+                              <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground whitespace-nowrap">
+                                {formatCPF(familia.titular.cpf || "") || "—"}
                               </TableCell>
-                              <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-                                {familia.titular.matriculaFuncional || "—"}
-                              </TableCell>
-                              <TableCell className="hidden lg:table-cell text-xs">{formatPlano(familia.titular.plano)}</TableCell>
                               <TableCell className="text-center">
                                 <Badge className="text-xs border-0 font-medium"
                                   style={{ background: "oklch(0.20 0.08 252)", color: "white" }}>
                                   Titular
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-center hidden md:table-cell text-sm">{familia.titular.idade}</TableCell>
+                              <TableCell className="hidden md:table-cell text-xs">{formatPlano(familia.titular.plano)}</TableCell>
                               <TableCell className="text-right font-semibold text-sm">{formatMoeda(familia.titular.mensalidade)}</TableCell>
-                              <TableCell className="text-right hidden sm:table-cell">
-                                {familia.dependentes.length > 0 ? (
-                                  <span className="font-bold text-sm" style={{ color: "oklch(0.50 0.12 68)" }}>
-                                    {formatMoeda(familia.totalFamilia)}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">{formatMoeda(familia.titular.mensalidade)}</span>
-                                )}
+                              <TableCell className="text-right text-sm" style={{ color: "oklch(0.40 0.10 160)" }}>
+                                {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, familia.titular.idade, "T", familia.titular.mensalidade); return v === null ? "—" : formatMoeda(v); })()}
                               </TableCell>
                               <TableCell className="text-center">
                                 <Button
@@ -2055,15 +2054,11 @@ function Beneficiarios() {
                                 <TableCell />
                                 <TableCell className="font-mono text-xs text-muted-foreground pl-6">{dep.numeroBeneficiario}</TableCell>
                                 <TableCell className="pl-6">
-                                  <span className="truncate max-w-[200px] block" title={dep.nome}>{dep.nome}</span>
+                                  <span className="block whitespace-normal break-words">{dep.nome}</span>
                                 </TableCell>
-                                <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground">
-                                  {formatCPF(dep.cpf || "")}
+                                <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground whitespace-nowrap">
+                                  {formatCPF(dep.cpf || "") || "—"}
                                 </TableCell>
-                                <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-                                  {dep.matriculaFuncional || "—"}
-                                </TableCell>
-                                <TableCell className="hidden lg:table-cell text-xs">{formatPlano(dep.plano)}</TableCell>
                                 <TableCell className="text-center">
                                   <Badge variant="outline" className="text-xs border font-medium"
                                     style={dep.tipoDepend === "Conjuge"
@@ -2073,9 +2068,11 @@ function Beneficiarios() {
                                     {DEP_LABELS[dep.tipoDepend] || "Dependente"}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="text-center hidden md:table-cell text-sm">{dep.idade}</TableCell>
+                                <TableCell className="hidden md:table-cell text-xs">{formatPlano(dep.plano)}</TableCell>
                                 <TableCell className="text-right font-semibold text-sm">{formatMoeda(dep.mensalidade)}</TableCell>
-                                <TableCell className="hidden sm:table-cell" />
+                                <TableCell className="text-right text-sm" style={{ color: "oklch(0.40 0.10 160)" }}>
+                                  {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, dep.idade, "D", dep.mensalidade); return v === null ? "—" : formatMoeda(v); })()}
+                                </TableCell>
                                 <TableCell className="text-center">
                                   <Button
                                     size="icon"
@@ -2094,7 +2091,7 @@ function Beneficiarios() {
                       })}
                       {familias.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                             Nenhum beneficiário encontrado
                           </TableCell>
                         </TableRow>
