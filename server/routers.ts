@@ -1217,6 +1217,12 @@ export const appRouter = router({
       }),
   }),
   planoSaude: router({
+    // Atualiza idade e mensalidade pela faixa etária (também roda sozinho a cada 6h)
+    atualizarFaixasEtarias: protectedProcedure
+      .mutation(async () => {
+        const { atualizarFaixasEtariasPlanoSaude } = await import("./faixaEtariaPlano");
+        return await atualizarFaixasEtariasPlanoSaude();
+      }),
     list: protectedProcedure
       .input(z.object({
         empresa: z.string().optional(),
