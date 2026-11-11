@@ -4,11 +4,11 @@ import { getDb } from "./db";
 
 const soDigitos = (s: string | null | undefined) => (s || "").replace(/\D/g, "");
 
-/** Recalcula o total da família (titular + dependentes ativos) do titular informado, na competência informada. */
-export async function recalcularTotalFamilia(numeroTitular: string, mes: number, ano: number) {
+/** Recalcula o total da família (titular + dependentes ativos) do titular informado. */
+export async function recalcularTotalFamilia(numeroTitular: string) {
   const db = await getDb();
   if (!db || !numeroTitular) return;
-  const filtro = and(eq(planoSaude.mesReferencia, mes), eq(planoSaude.anoReferencia, ano), eq(planoSaude.ativo, true));
+  const filtro = eq(planoSaude.ativo, true);
   const [titular] = await db.select().from(planoSaude)
     .where(and(filtro, eq(planoSaude.numeroBeneficiario, numeroTitular), eq(planoSaude.tipo, "T")));
   if (!titular) return;
@@ -24,7 +24,7 @@ export async function recalcularFamiliaDoBeneficiario(id: number) {
   const [b] = await db.select().from(planoSaude).where(eq(planoSaude.id, id));
   if (!b) return;
   const titular = b.tipo === "T" ? b.numeroBeneficiario : b.titularNumeroBeneficiario;
-  if (titular) await recalcularTotalFamilia(titular, b.mesReferencia, b.anoReferencia);
+  if (titular) await recalcularTotalFamilia(titular);
 }
 
 /**
@@ -41,13 +41,12 @@ export async function excluirBeneficiarioDoPlano(id: number): Promise<{ excluido
   if (b.tipo === "T") {
     const deps = await db.select().from(planoSaude).where(and(
       eq(planoSaude.titularNumeroBeneficiario, b.numeroBeneficiario),
-      eq(planoSaude.mesReferencia, b.mesReferencia), eq(planoSaude.anoReferencia, b.anoReferencia),
       eq(planoSaude.ativo, true),
     ));
     for (const d of deps) { ids.push(d.id); nomes.push(d.nome); }
   }
   await db.update(planoSaude).set({ ativo: false, updatedAt: new Date() }).where(inArray(planoSaude.id, ids));
-  if (b.tipo === "D" && b.titularNumeroBeneficiario) await recalcularTotalFamilia(b.titularNumeroBeneficiario, b.mesReferencia, b.anoReferencia);
+  if (b.tipo === "D" && b.titularNumeroBeneficiario) await recalcularTotalFamilia(b.titularNumeroBeneficiario);
   return { excluidos: nomes };
 }
 
