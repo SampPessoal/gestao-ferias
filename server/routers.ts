@@ -378,7 +378,13 @@ export const appRouter = router({
       )
       .mutation(async ({ input }) => {
         await toggleStatusColaborador(input.id, input.status, input.dataDemissao);
-        return { success: true };
+        // Ao desligar o colaborador, ele (e os dependentes) também sai do plano de saúde
+        let planoSaudeExcluidos: string[] = [];
+        if (input.status === "inativo") {
+          const { inativarPlanoDoColaborador } = await import("./planoSaudeExclusao");
+          planoSaudeExcluidos = (await inativarPlanoDoColaborador(input.id)).excluidos;
+        }
+        return { success: true, planoSaudeExcluidos };
       }),
 
     delete: protectedProcedure
@@ -1217,6 +1223,12 @@ export const appRouter = router({
       }),
   }),
   planoSaude: router({
+    // Atualiza idade e mensalidade pela faixa etária (também roda sozinho a cada 6h)
+    atualizarFaixasEtarias: protectedProcedure
+      .mutation(async () => {
+        const { atualizarFaixasEtariasPlanoSaude } = await import("./faixaEtariaPlano");
+        return await atualizarFaixasEtariasPlanoSaude();
+      }),
     list: protectedProcedure
       .input(z.object({
         empresa: z.string().optional(),
@@ -1230,11 +1242,11 @@ export const appRouter = router({
       }),
     resumo: protectedProcedure
       .input(z.object({
-        mesReferencia: z.number().int().min(1).max(12).default(7),
-        anoReferencia: z.number().int().min(2020).max(2100).default(2026),
-      }))
+        mesReferencia: z.number().int().min(1).max(12).optional(),
+        anoReferencia: z.number().int().min(2020).max(2100).optional(),
+      }).optional())
       .query(async ({ input }) => {
-        return await getPlanoSaudeResumo(input.mesReferencia, input.anoReferencia);
+        return await getPlanoSaudeResumo(input?.mesReferencia, input?.anoReferencia);
       }),
     // Gera próximo número de beneficiário disponível
     proximoNumero: protectedProcedure
@@ -1261,7 +1273,11 @@ export const appRouter = router({
         anoReferencia: z.number().int().min(2020).max(2100),
       }))
       .mutation(async ({ input }) => {
-        return await createPlanoSaude(input);
+        const criado = await createPlanoSaude(input);
+        const { recalcularTotalFamilia } = await import("./planoSaudeExclusao");
+        const titular = input.tipo === "T" ? input.numeroBeneficiario : input.titularNumeroBeneficiario;
+        if (titular) await recalcularTotalFamilia(titular);
+        return criado;
       }),
     update: protectedProcedure
       .input(z.object({
@@ -1281,6 +1297,15 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { id, ...rest } = input;
         await updatePlanoSaude(id, rest);
+        const { recalcularFamiliaDoBeneficiario } = await import("./planoSaudeExclusao");
+        await recalcularFamiliaDoBeneficiario(id);
+      }),
+    // Tira um beneficiário do plano (titular sai com os dependentes); mantém o histórico
+    excluir: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input }) => {
+        const { excluirBeneficiarioDoPlano } = await import("./planoSaudeExclusao");
+        return await excluirBeneficiarioDoPlano(input.id);
       }),
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))

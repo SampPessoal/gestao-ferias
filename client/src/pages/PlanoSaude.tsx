@@ -117,6 +117,19 @@ function formatPlano(plano: string): string {
     .replace("AMIL S750 R1 QP NAC COPART", "AMIL S750");
 }
 
+// Subsídio da empresa — mesma regra do Simulador: 70% do valor do Prata QC (967067)
+// da mesma empresa, faixa etária e tipo (titular/dependente), limitado ao valor do plano.
+function calcularSubsidioEmpresa(
+  precos: FaixaPreco[], empresa: string, idade: number, tipo: "T" | "D", mensalidade: number,
+): number | null {
+  const faixa = precos.find(
+    (p) => p.empresa === empresa && p.codigoPlano === "967067" && p.faixaInicio <= idade && p.faixaFim >= idade,
+  );
+  if (!faixa) return null;
+  const base = tipo === "T" ? Number(faixa.valorTitular) : Number(faixa.valorDependente);
+  return Math.min(base * 0.7, Number(mensalidade));
+}
+
 function faixaLabel(inicio: number, fim: number): string {
   if (fim >= 999) return `59 anos ou mais`;
   if (inicio === 0) return `Até 18 anos`;
@@ -596,8 +609,6 @@ function Coparticipacao() {
     {
       busca: buscaBenefDebounced || undefined,
       empresa: formEmpresa && formEmpresa !== "todas" ? formEmpresa : undefined,
-      mesReferencia: 7,
-      anoReferencia: 2026,
     },
     { enabled: buscaBenefDebounced.length >= 2 }
   );
@@ -1168,17 +1179,13 @@ function Beneficiarios() {
     return Array.from({ length: 6 }, (_, i) => cur - 2 + i);
   }, []);
 
+  // Cadastro vivo: sempre os beneficiários ativos, sem competência
   const { data: beneficiarios = [], isLoading } = trpc.planoSaude.list.useQuery({
     empresa: empresaFiltro !== "todas" ? empresaFiltro : undefined,
     busca: buscaDebounced || undefined,
-    mesReferencia: mes,
-    anoReferencia: ano,
   });
 
-  const { data: resumo = [] } = trpc.planoSaude.resumo.useQuery({
-    mesReferencia: mes,
-    anoReferencia: ano,
-  });
+  const { data: resumo = [] } = trpc.planoSaude.resumo.useQuery({});
 
   const { data: precos = [] } = trpc.tabelaPrecos.list.useQuery({ empresa: undefined });
 
@@ -1205,6 +1212,16 @@ function Beneficiarios() {
   const [editBenefTipoDepend, setEditBenefTipoDepend] = useState<"Filho/Filha"|"Conjuge"|"Agregado"|"">("Filho/Filha");
   const [editBenefTitularNum, setEditBenefTitularNum] = useState("");
 
+  const [excluirBenef, setExcluirBenef] = useState<Beneficiario | null>(null);
+  const excluirBenefMutation = trpc.planoSaude.excluir.useMutation({
+    onSuccess: (r) => {
+      toast.success(r.excluidos.length > 1 ? `Removidos do plano: ${r.excluidos.join(", ")}` : `${r.excluidos[0]} removido(a) do plano`);
+      setExcluirBenef(null);
+      utils.planoSaude.list.invalidate();
+      utils.planoSaude.resumo.invalidate();
+    },
+    onError: (err) => toast.error("Erro ao remover do plano: " + err.message),
+  });
   const updateBenefMutation = trpc.planoSaude.update.useMutation({
     onSuccess: () => {
       toast.success("Beneficiário atualizado com sucesso!");
@@ -1333,22 +1350,6 @@ function Beneficiarios() {
 
   const utils = trpc.useUtils();
 
-  // Gerar competência do próximo mês
-  const [gerarModal, setGerarModal] = useState(false);
-  const gerarMutation = trpc.planoSaude.gerarCompetencia.useMutation({
-    onSuccess: (result) => {
-      utils.planoSaude.list.invalidate();
-      utils.planoSaude.resumo.invalidate();
-      toast.success(`Competência gerada com sucesso! ${result.inseridos} beneficiário(s) copiado(s).`);
-      setGerarModal(false);
-      // Navegar para o mês destino automaticamente
-      const destMes = mes === 12 ? 1 : mes + 1;
-      const destAno = mes === 12 ? ano + 1 : ano;
-      setMes(destMes);
-      setAno(destAno);
-    },
-    onError: (err) => toast.error("Erro ao gerar competência: " + err.message),
-  });
 
   const createMutation = trpc.planoSaude.create.useMutation({
     onSuccess: () => {
@@ -1485,19 +1486,16 @@ function Beneficiarios() {
       Empresa: EMPRESA_LABELS[b.empresa] ?? b.empresa,
       "Nº Beneficiário": b.numeroBeneficiario,
       Nome: b.nome,
-      Matrícula: b.matriculaFuncional || "",
       CPF: formatCPF(b.cpf || ""),
-      Plano: b.plano,
-      Tipo: TIPO_LABELS[b.tipo] ?? b.tipo,
-      Idade: b.idade,
-      Dependência: DEP_LABELS[b.tipoDepend] ?? b.tipoDepend,
-      "Mensalidade (R$)": b.mensalidade,
-      "Total Família (R$)": b.totalFamilia ?? "",
+      Tipo: b.tipo === "T" ? "Titular" : (DEP_LABELS[b.tipoDepend] || "Dependente"),
+      Plano: formatPlano(b.plano),
+      "Valor do plano (R$)": Number(b.mensalidade),
+      "Subsídio empresa (R$)": calcularSubsidioEmpresa(precos as FaixaPreco[], b.empresa, b.idade, b.tipo, b.mensalidade) ?? "",
     }));
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Plano de Saúde");
-    XLSX.writeFile(wb, `plano_saude_jul_2026${empresaFiltro !== "todas" ? `_${empresaFiltro}` : ""}.xlsx`);
+    XLSX.writeFile(wb, `plano_saude_${new Date().toISOString().slice(0, 10)}${empresaFiltro !== "todas" ? `_${empresaFiltro}` : ""}.xlsx`);
   };
 
   const empresasExibir = empresaFiltro !== "todas" ? [empresaFiltro] : EMPRESAS;
@@ -1567,34 +1565,10 @@ function Beneficiarios() {
         </div>
       </div>
 
-      {/* Seletor de competência */}
-      <div className="flex items-center gap-2">
-        <Label className="text-sm font-medium shrink-0">Competência:</Label>
-        <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-          <SelectTrigger className="w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MESES_LABELS.map((m, i) => (
-              <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
-          <SelectTrigger className="w-24">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {anos.map((a) => (
-              <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-xs text-muted-foreground ml-1">
-          {(beneficiarios as Beneficiario[]).length > 0
-            ? `${(beneficiarios as Beneficiario[]).length} beneficiário${(beneficiarios as Beneficiario[]).length !== 1 ? "s" : ""}`
-            : isLoading ? "Carregando..." : "Nenhum beneficiário neste mês"}
-        </span>
+      <div className="text-xs text-muted-foreground">
+        {(beneficiarios as Beneficiario[]).length > 0
+          ? `${(beneficiarios as Beneficiario[]).length} beneficiário${(beneficiarios as Beneficiario[]).length !== 1 ? "s" : ""} ativo${(beneficiarios as Beneficiario[]).length !== 1 ? "s" : ""}`
+          : isLoading ? "Carregando..." : "Nenhum beneficiário encontrado"}
       </div>
 
       {/* Filtros + Exportar + Novo */}
@@ -1625,16 +1599,6 @@ function Beneficiarios() {
         </Button>
         <Button
           size="sm"
-          variant="outline"
-          onClick={() => setGerarModal(true)}
-          className="gap-2 shrink-0"
-          title="Gerar competência do próximo mês copiando os beneficiários atuais"
-        >
-          <span className="text-base leading-none">📋</span>
-          Gerar Próximo Mês
-        </Button>
-        <Button
-          size="sm"
           onClick={abrirNovoModal}
           className="gap-2 shrink-0 text-white"
           style={{ background: "oklch(0.20 0.08 252)" }}
@@ -1643,49 +1607,6 @@ function Beneficiarios() {
           Novo Beneficiário
         </Button>
       </div>
-
-      {/* Modal Gerar Competência */}
-      <AlertDialog open={gerarModal} onOpenChange={setGerarModal}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Gerar Competência {mes === 12 ? 1 : mes + 1}/{mes === 12 ? ano + 1 : ano}</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                Esta ação irá copiar todos os <strong>{(beneficiarios as Beneficiario[]).length} beneficiário(s)</strong> da
-                competência <strong>{MESES_LABELS[mes - 1]}/{ano}</strong> para
-                <strong> {MESES_LABELS[(mes === 12 ? 0 : mes)]}/{mes === 12 ? ano + 1 : ano}</strong>.
-              </p>
-              <p className="text-sm">
-                As idades serão recalculadas automaticamente e os valores serão atualizados conforme a tabela de preços vigente.
-                Beneficiários que mudaram de faixa etária terão o valor corrigido.
-              </p>
-              {(beneficiarios as Beneficiario[]).length === 0 && (
-                <p className="text-red-500 text-sm font-medium">
-                  ⚠️ Não há beneficiários na competência atual para copiar.
-                </p>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={gerarMutation.isPending || (beneficiarios as Beneficiario[]).length === 0}
-              onClick={() => {
-                const destMes = mes === 12 ? 1 : mes + 1;
-                const destAno = mes === 12 ? ano + 1 : ano;
-                gerarMutation.mutate({
-                  origemMes: mes,
-                  origemAno: ano,
-                  destinoMes: destMes,
-                  destinoAno: destAno,
-                });
-              }}
-            >
-              {gerarMutation.isPending ? "Gerando..." : "Confirmar e Gerar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Modal Novo Beneficiário */}
       <Dialog open={novoModal} onOpenChange={(open) => { if (!open) fecharNovoModal(); }}>
@@ -1976,12 +1897,11 @@ function Beneficiarios() {
                         <TableHead>Nº Beneficiário</TableHead>
                         <TableHead>Nome</TableHead>
                         <TableHead className="hidden md:table-cell">CPF</TableHead>
-                        <TableHead className="hidden lg:table-cell">Matrícula</TableHead>
-                        <TableHead className="hidden lg:table-cell">Plano</TableHead>
                         <TableHead className="text-center">Tipo</TableHead>
-                        <TableHead className="text-center hidden md:table-cell">Idade</TableHead>
-                        <TableHead className="text-right">Mensalidade</TableHead>
-                        <TableHead className="text-right hidden sm:table-cell">Total Família</TableHead>
+                        <TableHead className="hidden md:table-cell">Plano</TableHead>
+                        <TableHead className="text-right">Valor do plano</TableHead>
+                        <TableHead className="text-right">Subsídio empresa</TableHead>
+                        <TableHead className="w-10" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2005,7 +1925,7 @@ function Beneficiarios() {
                               <TableCell className="font-mono text-xs">{familia.titular.numeroBeneficiario}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  <span className="truncate max-w-[200px]" title={familia.titular.nome}>{familia.titular.nome}</span>
+                                  <span className="whitespace-normal break-words">{familia.titular.nome}</span>
                                   {hasDeps && <Badge variant="secondary" className="text-xs shrink-0">+{familia.dependentes.length} dep.</Badge>}
                                   {mudaFaixa && (
                                     <span title="Muda de faixa etária no próximo aniversário">
@@ -2014,31 +1934,21 @@ function Beneficiarios() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground">
-                                {formatCPF(familia.titular.cpf || "")}
+                              <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground whitespace-nowrap">
+                                {formatCPF(familia.titular.cpf || "") || "—"}
                               </TableCell>
-                              <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-                                {familia.titular.matriculaFuncional || "—"}
-                              </TableCell>
-                              <TableCell className="hidden lg:table-cell text-xs">{formatPlano(familia.titular.plano)}</TableCell>
                               <TableCell className="text-center">
                                 <Badge className="text-xs border-0 font-medium"
                                   style={{ background: "oklch(0.20 0.08 252)", color: "white" }}>
                                   Titular
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-center hidden md:table-cell text-sm">{familia.titular.idade}</TableCell>
+                              <TableCell className="hidden md:table-cell text-xs">{formatPlano(familia.titular.plano)}</TableCell>
                               <TableCell className="text-right font-semibold text-sm">{formatMoeda(familia.titular.mensalidade)}</TableCell>
-                              <TableCell className="text-right hidden sm:table-cell">
-                                {familia.dependentes.length > 0 ? (
-                                  <span className="font-bold text-sm" style={{ color: "oklch(0.50 0.12 68)" }}>
-                                    {formatMoeda(familia.totalFamilia)}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">{formatMoeda(familia.titular.mensalidade)}</span>
-                                )}
+                              <TableCell className="text-right text-sm" style={{ color: "oklch(0.40 0.10 160)" }}>
+                                {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, familia.titular.idade, "T", familia.titular.mensalidade); return v === null ? "—" : formatMoeda(v); })()}
                               </TableCell>
-                              <TableCell className="text-center">
+                              <TableCell className="text-center whitespace-nowrap">
                                 <Button
                                   size="icon"
                                   variant="ghost"
@@ -2048,6 +1958,15 @@ function Beneficiarios() {
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-red-600 hover:text-red-700"
+                                  onClick={(e) => { e.stopPropagation(); setExcluirBenef(familia.titular); }}
+                                  title="Remover do plano"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
                               </TableCell>
                             </TableRow>
                             {expanded && familia.dependentes.map((dep) => (
@@ -2055,15 +1974,11 @@ function Beneficiarios() {
                                 <TableCell />
                                 <TableCell className="font-mono text-xs text-muted-foreground pl-6">{dep.numeroBeneficiario}</TableCell>
                                 <TableCell className="pl-6">
-                                  <span className="truncate max-w-[200px] block" title={dep.nome}>{dep.nome}</span>
+                                  <span className="block whitespace-normal break-words">{dep.nome}</span>
                                 </TableCell>
-                                <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground">
-                                  {formatCPF(dep.cpf || "")}
+                                <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground whitespace-nowrap">
+                                  {formatCPF(dep.cpf || "") || "—"}
                                 </TableCell>
-                                <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-                                  {dep.matriculaFuncional || "—"}
-                                </TableCell>
-                                <TableCell className="hidden lg:table-cell text-xs">{formatPlano(dep.plano)}</TableCell>
                                 <TableCell className="text-center">
                                   <Badge variant="outline" className="text-xs border font-medium"
                                     style={dep.tipoDepend === "Conjuge"
@@ -2073,10 +1988,12 @@ function Beneficiarios() {
                                     {DEP_LABELS[dep.tipoDepend] || "Dependente"}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="text-center hidden md:table-cell text-sm">{dep.idade}</TableCell>
+                                <TableCell className="hidden md:table-cell text-xs">{formatPlano(dep.plano)}</TableCell>
                                 <TableCell className="text-right font-semibold text-sm">{formatMoeda(dep.mensalidade)}</TableCell>
-                                <TableCell className="hidden sm:table-cell" />
-                                <TableCell className="text-center">
+                                <TableCell className="text-right text-sm" style={{ color: "oklch(0.40 0.10 160)" }}>
+                                  {(() => { const v = calcularSubsidioEmpresa(precos as FaixaPreco[], emp, dep.idade, "D", dep.mensalidade); return v === null ? "—" : formatMoeda(v); })()}
+                                </TableCell>
+                                <TableCell className="text-center whitespace-nowrap">
                                   <Button
                                     size="icon"
                                     variant="ghost"
@@ -2086,6 +2003,15 @@ function Beneficiarios() {
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-red-600 hover:text-red-700"
+                                    onClick={(e) => { e.stopPropagation(); setExcluirBenef(dep); }}
+                                    title="Remover do plano"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -2094,7 +2020,7 @@ function Beneficiarios() {
                       })}
                       {familias.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                             Nenhum beneficiário encontrado
                           </TableCell>
                         </TableRow>
@@ -2109,6 +2035,29 @@ function Beneficiarios() {
       )}
 
       {/* Modal de Edição de Beneficiário */}
+      <AlertDialog open={excluirBenef !== null} onOpenChange={(open) => { if (!open) setExcluirBenef(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover do plano de saúde?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {excluirBenef?.tipo === "T"
+                ? <>O titular <strong>{excluirBenef?.nome}</strong> sai do plano junto com os dependentes dele. O histórico fica guardado.</>
+                : <>O dependente <strong>{excluirBenef?.nome}</strong> sai do plano; o titular e os outros dependentes continuam. O histórico fica guardado.</>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={excluirBenefMutation.isPending}
+              onClick={() => excluirBenef && excluirBenefMutation.mutate({ id: excluirBenef.id })}
+            >
+              Remover do plano
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={editBenefModal} onOpenChange={(open) => { if (!open) { setEditBenefModal(false); setEditBenefItem(null); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
