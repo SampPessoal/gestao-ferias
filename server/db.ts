@@ -3183,14 +3183,14 @@ export async function getPlanoSaude(params: {
 }): Promise<any[]> {
   const db = await getDb();
   if (!db) return [];
-  const { empresa, tipo, busca, mesReferencia = 7, anoReferencia = 2026 } = params;
+  const { empresa, tipo, busca, mesReferencia, anoReferencia } = params;
   const { like } = await import("drizzle-orm");
 
-  const conditions: any[] = [
-    eq(planoSaude.ativo, true),
-    eq(planoSaude.mesReferencia, mesReferencia),
-    eq(planoSaude.anoReferencia, anoReferencia),
-  ];
+  // Cadastro vivo: sem competência informada, lista todos os beneficiários ativos
+  const conditions: any[] = [eq(planoSaude.ativo, true)];
+  if (mesReferencia && anoReferencia) {
+    conditions.push(eq(planoSaude.mesReferencia, mesReferencia), eq(planoSaude.anoReferencia, anoReferencia));
+  }
 
   if (empresa) conditions.push(eq(planoSaude.empresa, empresa as any));
   if (tipo) conditions.push(eq(planoSaude.tipo, tipo as any));
@@ -3219,7 +3219,7 @@ export async function getPlanoSaude(params: {
   }));
 }
 
-export async function getPlanoSaudeResumo(mesReferencia: number, anoReferencia: number): Promise<any[]> {
+export async function getPlanoSaudeResumo(mesReferencia?: number, anoReferencia?: number): Promise<any[]> {
   const db = await getDb();
   if (!db) return [];
 
@@ -3233,8 +3233,9 @@ export async function getPlanoSaudeResumo(mesReferencia: number, anoReferencia: 
     .from(planoSaude)
     .where(and(
       eq(planoSaude.ativo, true),
-      eq(planoSaude.mesReferencia, mesReferencia),
-      eq(planoSaude.anoReferencia, anoReferencia),
+      ...(mesReferencia && anoReferencia
+        ? [eq(planoSaude.mesReferencia, mesReferencia), eq(planoSaude.anoReferencia, anoReferencia)]
+        : []),
     ))
     .groupBy(planoSaude.empresa, planoSaude.tipo);
 
