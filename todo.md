@@ -597,3 +597,5 @@ Quando o colaborador sai de férias dentro de 1 mês antes do vencimento do per�
 - [x] Ao selecionar colaborador, buscar o valor do seguro de vida da empresa e preencher o campo valor
 - [x] Exibir empresa como campo somente leitura (não editável) no formulário
 - [x] TypeScript: 0 erros
+
+- [x] Plano de saúde: subsídio de 70% só para o titular (PR #52) — republicação após falha de deploy
