@@ -25,7 +25,7 @@ const PARENTESCOS = ["Conjuge", "Filho/Filha", "Agregado"] as const;
 
 type Beneficiario = {
   id: number; empresa: Empresa; numeroOdontoprev: string; nome: string; cpf: string | null;
-  tipo: "T" | "D"; parentesco: string; titularNumeroOdontoprev: string | null;
+  tipo: "T" | "D"; parentesco: string; plano: string; titularNumeroOdontoprev: string | null;
   dataInclusao: string | null; valor: number;
 };
 type Familia = { titular: Beneficiario; dependentes: Beneficiario[]; total: number };
@@ -37,11 +37,11 @@ const parentescoLabel = (p: string) => (p === "Conjuge" ? "Cônjuge" : p || "Dep
 
 type Form = {
   id?: number; empresa: Empresa; numeroOdontoprev: string; nome: string; cpf: string; tipo: "T" | "D";
-  parentesco: string; titularNumeroOdontoprev: string; dataInclusao: string; valor: string;
+  parentesco: string; plano: "Integral DOC" | "Master"; titularNumeroOdontoprev: string; dataInclusao: string; valor: string;
 };
 const formVazio = (): Form => ({
   empresa: "SUDOESTE", numeroOdontoprev: "", nome: "", cpf: "", tipo: "T",
-  parentesco: "Filho/Filha", titularNumeroOdontoprev: "", dataInclusao: new Date().toISOString().slice(0, 10), valor: "",
+  parentesco: "Filho/Filha", plano: "Integral DOC", titularNumeroOdontoprev: "", dataInclusao: new Date().toISOString().slice(0, 10), valor: "",
 });
 
 export default function PlanoOdontologico() {
@@ -109,7 +109,7 @@ export default function PlanoOdontologico() {
     if (form.tipo === "D" && !form.titularNumeroOdontoprev) return toast.error("Escolha o titular do dependente");
     const dados = {
       empresa: form.empresa, numeroOdontoprev: form.numeroOdontoprev.trim(), nome: form.nome.trim(),
-      cpf: form.cpf || null, tipo: form.tipo, parentesco: form.tipo === "D" ? form.parentesco : "",
+      cpf: form.cpf || null, tipo: form.tipo, parentesco: form.tipo === "D" ? form.parentesco : "", plano: form.plano,
       titularNumeroOdontoprev: form.tipo === "D" ? form.titularNumeroOdontoprev : null,
       dataInclusao: form.dataInclusao || null, valor,
     };
@@ -118,14 +118,14 @@ export default function PlanoOdontologico() {
 
   const editar = (b: Beneficiario) => setForm({
     id: b.id, empresa: b.empresa, numeroOdontoprev: b.numeroOdontoprev, nome: b.nome, cpf: b.cpf || "",
-    tipo: b.tipo, parentesco: b.parentesco || "Filho/Filha", titularNumeroOdontoprev: b.titularNumeroOdontoprev || "",
+    tipo: b.tipo, parentesco: b.parentesco || "Filho/Filha", plano: b.plano === "Master" ? "Master" : "Integral DOC", titularNumeroOdontoprev: b.titularNumeroOdontoprev || "",
     dataInclusao: b.dataInclusao || "", valor: b.valor.toFixed(2).replace(".", ","),
   });
 
   const exportar = () => {
     const linhas = porEmpresa.flatMap(({ empresa, familias }) => familias.flatMap((f) => [f.titular, ...f.dependentes].map((b) => ({
       Empresa: EMPRESA_LABELS[empresa], "Nº OdontoPrev": b.numeroOdontoprev, Nome: b.nome, CPF: formatCPF(b.cpf),
-      Tipo: b.tipo === "T" ? "Titular" : parentescoLabel(b.parentesco),
+      Tipo: b.tipo === "T" ? "Titular" : parentescoLabel(b.parentesco), Plano: b.plano,
       Titular: b.tipo === "D" ? f.titular.nome : "", Dependentes: b.tipo === "T" ? f.dependentes.length : "",
       "Data de inclusão": formatData(b.dataInclusao), "Valor (R$)": b.valor, "Total família (R$)": b.tipo === "T" ? f.total : "",
     }))));
@@ -237,6 +237,7 @@ export default function PlanoOdontologico() {
                         <TableHead>Nome</TableHead>
                         <TableHead className="hidden md:table-cell">CPF</TableHead>
                         <TableHead className="text-center">Tipo</TableHead>
+                        <TableHead>Plano</TableHead>
                         <TableHead className="text-center">Dependentes</TableHead>
                         <TableHead>Data de inclusão</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
@@ -258,6 +259,7 @@ export default function PlanoOdontologico() {
                                 ? <Badge className="text-xs border-0" style={{ background: "oklch(0.20 0.08 252)", color: "white" }}>Titular</Badge>
                                 : <Badge variant="outline" className="text-xs">{parentescoLabel(f.titular.parentesco)}</Badge>}
                             </TableCell>
+                            <TableCell className="text-xs whitespace-nowrap">{f.titular.plano}</TableCell>
                             <TableCell className="text-center">{f.titular.tipo === "T" ? (temDep ? <Badge variant="secondary">{f.dependentes.length}</Badge> : "0") : "—"}</TableCell>
                             <TableCell className="text-sm">{formatData(f.titular.dataInclusao)}</TableCell>
                             <TableCell className="text-right font-semibold text-sm"><PrivacyValue value={formatMoeda(f.titular.valor)} /></TableCell>
@@ -271,6 +273,7 @@ export default function PlanoOdontologico() {
                               <TableCell className="text-sm pl-6 whitespace-normal break-words">{d.nome}</TableCell>
                               <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground whitespace-nowrap">{formatCPF(d.cpf)}</TableCell>
                               <TableCell className="text-center"><Badge variant="outline" className="text-xs">{parentescoLabel(d.parentesco)}</Badge></TableCell>
+                              <TableCell className="text-xs whitespace-nowrap">{d.plano}</TableCell>
                               <TableCell className="text-center text-muted-foreground">—</TableCell>
                               <TableCell className="text-sm">{formatData(d.dataInclusao)}</TableCell>
                               <TableCell className="text-right font-semibold text-sm"><PrivacyValue value={formatMoeda(d.valor)} /></TableCell>
@@ -326,6 +329,13 @@ export default function PlanoOdontologico() {
                   </Select>
                 </div>
               </>)}
+              <div className="space-y-1 col-span-2">
+                <Label>Plano</Label>
+                <Select value={form.plano} onValueChange={(v) => setForm({ ...form, plano: v as "Integral DOC" | "Master" })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="Integral DOC">Integral DOC</SelectItem><SelectItem value="Master">Master</SelectItem></SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1">
                 <Label>Nº OdontoPrev</Label>
                 <Input value={form.numeroOdontoprev} onChange={(e) => setForm({ ...form, numeroOdontoprev: e.target.value })} />
