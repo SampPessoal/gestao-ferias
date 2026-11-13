@@ -483,6 +483,7 @@ export const planoOdontologico = pgTable("planoOdontologico", {
   cpf: varchar("cpf", { length: 11 }),
   tipo: tipoBeneficiarioEnum("tipo").notNull(), // T=Titular, D=Dependente
   parentesco: varchar("parentesco", { length: 20 }).default("").notNull(),
+  plano: varchar("plano", { length: 30 }).default("Integral DOC").notNull(), // Integral DOC | Master
   // Para dependentes: número OdontoPrev do titular
   titularNumeroOdontoprev: varchar("titularNumeroOdontoprev", { length: 30 }),
   dataInclusao: varchar("dataInclusao", { length: 10 }), // YYYY-MM-DD
