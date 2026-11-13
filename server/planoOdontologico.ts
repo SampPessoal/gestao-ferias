@@ -39,6 +39,7 @@ const dadosBeneficiario = z.object({
   cpf: z.string().max(14).optional().nullable(),
   tipo: z.enum(["T", "D"]),
   parentesco: z.string().max(20).optional().nullable(),
+  plano: z.enum(["Integral DOC", "Master"]).optional(),
   titularNumeroOdontoprev: z.string().max(30).optional().nullable(),
   dataInclusao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida").optional().nullable(),
   valor: z.number().min(0).max(100000),
@@ -81,6 +82,7 @@ export const planoOdontologicoRouter = router({
         cpf: soDigitos(input.cpf) || null,
         tipo: input.tipo,
         parentesco: input.tipo === "D" ? input.parentesco || "" : "",
+        plano: input.plano ?? "Integral DOC",
         titularNumeroOdontoprev: input.tipo === "D" ? input.titularNumeroOdontoprev || null : null,
         dataInclusao: input.dataInclusao || null,
         valor: input.valor.toFixed(2),
@@ -101,6 +103,7 @@ export const planoOdontologicoRouter = router({
       if (rest.cpf !== undefined) upd.cpf = soDigitos(rest.cpf) || null;
       if (rest.tipo !== undefined) upd.tipo = rest.tipo;
       if (rest.parentesco !== undefined) upd.parentesco = rest.parentesco || "";
+      if (rest.plano !== undefined) upd.plano = rest.plano;
       if (rest.titularNumeroOdontoprev !== undefined) upd.titularNumeroOdontoprev = rest.titularNumeroOdontoprev || null;
       if (rest.dataInclusao !== undefined) upd.dataInclusao = rest.dataInclusao || null;
       if (rest.valor !== undefined) upd.valor = rest.valor.toFixed(2);
