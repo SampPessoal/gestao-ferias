@@ -32,6 +32,7 @@ const PlanilhaVRVT      = lazy(() => import("@/pages/PlanilhaVRVT"));
 const Feriados          = lazy(() => import("@/pages/Feriados"));
 const ExamesPeriodicos  = lazy(() => import("@/pages/ExamesPeriodicos"));
 const PlanoSaude        = lazy(() => import("@/pages/PlanoSaude"));
+const PlanoOdontologico = lazy(() => import("@/pages/PlanoOdontologico"));
 const FolhaMes          = lazy(() => import("@/pages/FolhaMes"));
 const MovimentacaoMes   = lazy(() => import("@/pages/MovimentacaoMes"));
 const AuxiliosBonusPanel = lazy(() => import("@/pages/AuxiliosBonusPanel"));
@@ -115,6 +116,7 @@ function Router() {
             <Route path="/feriados" component={() => <Feriados />} />
             <Route path="/exames-periodicos" component={() => <ExamesPeriodicos />} />
             <Route path="/plano-saude" component={() => <PlanoSaude />} />
+            <Route path="/plano-odontologico" component={() => <PlanoOdontologico />} />
             <Route path="/folha-mes" component={() => <FolhaMes />} />
             <Route path="/movimentacao-mes" component={() => <MovimentacaoMes />} />
             <Route path="/auxilios-bonus" component={() => <AuxiliosBonusPanel />} />
