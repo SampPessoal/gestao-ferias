@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS public."planoOdontologico" (
   "cpf" varchar(11),
   "tipo" public.tipo_beneficiario_enum NOT NULL,
   "parentesco" varchar(20) NOT NULL DEFAULT '',
+  "plano" varchar(30) NOT NULL DEFAULT 'Integral DOC',
   "titularNumeroOdontoprev" varchar(30),
   "dataInclusao" varchar(10),
   "valor" numeric(10, 2) NOT NULL DEFAULT 0.00,
@@ -34,6 +35,9 @@ CREATE TABLE IF NOT EXISTS public."planoOdontologico" (
   "createdAt" timestamp NOT NULL DEFAULT now(),
   "updatedAt" timestamp NOT NULL DEFAULT now()
 );
+
+-- Coluna do plano (Integral DOC | Master); garante a coluna mesmo se a tabela já existir sem ela
+ALTER TABLE public."planoOdontologico" ADD COLUMN IF NOT EXISTS "plano" varchar(30) NOT NULL DEFAULT 'Integral DOC';
 
 CREATE INDEX IF NOT EXISTS "idx_planoOdonto_empresa" ON public."planoOdontologico" ("empresa");
 CREATE INDEX IF NOT EXISTS "idx_planoOdonto_numero" ON public."planoOdontologico" ("numeroOdontoprev");
