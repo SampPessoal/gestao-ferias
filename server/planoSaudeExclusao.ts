@@ -63,5 +63,8 @@ export async function inativarPlanoDoColaborador(colaboradorId: number): Promise
     .filter((t) => t.colaboradorId === colaboradorId || (cpf.length === 11 && soDigitos(t.cpf) === cpf));
   const excluidos: string[] = [];
   for (const t of titulares) excluidos.push(...(await excluirBeneficiarioDoPlano(t.id)).excluidos);
+  // Plano odontológico também (se a tabela já existir)
+  const { inativarOdontoDoColaborador } = await import("./planoOdontologico");
+  excluidos.push(...(await inativarOdontoDoColaborador(colaboradorId, c.cpf)));
   return { excluidos };
 }

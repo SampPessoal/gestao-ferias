@@ -29,7 +29,7 @@ import {
   Shield, UserCircle, ShieldCheck, Wallet, Palmtree,
   CalendarCheck, ChevronRight, Settings, Bell, FileSpreadsheet, MapPin, Heart, Receipt, ArrowLeftRight, Sparkles,
   Eye, EyeOff
-} from "lucide-react";
+, Smile } from "lucide-react";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -66,6 +66,7 @@ const menuGroups = [
     label: "Saúde & Proteção",
     items: [
       { icon: Heart, label: "Plano de Saúde", path: "/plano-saude" },
+      { icon: Smile, label: "Plano Odontológico", path: "/plano-odontologico" },
       { icon: ShieldCheck, label: "Seguro de Vida", path: "/seguro-vida" },
       { icon: ClipboardList, label: "Exames Periódicos", path: "/exames-periodicos" },
     ]

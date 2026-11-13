@@ -473,6 +473,31 @@ export const planoSaude = pgTable("planoSaude", {
 export type PlanoSaude = typeof planoSaude.$inferSelect;
 export type InsertPlanoSaude = typeof planoSaude.$inferInsert;
 
+// ─── Plano odontológico (OdontoPrev) ─────────────────────────────────────────
+// Cadastro vivo: um registro por beneficiário ativo (titular ou dependente).
+export const planoOdontologico = pgTable("planoOdontologico", {
+  id: serial("id").primaryKey(),
+  empresa: empresaEnum("empresa").notNull(),
+  numeroOdontoprev: varchar("numeroOdontoprev", { length: 30 }).notNull(),
+  nome: varchar("nome", { length: 200 }).notNull(),
+  cpf: varchar("cpf", { length: 11 }),
+  tipo: tipoBeneficiarioEnum("tipo").notNull(), // T=Titular, D=Dependente
+  parentesco: varchar("parentesco", { length: 20 }).default("").notNull(),
+  // Para dependentes: número OdontoPrev do titular
+  titularNumeroOdontoprev: varchar("titularNumeroOdontoprev", { length: 30 }),
+  dataInclusao: varchar("dataInclusao", { length: 10 }), // YYYY-MM-DD
+  valor: decimal("valor", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  colaboradorId: integer("colaboradorId"),
+  ativo: boolean("ativo").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (t) => [
+  index("idx_planoOdonto_empresa").on(t.empresa),
+  index("idx_planoOdonto_numero").on(t.numeroOdontoprev),
+  index("idx_planoOdonto_titular").on(t.titularNumeroOdontoprev),
+]);
+export type PlanoOdontologico = typeof planoOdontologico.$inferSelect;
+
 // Tabela de preços AMIL por empresa, plano e faixa etária
 export const tabelaPrecos = pgTable("tabelaPrecos", {
   id: serial("id").primaryKey(),
