@@ -501,7 +501,7 @@ export default function RegistroEmpregado({ colaboradorId, editando, form, setFo
           </div>
         ) : (
           <div>
-            <Linha rotulo="Vale-refeição (por dia)" valor={moedaBR(b.valorVR)} icone={Utensils} />
+            <Linha rotulo={`Vale-refeição (${vrEhMensal(b.valorVR) ? "por mês" : "por dia"})`} valor={moedaBR(b.valorVR)} icone={Utensils} />
             <Linha rotulo="Vale-transporte (por dia)" valor={moedaBR(b.valorVT)} icone={Bus} />
             <Linha rotulo="Sem vale-transporte por" valor={exibir(campoPor("motivoSemVT"), data.campos.motivoSemVT)} icone={Bus} />
             <Linha rotulo="Desconto de vale-transporte" valor={exibir(campoPor("descontoVT"), data.campos.descontoVT)} icone={Bus} />
@@ -738,6 +738,8 @@ const reais = (v: string | number | null | undefined) => {
   const n = lerReais(v);
   return n && n > 0 ? `R$ ${formatarReais(n)}` : null;
 };
+/** VR acima de R$ 100 é valor mensal fixo (ex.: Kayla R$ 884, Wedson e Marcley R$ 1.264), não diária. */
+const vrEhMensal = (v: string | number | null | undefined) => (lerReais(v) ?? 0) > 100;
 const simNaoNa = (v: string | null | undefined): SituacaoBeneficio => (v === "sim" ? "ativo" : v ? "nao" : "info");
 
 const ESTILO_SITUACAO: Record<SituacaoBeneficio, { rotulo: string; pill: string }> = {
@@ -773,7 +775,7 @@ export function ResumoBeneficios({ colaboradorId }: { colaboradorId: number }) {
   const creche = b.creche;
   const deps = b.planoSaude?.dependentes ?? 0;
   const itens: ItemResumo[] = [
-    { nome: "Vale-refeição", icone: Utensils, situacao: vr ? "ativo" : "nao", valor: vr ?? undefined, detalhe: "por dia" },
+    { nome: "Vale-refeição", icone: Utensils, situacao: vr ? "ativo" : "nao", valor: vr ?? undefined, detalhe: vrEhMensal(b.valorVR) ? "por mês" : "por dia" },
     { nome: "Vale-transporte", icone: Bus, situacao: vt ? "ativo" : "nao", valor: vt ?? undefined,
       detalhe: vt ? "por dia" : r.motivoSemVT ? rotuloOpcao(CAMPOS_REGISTRO.find(c => c.chave === "motivoSemVT"), r.motivoSemVT) : undefined },
     planosQ.data?.saude
