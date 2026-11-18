@@ -33,6 +33,12 @@ type Familia = { titular: Beneficiario; dependentes: Beneficiario[]; total: numb
 const formatMoeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const formatCPF = (c: string | null) => (c && c.length === 11 ? `${c.slice(0, 3)}.${c.slice(3, 6)}.${c.slice(6, 9)}-${c.slice(9)}` : "—");
 const formatData = (d: string | null) => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split("-").reverse().join("/") : "—");
+// Subsídio da empresa — mesma lógica do plano de saúde: só o titular tem subsídio,
+// de 50% do Integral DOC (R$ 13,90 → R$ 6,95), limitado ao valor do plano. Dependente paga integral.
+const VALOR_INTEGRAL_DOC = 13.9;
+const SUBSIDIO_TITULAR = Math.round(VALOR_INTEGRAL_DOC * 0.5 * 100) / 100; // 6,95
+const empresaPaga = (b: { tipo: "T" | "D"; valor: number }) => (b.tipo === "T" ? Math.min(SUBSIDIO_TITULAR, b.valor) : 0);
+const colaboradorPaga = (b: { tipo: "T" | "D"; valor: number }) => Math.max(0, Math.round((b.valor - empresaPaga(b)) * 100) / 100);
 const parentescoLabel = (p: string) => (p === "Conjuge" ? "Cônjuge" : p || "Dependente");
 
 type Form = {
@@ -127,7 +133,8 @@ export default function PlanoOdontologico() {
       Empresa: EMPRESA_LABELS[empresa], "Nº OdontoPrev": b.numeroOdontoprev, Nome: b.nome, CPF: formatCPF(b.cpf),
       Tipo: b.tipo === "T" ? "Titular" : parentescoLabel(b.parentesco), Plano: b.plano,
       Titular: b.tipo === "D" ? f.titular.nome : "", Dependentes: b.tipo === "T" ? f.dependentes.length : "",
-      "Data de inclusão": formatData(b.dataInclusao), "Valor (R$)": b.valor, "Total família (R$)": b.tipo === "T" ? f.total : "",
+      "Data de inclusão": formatData(b.dataInclusao), "Valor do plano (R$)": b.valor,
+      "Empresa paga (R$)": empresaPaga(b), "Colaborador paga (R$)": colaboradorPaga(b),
     }))));
     const ws = XLSX.utils.json_to_sheet(linhas); const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Plano Odontológico");
@@ -240,8 +247,9 @@ export default function PlanoOdontologico() {
                         <TableHead>Plano</TableHead>
                         <TableHead className="text-center">Dependentes</TableHead>
                         <TableHead>Data de inclusão</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
-                        <TableHead className="text-right">Total família</TableHead>
+                        <TableHead className="text-right">Valor do plano</TableHead>
+                        <TableHead className="text-right">Empresa paga</TableHead>
+                        <TableHead className="text-right">Colaborador paga</TableHead>
                         <TableHead className="w-20" />
                       </TableRow>
                     </TableHeader>
@@ -263,7 +271,8 @@ export default function PlanoOdontologico() {
                             <TableCell className="text-center">{f.titular.tipo === "T" ? (temDep ? <Badge variant="secondary">{f.dependentes.length}</Badge> : "0") : "—"}</TableCell>
                             <TableCell className="text-sm">{formatData(f.titular.dataInclusao)}</TableCell>
                             <TableCell className="text-right font-semibold text-sm"><PrivacyValue value={formatMoeda(f.titular.valor)} /></TableCell>
-                            <TableCell className="text-right text-sm font-semibold text-amber-700"><PrivacyValue value={formatMoeda(f.total)} /></TableCell>
+                            <TableCell className="text-right text-sm font-medium" style={{ color: "oklch(0.30 0.10 252)" }}><PrivacyValue value={formatMoeda(empresaPaga(f.titular))} /></TableCell>
+                            <TableCell className="text-right text-sm font-medium" style={{ color: "oklch(0.40 0.14 25)" }}><PrivacyValue value={formatMoeda(colaboradorPaga(f.titular))} /></TableCell>
                             <Acoes b={f.titular} />
                           </TableRow>,
                           ...(aberta ? f.dependentes.map((d) => (
@@ -277,7 +286,8 @@ export default function PlanoOdontologico() {
                               <TableCell className="text-center text-muted-foreground">—</TableCell>
                               <TableCell className="text-sm">{formatData(d.dataInclusao)}</TableCell>
                               <TableCell className="text-right font-semibold text-sm"><PrivacyValue value={formatMoeda(d.valor)} /></TableCell>
-                              <TableCell />
+                              <TableCell className="text-right text-sm font-medium" style={{ color: "oklch(0.30 0.10 252)" }}><PrivacyValue value={formatMoeda(empresaPaga(d))} /></TableCell>
+                              <TableCell className="text-right text-sm font-medium" style={{ color: "oklch(0.40 0.14 25)" }}><PrivacyValue value={formatMoeda(colaboradorPaga(d))} /></TableCell>
                               <Acoes b={d} />
                             </TableRow>
                           )) : []),
