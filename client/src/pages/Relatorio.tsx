@@ -669,7 +669,7 @@ export default function Relatorio() {
   const modulo = MODULOS.find(m => m.id === abaAtiva)!;
 
   return (
-    <div className="space-y-6 max-w-6xl animate-fade-in-up">
+    <div className="space-y-6 animate-fade-in-up">
 
       {/* Header */}
       <div className="rounded-2xl overflow-hidden" style={{
