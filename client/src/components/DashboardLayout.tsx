@@ -29,7 +29,7 @@ import {
   Shield, UserCircle, ShieldCheck, Wallet, Palmtree,
   CalendarCheck, ChevronRight, Settings, Bell, FileSpreadsheet, MapPin, Heart, Receipt, ArrowLeftRight, Sparkles,
   Eye, EyeOff
-, Smile } from "lucide-react";
+, Smile , Cake } from "lucide-react";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -60,6 +60,7 @@ const menuGroups = [
       { icon: BookOpen, label: "Relação de Férias", path: "/relacao-ferias" },
       { icon: Gift, label: "Relação de Abonos", path: "/relacao-abonos" },
       { icon: Stethoscope, label: "Relação de Atestados", path: "/relacao-atestados" },
+      { icon: Cake, label: "Relação de Aniversários", path: "/relacao-aniversarios" },
     ]
   },
   {
