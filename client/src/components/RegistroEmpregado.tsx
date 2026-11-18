@@ -669,7 +669,70 @@ export function registroParaEnvio(campos: Record<string, string>, deps: Dependen
 // ─── Aba "Benefícios" da ficha: resumo rápido ────────────────────────────────
 
 type SituacaoBeneficio = "ativo" | "nao" | "info";
-type ItemResumo = { nome: string; icone: React.ElementType; situacao: SituacaoBeneficio; valor?: string; detalhe?: string };
+type ItemResumo = { nome: string; icone: React.ElementType; situacao: SituacaoBeneficio; valor?: string; detalhe?: string; abrir?: () => void };
+
+type LinhaPlano = { nome: string; numero: string; tipo: "T" | "D"; parentesco: string; plano: string; valor: number; empresaPaga: number; colaboradorPaga: number };
+type PlanoDetalhe = { empresa: string; plano: string; linhas: LinhaPlano[]; total: { valor: number; empresaPaga: number; colaboradorPaga: number } };
+const EMPRESA_NOME: Record<string, string> = { FREIRE: "Freire", JOANES: "Joanes", SUDOESTE: "Sudoeste", SOLAR: "Solar" };
+const brl = (n: number) => `R$ ${formatarReais(n)}`;
+
+/** Janela com a relação completa do plano: titular, dependentes e quem paga quanto. */
+function DetalhePlano({ titulo, operadora, rotuloNumero, plano, aoFechar }: {
+  titulo: string; operadora: string; rotuloNumero: string; plano: PlanoDetalhe | null; aoFechar: () => void;
+}) {
+  const deps = plano ? plano.linhas.filter(l => l.tipo === "D").length : 0;
+  return (
+    <Dialog open={!!plano} onOpenChange={o => !o && aoFechar()}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{titulo}</DialogTitle>
+          {plano && (
+            <DialogDescription>
+              {operadora} · {EMPRESA_NOME[plano.empresa] ?? plano.empresa} · {plano.plano} · {deps === 0 ? "sem dependentes" : `${deps} dependente${deps > 1 ? "s" : ""}`}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+        {plano && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="py-2 pr-3 text-left font-medium">Beneficiário</th>
+                  <th className="py-2 pr-3 text-left font-medium">{rotuloNumero}</th>
+                  <th className="py-2 pr-3 text-right font-medium">Valor do plano</th>
+                  <th className="py-2 pr-3 text-right font-medium">Empresa paga</th>
+                  <th className="py-2 text-right font-medium">Colaborador paga</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plano.linhas.map(l => (
+                  <tr key={l.numero} className="border-b align-top">
+                    <td className="py-2 pr-3">
+                      <span className="font-medium">{l.nome}</span>
+                      <span className="block text-xs text-muted-foreground">{l.parentesco} · {l.plano}</span>
+                    </td>
+                    <td className="py-2 pr-3 font-mono text-xs">{l.numero}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{brl(l.valor)}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums" style={{ color: "oklch(0.30 0.10 252)" }}>{brl(l.empresaPaga)}</td>
+                    <td className="py-2 text-right tabular-nums" style={{ color: "oklch(0.40 0.14 25)" }}>{brl(l.colaboradorPaga)}</td>
+                  </tr>
+                ))}
+                <tr className="font-semibold">
+                  <td className="py-2 pr-3">Total da família</td>
+                  <td />
+                  <td className="py-2 pr-3 text-right tabular-nums">{brl(plano.total.valor)}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums" style={{ color: "oklch(0.30 0.10 252)" }}>{brl(plano.total.empresaPaga)}</td>
+                  <td className="py-2 text-right tabular-nums" style={{ color: "oklch(0.40 0.14 25)" }}>{brl(plano.total.colaboradorPaga)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+        <DialogFooter><Button variant="outline" onClick={aoFechar}>Fechar</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const reais = (v: string | number | null | undefined) => {
   const n = lerReais(v);
@@ -686,6 +749,8 @@ const ESTILO_SITUACAO: Record<SituacaoBeneficio, { rotulo: string; pill: string 
 /** Resumo dos benefícios do colaborador, em quadros, a partir do que está gravado. */
 export function ResumoBeneficios({ colaboradorId }: { colaboradorId: number }) {
   const { data, isLoading, isError, refetch } = trpc.registroEmpregado.get.useQuery({ colaboradorId });
+  const planosQ = trpc.planosColaborador.useQuery({ colaboradorId });
+  const [aberto, setAberto] = useState<"saude" | "odonto" | null>(null);
   if (isLoading) return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>;
   if (isError || !data) {
     return (
@@ -710,9 +775,13 @@ export function ResumoBeneficios({ colaboradorId }: { colaboradorId: number }) {
     { nome: "Vale-refeição", icone: Utensils, situacao: vr ? "ativo" : "nao", valor: vr ?? undefined, detalhe: "por dia" },
     { nome: "Vale-transporte", icone: Bus, situacao: vt ? "ativo" : "nao", valor: vt ?? undefined,
       detalhe: vt ? "por dia" : r.motivoSemVT ? rotuloOpcao(CAMPOS_REGISTRO.find(c => c.chave === "motivoSemVT"), r.motivoSemVT) : undefined },
-    { nome: "Plano de saúde", icone: HeartPulse, situacao: b.planoSaude ? "ativo" : "nao", valor: b.planoSaude?.plano,
-      detalhe: b.planoSaude ? `titular${deps ? ` · ${deps} dependente${deps > 1 ? "s" : ""}` : ""}` : undefined },
-    { nome: "Plano odontológico", icone: Smile, situacao: simNaoNa(r.planoOdontologico) },
+    planosQ.data?.saude
+      ? { nome: "Plano de saúde", icone: HeartPulse, situacao: "ativo", valor: planosQ.data.saude.plano, abrir: () => setAberto("saude") }
+      : { nome: "Plano de saúde", icone: HeartPulse, situacao: b.planoSaude ? "ativo" : "nao", valor: b.planoSaude?.plano,
+          detalhe: b.planoSaude ? `titular${deps ? ` · ${deps} dependente${deps > 1 ? "s" : ""}` : ""}` : undefined },
+    planosQ.data?.odonto
+      ? { nome: "Plano odontológico", icone: Smile, situacao: "ativo", valor: planosQ.data.odonto.plano, abrir: () => setAberto("odonto") }
+      : { nome: "Plano odontológico", icone: Smile, situacao: simNaoNa(r.planoOdontologico) },
     { nome: "Seguro de vida", icone: ShieldCheck, situacao: b.temSeguroVida ? "ativo" : b.temSeguroVida === false ? "nao" : "info",
       valor: b.temSeguroVida ? seguro ?? undefined : undefined, detalhe: b.temSeguroVida && seguro ? "por mês" : undefined },
     { nome: "TotalPass", icone: Dumbbell, situacao: simNaoNa(r.totalpass) },
@@ -738,7 +807,11 @@ export function ResumoBeneficios({ colaboradorId }: { colaboradorId: number }) {
           const est = ESTILO_SITUACAO[it.situacao];
           const Icone = it.icone;
           return (
-            <li key={it.nome} className={`flex flex-col gap-2.5 rounded-xl border p-3.5 ${ativo ? "border-[#cfe7d8] bg-[#f6fbf8]" : "border-border/60 bg-card"}`}>
+            <li key={it.nome}
+              role={it.abrir ? "button" : undefined} tabIndex={it.abrir ? 0 : undefined}
+              onClick={it.abrir} onKeyDown={it.abrir ? (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); it.abrir!(); } }) : undefined}
+              title={it.abrir ? "Clique para ver titular, dependentes e valores" : undefined}
+              className={`flex flex-col gap-2.5 rounded-xl border p-3.5 ${ativo ? "border-[#cfe7d8] bg-[#f6fbf8]" : "border-border/60 bg-card"} ${it.abrir ? "cursor-pointer transition-colors hover:border-[#9fd0b2] hover:bg-[#eef8f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9fd0b2]" : ""}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${ativo ? "bg-[#d9efe1]" : "bg-muted"}`}>
                   <Icone className={`h-4 w-4 ${ativo ? "text-[#155d33]" : "text-muted-foreground"}`} />
@@ -750,10 +823,15 @@ export function ResumoBeneficios({ colaboradorId }: { colaboradorId: number }) {
                 <span className={`font-bold tabular-nums ${ativo ? "text-lg text-foreground" : "text-[15px] text-muted-foreground"}`}>{it.valor ?? "—"}</span>
                 {it.detalhe && <span className="text-xs text-muted-foreground">{it.detalhe}</span>}
               </p>
+              {it.abrir && <span className="text-[11px] font-medium text-[#155d33]/80">Ver detalhes ›</span>}
             </li>
           );
         })}
       </ul>
+      <DetalhePlano titulo="Plano de saúde" operadora="AMIL" rotuloNumero="Nº beneficiário"
+        plano={aberto === "saude" ? (planosQ.data?.saude ?? null) : null} aoFechar={() => setAberto(null)} />
+      <DetalhePlano titulo="Plano odontológico" operadora="OdontoPrev" rotuloNumero="Nº OdontoPrev"
+        plano={aberto === "odonto" ? (planosQ.data?.odonto ?? null) : null} aoFechar={() => setAberto(null)} />
     </section>
   );
 }

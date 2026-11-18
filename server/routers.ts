@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { planoOdontologicoRouter } from "./planoOdontologico";
+import { planosColaboradorProcedure } from "./planosColaborador";
 
 /** Função centralizada de cálculo CLT de período aquisitivo (backend).
  *  Regra: PA = base, vencimento = PA + 1 ano - 1 dia, dataLimite = vencimento + 11 meses + 1 dia.
@@ -1223,6 +1224,7 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+  planosColaborador: planosColaboradorProcedure,
   planoOdontologico: planoOdontologicoRouter,
   planoSaude: router({
     // Atualiza idade e mensalidade pela faixa etária (também roda sozinho a cada 6h)
