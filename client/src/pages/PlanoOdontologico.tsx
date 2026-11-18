@@ -156,7 +156,7 @@ export default function PlanoOdontologico() {
   );
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="rounded-2xl overflow-hidden" style={{
         background: "linear-gradient(135deg, oklch(0.14 0.07 254) 0%, oklch(0.17 0.015 240) 100%)",
         border: "1px solid oklch(0.25 0.09 252)", boxShadow: "0 4px 24px oklch(0.22 0.08 250 / 0.18)",
