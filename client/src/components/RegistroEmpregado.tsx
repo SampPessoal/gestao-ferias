@@ -751,7 +751,8 @@ export function ResumoBeneficios({ colaboradorId }: { colaboradorId: number }) {
   const { data, isLoading, isError, refetch } = trpc.registroEmpregado.get.useQuery({ colaboradorId });
   const planosQ = trpc.planosColaborador.useQuery({ colaboradorId });
   const [aberto, setAberto] = useState<"saude" | "odonto" | null>(null);
-  if (isLoading) return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>;
+  // Só mostra os quadros quando os planos também chegaram (evita piscar "Não possui")
+  if (isLoading || planosQ.isLoading) return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>;
   if (isError || !data) {
     return (
       <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3 text-sm">
