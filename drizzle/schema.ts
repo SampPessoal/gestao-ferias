@@ -499,6 +499,25 @@ export const planoOdontologico = pgTable("planoOdontologico", {
 ]);
 export type PlanoOdontologico = typeof planoOdontologico.$inferSelect;
 
+// ─── Relação de folgas (controle do RH; não desconta VR/VT) ──────────────────
+export const folgas = pgTable("folgas", {
+  id: serial("id").primaryKey(),
+  colaboradorId: integer("colaboradorId").notNull(),
+  tipo: varchar("tipo", { length: 20 }).notNull(), // compensatoria | normal | outros
+  titulo: varchar("titulo", { length: 100 }), // usado quando tipo = outros (ex.: Prêmio)
+  dataInicio: varchar("dataInicio", { length: 10 }).notNull(), // YYYY-MM-DD
+  dataFim: varchar("dataFim", { length: 10 }).notNull(), // YYYY-MM-DD
+  dias: integer("dias").notNull(),
+  motivo: text("motivo"),
+  registradoPor: varchar("registradoPor", { length: 120 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (t) => [
+  index("idx_folgas_colaborador").on(t.colaboradorId),
+  index("idx_folgas_inicio").on(t.dataInicio),
+]);
+export type Folga = typeof folgas.$inferSelect;
+
 // Tabela de preços AMIL por empresa, plano e faixa etária
 export const tabelaPrecos = pgTable("tabelaPrecos", {
   id: serial("id").primaryKey(),

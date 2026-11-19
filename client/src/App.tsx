@@ -21,6 +21,7 @@ const RelacaoFerias     = lazy(() => import("./pages/RelacaoFerias"));
 const RelacaoAbonos     = lazy(() => import("./pages/RelacaoAbonos"));
 const RelacaoAtestados  = lazy(() => import("./pages/RelacaoAtestados"));
 const RelacaoAniversarios = lazy(() => import("./pages/RelacaoAniversarios"));
+const RelacaoFolgas = lazy(() => import("./pages/RelacaoFolgas"));
 const SystemLogin       = lazy(() => import("./pages/SystemLogin"));
 const Cadastros         = lazy(() => import("./pages/Cadastros"));
 const MeuPerfil         = lazy(() => import("@/pages/MeuPerfil"));
@@ -110,6 +111,7 @@ function Router() {
             <Route path="/relacao-abonos" component={() => <RelacaoAbonos />} />
             <Route path="/relacao-atestados" component={() => <RelacaoAtestados />} />
             <Route path="/relacao-aniversarios" component={() => <RelacaoAniversarios />} />
+            <Route path="/relacao-folgas" component={() => <RelacaoFolgas />} />
             <Route path="/cadastros" component={() => <ProtectedLayout adminOnly><Cadastros /></ProtectedLayout>} />
             <Route path="/meu-perfil" component={() => <MeuPerfil />} />
             <Route path="/seguro-vida" component={() => <RelacaoSeguroVida />} />

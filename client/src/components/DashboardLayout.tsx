@@ -61,6 +61,7 @@ const menuGroups = [
       { icon: Gift, label: "Relação de Abonos", path: "/relacao-abonos" },
       { icon: Stethoscope, label: "Relação de Atestados", path: "/relacao-atestados" },
       { icon: Cake, label: "Relação de Aniversários", path: "/relacao-aniversarios" },
+      { icon: CalendarCheck, label: "Relação de Folgas", path: "/relacao-folgas" },
     ]
   },
   {
