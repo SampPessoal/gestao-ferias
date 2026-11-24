@@ -33,6 +33,7 @@ import {
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { AvisoAniversario } from './AvisoAniversario';
 
 // Context para injetar conteúdo no bloco sticky da topbar
 const StickyHeaderContext = createContext<{
@@ -408,7 +409,7 @@ function DashboardLayoutContent({ children, setSidebarWidth, noPadding, stickyHe
         </div>
 
         <main className={`flex-1 animate-fade-in flex flex-col ${noPadding ? 'bg-[#080d15]' : ''}`}>
-          <div className={`flex-1 flex flex-col ${noPadding ? '' : 'px-3 py-4 sm:px-4 lg:px-5 lg:py-5'}`}>{children}</div>
+          <div className={`flex-1 flex flex-col ${noPadding ? '' : 'px-3 py-4 sm:px-4 lg:px-5 lg:py-5'}`}><AvisoAniversario />{children}</div>
         </main>
 
         {/* Marca d'água */}
