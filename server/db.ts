@@ -1250,11 +1250,13 @@ export async function recalcularSaldoColaborador(colaboradorId: number): Promise
       diasVendidos: historicoFerias.diasVendidos,
       dataSaida: historicoFerias.dataSaida,
       periodoRef: historicoFerias.periodoRef,
+      venda10: historicoFerias.venda10,
     })
     .from(historicoFerias)
     .where(eq(historicoFerias.colaboradorId, colaboradorId));
 
   const diasDireito = colab.diasDireito ?? 30;
+  const { diasPerdidosAntecipacao } = await import("../shared/penalidadeFerias");
 
   // Helper: converte data para string YYYY-MM-DD
   const toStr = (d: Date | string | null | undefined): string => {
@@ -1311,11 +1313,26 @@ export async function recalcularSaldoColaborador(colaboradorId: number): Promise
 
   // Monta um mapa: periodoStartStr -> total consumido naquele período
   const consumidoPorPeriodo = new Map<string, number>();
+  // Vencimento (fim do período aquisitivo) a partir do início: início + 1 ano − 1 dia
+  const vencDoInicio = (inicio: string): string => {
+    const [y, m, d] = inicio.split("-").map(Number);
+    return toStr(new Date(Date.UTC(y + 1, m - 1, d - 1, 12, 0, 0)));
+  };
+  // Dias consumidos por um lançamento: gozados + vendidos + dias perdidos pela antecipação
+  // (saída no mês anterior ao vencimento: 1 dia com venda/fracionada, 2 com 30 corridos)
+  const consumoDe = (l: typeof todosLancamentos[number], inicioPeriodo: string): number =>
+    (l.diasGozados ?? 0) + (l.diasVendidos ?? 0) + diasPerdidosAntecipacao({
+      dataSaida: toStr(l.dataSaida as Date | string | null),
+      vencimento: vencDoInicio(inicioPeriodo),
+      venda10: l.venda10 === "SIM",
+      diasGozados: l.diasGozados ?? 0,
+      diasDireito,
+    });
   for (const l of todosLancamentos) {
     const refStart = periodoRefToStart(l.periodoRef ?? null);
     if (refStart) {
       const atual = consumidoPorPeriodo.get(refStart) ?? 0;
-      consumidoPorPeriodo.set(refStart, atual + (l.diasGozados ?? 0) + (l.diasVendidos ?? 0));
+      consumidoPorPeriodo.set(refStart, atual + consumoDe(l, refStart));
     }
   }
 
@@ -1332,7 +1349,7 @@ export async function recalcularSaldoColaborador(colaboradorId: number): Promise
       const paEndStr   = toStr(paEnd);
       if (ds >= paStartStr && ds <= paEndStr) {
         const atual = consumidoPorPeriodo.get(paStartStr) ?? 0;
-        consumidoPorPeriodo.set(paStartStr, atual + (l.diasGozados ?? 0) + (l.diasVendidos ?? 0));
+        consumidoPorPeriodo.set(paStartStr, atual + consumoDe(l, paStartStr));
         break;
       }
     }
@@ -1357,6 +1374,9 @@ export async function recalcularSaldoColaborador(colaboradorId: number): Promise
       12, 0, 0
     ));
     const paStartStr = toStr(paStart);
+    // Nunca volta para um período anterior ao que está no cadastro (o piso):
+    // ele já foi encerrado pelo RH, mesmo que os lançamentos no sistema não somem 30 dias.
+    if (pisoStr && paStartStr < pisoStr) continue;
     const consumido = consumidoPorPeriodo.get(paStartStr) ?? 0;
     const saldo = Math.max(0, diasDireito - consumido);
 
