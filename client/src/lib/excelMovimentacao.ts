@@ -17,19 +17,20 @@ type Formato = "texto" | "centro" | "data" | "datahora" | "moeda" | "movimentaca
 type Coluna = { titulo: string; largura: number; formato: Formato };
 type Linha = (string | number | Date | null | undefined)[];
 
-export type SecaoExport = "seguroVida" | "auxNotebook" | "planoSaude" | "valeTransporte" | "auxCreche" | "bonusIndicacao";
+export type SecaoExport = "seguroVida" | "auxNotebook" | "planoSaude" | "planoOdonto" | "valeTransporte" | "auxCreche" | "bonusIndicacao";
 
 export const NOMES_SECAO: Record<SecaoExport, string> = {
   seguroVida: "Seguro de Vida",
   auxNotebook: "Auxílio Notebook",
   planoSaude: "Plano de Saúde",
+  planoOdonto: "Plano Odontológico",
   valeTransporte: "Vale Transporte",
   auxCreche: "Auxílio Creche",
   bonusIndicacao: "Bônus por Indicação",
 };
 
 export type DadosExport = {
-  seguroVida: any[]; auxNotebook: any[]; planoSaude: any[]; valeTransporte: any[]; auxCreche: any[]; bonusIndicacao: any[];
+  seguroVida: any[]; auxNotebook: any[]; planoSaude: any[]; planoOdonto?: any[]; valeTransporte: any[]; auxCreche: any[]; bonusIndicacao: any[];
   cpfs?: Record<string | number, string>;
   valorSeguroEmpresa?: Record<string, number | null>;
 };
@@ -195,6 +196,14 @@ function montarSecao(wb: Workbook, secao: SecaoExport, d: DadosExport, subtitulo
           numero(r.valor), numero(r.valorEmpresa), numero(r.valorColaborador), ...reg(r)]),
         { totais: [9, 10, 11], colMov: 3, colValor: 9,
           nota: "Titular: empresa paga 70% do Prata QC (967067) na mesma faixa etária; o restante é do colaborador. Dependentes: valor integral, pago pelo colaborador." });
+    case "planoOdonto":
+      return aba(wb, nome, subtitulo,
+        [...BASE, C("Plano", 14, "centro"), C("Categoria", 12, "centro"), C("Dependente", 32),
+          C("Valor do plano", 15, "moeda"), C("Empresa paga", 15, "moeda"), C("Colaborador paga", 17, "moeda"), ...REGISTRO],
+        (d.planoOdonto ?? []).map(r => [...base(r), String(r.tipoPlano ?? "").replace(/^ODONTO /, ""), categoria(r.categoria), r.categoria === "dependente" ? (r.nomeDependente ?? "") : "",
+          numero(r.valor), numero(r.valorEmpresa), numero(r.valorColaborador), ...reg(r)]),
+        { totais: [7, 8, 9], colMov: 3, colValor: 7,
+          nota: "OdontoPrev — Integral DOC R$ 13,90 e Master R$ 99,90. Titular: empresa paga R$ 6,95 (50% do Integral DOC); o restante é do colaborador. Dependentes: valor integral, pago pelo colaborador." });
     case "seguroVida":
       return aba(wb, nome, subtitulo,
         [...BASE, C("Data", 13, "data"), C("Valor mensal da empresa", 16, "moeda"), ...REGISTRO],
