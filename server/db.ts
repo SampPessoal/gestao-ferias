@@ -4099,12 +4099,17 @@ export async function updateMovimentacaoAuxilioNotebook(id: number, data: {
 }
 
 // ── Plano de Saúde ────────────────────────────────────────────────────────────
+/** Movimentações do plano odontológico ficam na mesma tabela, com o plano começando por "ODONTO". */
+export const PREFIXO_ODONTO = "ODONTO ";
 export async function getMovimentacaoPlanoSaude(filters: {
-  empresa?: string; mes?: number; ano?: number;
+  empresa?: string; mes?: number; ano?: number; ramo?: "saude" | "odonto";
 }) {
   const db = await getDb();
   if (!db) return [];
   const conditions: any[] = [];
+  // Separa saúde (padrão) de odontológico
+  if (filters.ramo === "odonto") conditions.push(sql`${movimentacaoPlanoSaude.tipoPlano} LIKE 'ODONTO %'`);
+  else conditions.push(sql`(${movimentacaoPlanoSaude.tipoPlano} IS NULL OR ${movimentacaoPlanoSaude.tipoPlano} NOT LIKE 'ODONTO %')`);
   if (filters.empresa) conditions.push(eq(movimentacaoPlanoSaude.empresa, filters.empresa as any));
   if (filters.mes && filters.ano) {
     conditions.push(eq(movimentacaoPlanoSaude.competenciaMes, filters.mes));

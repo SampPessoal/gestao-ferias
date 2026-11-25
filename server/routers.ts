@@ -1602,6 +1602,7 @@ export const appRouter = router({
           empresa: z.string().optional(),
           mes: z.number().int().optional(),
           ano: z.number().int().optional(),
+          ramo: z.enum(["saude", "odonto"]).optional(),
         }))
         .query(async ({ input }) => {
           return getMovimentacaoPlanoSaude(input);
@@ -1755,18 +1756,19 @@ export const appRouter = router({
         ano: z.number().int(),
       }))
       .query(async ({ input }) => {
-        const [seguroVida, auxNotebook, planoSaude, valeTransporte, auxCreche, bonusIndicacao] = await Promise.all([
+        const [seguroVida, auxNotebook, planoSaude, planoOdonto, valeTransporte, auxCreche, bonusIndicacao] = await Promise.all([
           getMovimentacaoSeguroVida(input),
           getMovimentacaoAuxilioNotebook(input),
-          getMovimentacaoPlanoSaude(input),
+          getMovimentacaoPlanoSaude({ ...input, ramo: "saude" }),
+          getMovimentacaoPlanoSaude({ ...input, ramo: "odonto" }),
           getMovimentacaoValeTransporte(input),
           getMovimentacaoAuxilioCreche(input),
           getMovimentacaoBonusIndicacao(input),
         ]);
-        const ids = [seguroVida, auxNotebook, planoSaude, valeTransporte, auxCreche]
+        const ids = [seguroVida, auxNotebook, planoSaude, planoOdonto, valeTransporte, auxCreche]
           .flatMap((lista: any[]) => lista.map(r => Number(r.colaboradorId)));
         const complementos = await getComplementosExportacaoMovimentacao(ids);
-        return { seguroVida, auxNotebook, planoSaude, valeTransporte, auxCreche, bonusIndicacao, ...complementos };
+        return { seguroVida, auxNotebook, planoSaude, planoOdonto, valeTransporte, auxCreche, bonusIndicacao, ...complementos };
       }),
 
     // Bônus por Indicação

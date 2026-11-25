@@ -21,7 +21,7 @@ import {
   Shield, Laptop, Heart, Bus, Baby, Award,
   Plus, Trash2, Pencil, CheckCircle, Clock, XCircle,
   ChevronDown, ChevronUp, Search, Building2,
-  Download, FileSpreadsheet, FileText,
+  Download, FileSpreadsheet, FileText, Smile,
 } from "lucide-react";
 import { lerReais, formatarReais } from "@/lib/mascaras";
 import { PrivacyValue } from "@/components/PrivacyValue";
@@ -69,12 +69,13 @@ function calcIdade(dataNasc: Date | string | null | undefined): number | null {
 }
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
-type TipoMovimentacao = "seguroVida" | "auxNotebook" | "planoSaude" | "valeTransporte" | "auxCreche" | "bonusIndicacao";
+type TipoMovimentacao = "seguroVida" | "auxNotebook" | "planoSaude" | "planoOdonto" | "valeTransporte" | "auxCreche" | "bonusIndicacao";
 
 const ABAS: { id: TipoMovimentacao; label: string; icon: React.ReactNode; cor: string }[] = [
   { id: "seguroVida", label: "Seguro de Vida", icon: <Shield className="w-4 h-4" />, cor: "text-zinc-300" },
   { id: "auxNotebook", label: "Auxílio Notebook", icon: <Laptop className="w-4 h-4" />, cor: "text-zinc-300" },
   { id: "planoSaude", label: "Plano de Saúde", icon: <Heart className="w-4 h-4" />, cor: "text-zinc-300" },
+  { id: "planoOdonto", label: "Plano Odontológico", icon: <Smile className="w-4 h-4" />, cor: "text-zinc-300" },
   { id: "valeTransporte", label: "Vale Transporte", icon: <Bus className="w-4 h-4" />, cor: "text-zinc-300" },
   { id: "auxCreche", label: "Auxílio Creche", icon: <Baby className="w-4 h-4" />, cor: "text-zinc-300" },
   { id: "bonusIndicacao", label: "Bônus por Indicação", icon: <Award className="w-4 h-4" />, cor: "text-zinc-300" },
@@ -475,6 +476,214 @@ function AbaAuxilioNotebook({ mes, ano, empresa, onDataLoad }: { mes: number; an
           <div className="flex gap-2 justify-end mt-4">
             <Button variant="outline" size="sm" onClick={() => setModal(false)}>Cancelar</Button>
             <Button size="sm" onClick={handleSalvar} disabled={criar.isPending}>{criar.isPending ? <Spinner className="w-3 h-3 mr-1" /> : null}Salvar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ModalExcluir aberto={excluirId !== null} onClose={() => setExcluirId(null)} onConfirm={() => excluirId && excluir.mutate({ id: excluirId })} nome={excluirNome} />
+    </div>
+  );
+}
+
+// ─── Aba Plano Odontológico (OdontoPrev) ──────────────────────────────────────
+// Dois planos: Integral DOC R$ 13,90 e Master R$ 99,90. Titular: empresa paga R$ 6,95
+// (50% do Integral DOC), limitado ao valor do plano. Dependente: sem subsídio.
+// Gravado na mesma tabela da movimentação de saúde, com o plano começando por "ODONTO ".
+const PLANOS_ODONTO = [
+  { nome: "Integral DOC", valor: 13.9 },
+  { nome: "Master", valor: 99.9 },
+] as const;
+const SUBSIDIO_ODONTO = 6.95;
+const r2 = (n: number) => Math.round(n * 100) / 100;
+function calcOdonto(plano: string, categoria: "titular" | "dependente") {
+  const p = PLANOS_ODONTO.find(x => x.nome === plano);
+  if (!p) return null;
+  const empresa = categoria === "titular" ? Math.min(SUBSIDIO_ODONTO, p.valor) : 0;
+  return { valor: p.valor, empresa: r2(empresa), colaborador: r2(p.valor - empresa) };
+}
+const moedaBRL = (n: number | string | null | undefined) =>
+  n != null ? Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
+
+function AbaPlanoOdonto({ mes, ano, empresa, onDataLoad }: { mes: number; ano: number; empresa: string; onDataLoad?: (data: any[]) => void }) {
+  type Form = { colaborador: { id: number; nome: string; empresa: string } | null; tipo: "incluir" | "excluir"; categoria: "titular" | "dependente"; nomeDependente: string; plano: string; observacao: string };
+  const FORM_INICIAL: Form = { colaborador: null, tipo: "incluir", categoria: "titular", nomeDependente: "", plano: "Integral DOC", observacao: "" };
+  const [form, setForm] = useState<Form>(FORM_INICIAL);
+  const [modal, setModal] = useState(false);
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [excluirId, setExcluirId] = useState<number | null>(null);
+  const [excluirNome, setExcluirNome] = useState("");
+  const [origemPlano, setOrigemPlano] = useState<string | null>(null);
+
+  const utils = trpc.useUtils();
+  const { data, isLoading } = trpc.movimentacao.planoSaude.list.useQuery({ empresa: empresa || undefined, mes, ano, ramo: "odonto" });
+  useEffect(() => { if (data && onDataLoad) onDataLoad(data); }, [data, onDataLoad]);
+  const fechar = () => { setModal(false); setEditandoId(null); setForm(FORM_INICIAL); setOrigemPlano(null); };
+  const invalidar = () => utils.movimentacao.planoSaude.list.invalidate();
+  const criar = trpc.movimentacao.planoSaude.create.useMutation({ onSuccess: () => { invalidar(); toast.success("Registro adicionado!"); fechar(); }, onError: e => toast.error(e.message) });
+  const atualizar = trpc.movimentacao.planoSaude.update.useMutation({ onSuccess: () => { invalidar(); toast.success("Registro atualizado!"); fechar(); }, onError: e => toast.error(e.message) });
+  const excluir = trpc.movimentacao.planoSaude.delete.useMutation({ onSuccess: () => { invalidar(); toast.success("Registro excluído!"); setExcluirId(null); }, onError: e => toast.error(e.message) });
+
+  const calc = calcOdonto(form.plano, form.categoria);
+
+  /** Ao escolher o colaborador, usa o plano que ele já tem no odontológico (se tiver). */
+  const preencherPlano = async (c: { id: number } | null) => {
+    if (!c || editandoId) return;
+    const r = await utils.planosColaborador.fetch({ colaboradorId: c.id }).catch(() => null);
+    const atual = (r as any)?.odonto?.plano as string | undefined;
+    if (atual && PLANOS_ODONTO.some(p => p.nome === atual)) {
+      setForm(f => f.colaborador?.id === c.id ? { ...f, plano: atual } : f);
+      setOrigemPlano(atual);
+    }
+  };
+
+  const abrirEdicao = (r: any) => {
+    setEditandoId(r.id);
+    setForm({
+      colaborador: { id: r.colaboradorId, nome: r.nomeColaborador ?? "", empresa: r.empresa ?? "" },
+      tipo: r.tipo, categoria: r.categoria ?? "titular", nomeDependente: r.nomeDependente ?? "",
+      plano: String(r.tipoPlano ?? "").replace(/^ODONTO /, "") || "Integral DOC", observacao: r.observacao ?? "",
+    });
+    setModal(true);
+  };
+
+  const salvar = () => {
+    if (!form.colaborador) return toast.error("Selecione um colaborador");
+    if (form.categoria === "dependente" && !form.nomeDependente.trim()) return toast.error("Informe o nome do dependente");
+    if (!calc) return toast.error("Escolha o plano");
+    const comum = {
+      tipo: form.tipo, tipoPlano: `ODONTO ${form.plano}`, categoria: form.categoria,
+      nomeDependente: form.categoria === "dependente" ? form.nomeDependente.trim().toUpperCase() : undefined,
+      valor: calc.valor, valorEmpresa: calc.empresa, valorColaborador: calc.colaborador,
+      observacao: form.observacao || undefined,
+    };
+    if (editandoId) { atualizar.mutate({ id: editandoId, ...comum }); return; }
+    criar.mutate({
+      colaboradorId: form.colaborador.id, nomeColaborador: form.colaborador.nome,
+      empresa: form.colaborador.empresa || empresa, ...comum, competenciaMes: mes, competenciaAno: ano,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{data?.length ?? 0} registro(s) no período</p>
+        <Button size="sm" onClick={() => setModal(true)}><Plus className="w-3.5 h-3.5 mr-1" /> Novo Registro</Button>
+      </div>
+
+      {isLoading ? <div className="flex justify-center py-8"><Spinner /></div> : (
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden" style={{ boxShadow: "0 1px 8px oklch(0.145 0.03 245 / 0.06)" }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: "oklch(0.97 0.005 245)" }}>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Colaborador</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Empresa</th>
+                <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Plano</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor Plano</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold" style={{ color: "oklch(0.40 0.10 250)" }}>Empresa</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold" style={{ color: "oklch(0.45 0.10 30)" }}>Colaborador</th>
+                <th className="px-4 py-2.5" />
+              </tr>
+            </thead>
+            <tbody>
+              {(!data || data.length === 0) ? (
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground text-sm">Nenhum registro encontrado</td></tr>
+              ) : data.map((r: any, i: number) => (
+                <tr key={r.id} className={`border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors ${i % 2 !== 0 ? "bg-muted/10" : ""}`}>
+                  <td className="px-4 py-2.5 text-foreground font-medium">
+                    {r.nomeColaborador ?? "—"}
+                    {r.categoria === "dependente" && r.nomeDependente && <span className="block text-[11px] font-normal text-muted-foreground">Dependente: {r.nomeDependente}</span>}
+                  </td>
+                  <td className="px-4 py-2.5"><Badge variant="outline" className="text-[10px]">{r.empresa}</Badge></td>
+                  <td className="px-4 py-2.5 text-center">
+                    <Badge className={r.tipo === "incluir" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-red-100 text-red-700 border-red-200"}>{r.tipo === "incluir" ? "Incluir" : "Excluir"}</Badge>
+                  </td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{String(r.tipoPlano ?? "").replace(/^ODONTO /, "") || "—"}</td>
+                  <td className="px-4 py-2.5"><Badge variant="outline" className={`text-[10px] ${r.categoria === "titular" ? "border-blue-400 text-blue-700" : ""}`}>{r.categoria === "titular" ? "Titular" : "Dependente"}</Badge></td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-foreground">{moedaBRL(r.valor)}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold" style={{ color: "oklch(0.35 0.10 250)" }}>{moedaBRL(r.valorEmpresa)}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold" style={{ color: "oklch(0.40 0.14 30)" }}>{moedaBRL(r.valorColaborador)}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => abrirEdicao(r)} aria-label="Editar" className="text-muted-foreground/40 hover:text-primary transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { setExcluirId(r.id); setExcluirNome(r.categoria === "dependente" && r.nomeDependente ? `${r.nomeDependente} (dependente de ${r.nomeColaborador ?? ""})` : (r.nomeColaborador ?? "")); }} aria-label="Excluir" className="text-muted-foreground/40 hover:text-destructive transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Dialog open={modal} onOpenChange={v => { if (!v) fechar(); else setModal(true); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Smile className="w-4 h-4 text-primary" /> {editandoId ? "Editar" : "Novo Registro"} — Plano Odontológico</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Colaborador *</label>
+              <BuscaColaborador value={form.colaborador} onChange={c => { setForm(f => ({ ...f, colaborador: c })); setOrigemPlano(null); void preencherPlano(c); }} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Tipo *</label>
+                <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v as any }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="incluir">Incluir</SelectItem><SelectItem value="excluir">Excluir</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Categoria</label>
+                <Select value={form.categoria} onValueChange={v => setForm(f => ({ ...f, categoria: v as any }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="titular">Titular</SelectItem><SelectItem value="dependente">Dependente</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            {form.categoria === "dependente" && (
+              <div>
+                <label htmlFor="odonto-dep" className="text-xs font-semibold text-muted-foreground mb-1 block">Nome do dependente *</label>
+                <Input id="odonto-dep" value={form.nomeDependente} maxLength={200} placeholder="Nome completo do dependente" onChange={e => setForm(f => ({ ...f, nomeDependente: e.target.value }))} />
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Plano *</label>
+              <Select value={form.plano} onValueChange={v => { setForm(f => ({ ...f, plano: v })); setOrigemPlano(null); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{PLANOS_ODONTO.map(p => <SelectItem key={p.nome} value={p.nome}>{p.nome} — {moedaBRL(p.valor)}</SelectItem>)}</SelectContent>
+              </Select>
+              {origemPlano && <p className="text-[11px] text-muted-foreground mt-1">Plano atual do colaborador no odontológico.</p>}
+            </div>
+            {calc && (
+              <div className="rounded-lg border p-3" style={{ background: "oklch(0.97 0.01 150)", borderColor: "oklch(0.85 0.06 150)" }}>
+                <p className="text-[11px] font-bold mb-2" style={{ color: "oklch(0.30 0.10 150)" }}>
+                  {form.categoria === "titular" ? "Titular · empresa paga R$ 6,95 (50% do Integral DOC)" : "Dependente · valor integral pago pelo colaborador"}
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-md p-2" style={{ background: "oklch(0.93 0.03 150)" }}>
+                    <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "oklch(0.45 0.08 150)" }}>Valor do plano</p>
+                    <p className="text-sm font-bold" style={{ color: "oklch(0.25 0.10 150)" }}>{moedaBRL(calc.valor)}</p>
+                  </div>
+                  <div className="rounded-md p-2" style={{ background: "oklch(0.93 0.05 250)" }}>
+                    <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "oklch(0.40 0.10 250)" }}>Empresa</p>
+                    <p className="text-sm font-bold" style={{ color: "oklch(0.25 0.12 250)" }}>{moedaBRL(calc.empresa)}</p>
+                  </div>
+                  <div className="rounded-md p-2" style={{ background: "oklch(0.93 0.05 30)" }}>
+                    <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "oklch(0.45 0.10 30)" }}>Colaborador</p>
+                    <p className="text-sm font-bold" style={{ color: "oklch(0.30 0.14 30)" }}>{moedaBRL(calc.colaborador)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Observação</label>
+              <Input value={form.observacao} onChange={e => setForm(f => ({ ...f, observacao: e.target.value }))} placeholder="Opcional..." />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" size="sm" onClick={fechar}>Cancelar</Button>
+            <Button size="sm" onClick={salvar} disabled={criar.isPending || atualizar.isPending}>{criar.isPending || atualizar.isPending ? <Spinner className="w-3 h-3 mr-1" /> : null}Salvar</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1530,7 +1739,7 @@ export default function MovimentacaoMes() {
     return exportarExcel([secao], NOMES_SECAO[secao] ?? abaAtiva);
   };
   const exportarExcelTodas = () =>
-    exportarExcel(["planoSaude", "seguroVida", "auxNotebook", "valeTransporte", "auxCreche", "bonusIndicacao"], "COMPLETO");
+    exportarExcel(["planoSaude", "planoOdonto", "seguroVida", "auxNotebook", "valeTransporte", "auxCreche", "bonusIndicacao"], "COMPLETO");
 
   const exportarPdfAbaAtual = () => {
     const abaInfo = ABAS.find(a => a.id === abaAtiva);
@@ -1540,6 +1749,7 @@ export default function MovimentacaoMes() {
     if (abaAtiva === "seguroVida") secao = { nome: abaInfo!.label, headers: ["Colaborador", "Empresa", "Tipo", "Data", "Observação", "Registrado por"], rows: rows.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", fmtDate(r.data), r.observacao ?? "", r.createdByNome ?? ""]) };
     else if (abaAtiva === "auxNotebook") secao = { nome: abaInfo!.label, headers: ["Colaborador", "Empresa", "Tipo", "Data Início", "Valor (R$)", "Observação", "Registrado por"], rows: rows.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", fmtDate(r.dataInicio), r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : "", r.observacao ?? "", r.createdByNome ?? ""]) };
     else if (abaAtiva === "planoSaude") secao = { nome: abaInfo!.label, headers: ["Colaborador", "Empresa", "Tipo", "Plano", "Categoria", "Valor (R$)", "Observação", "Registrado por"], rows: rows.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", r.tipoPlano ?? "", r.categoria ?? "", r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : "", r.observacao ?? "", r.createdByNome ?? ""]) };
+    else if (abaAtiva === "planoOdonto") secao = { nome: abaInfo!.label, headers: ["Colaborador", "Empresa", "Tipo", "Plano", "Categoria", "Valor (R$)", "Empresa (R$)", "Colaborador (R$)", "Observação", "Registrado por"], rows: rows.map((r: any) => [(r.nomeColaborador ?? "") + (r.categoria === "dependente" && r.nomeDependente ? ` (dep.: ${r.nomeDependente})` : ""), r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", String(r.tipoPlano ?? "").replace(/^ODONTO /, ""), r.categoria === "dependente" ? "Dependente" : "Titular", r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : "", r.valorEmpresa != null ? `R$ ${Number(r.valorEmpresa).toFixed(2)}` : "", r.valorColaborador != null ? `R$ ${Number(r.valorColaborador).toFixed(2)}` : "", r.observacao ?? "", r.createdByNome ?? ""]) };
     else if (abaAtiva === "valeTransporte") secao = { nome: abaInfo!.label, headers: ["Colaborador", "Empresa", "Tipo", "Observação", "Registrado por"], rows: rows.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", r.observacao ?? "", r.createdByNome ?? ""]) };
     else if (abaAtiva === "auxCreche") secao = { nome: abaInfo!.label, headers: ["Colaborador", "Empresa", "Tipo", "Nome do Filho", "Dt. Nasc. Filho", "Valor (R$)", "Observação", "Registrado por"], rows: rows.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", r.nomeFilho ?? "", fmtDate(r.dataNascimentoFilho), r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : "", r.observacao ?? "", r.createdByNome ?? ""]) };
     else secao = { nome: abaInfo!.label, headers: ["Indicador", "Indicado", "Empresa", "Admissão", "Pgto. Previsto", "Valor (R$)", "Status", "Registrado por"], rows: rows.map((r: any) => [r.nomeIndicador ?? "", r.nomeIndicado ?? "", r.empresa ?? "", fmtDate(r.dataAdmissaoIndicado), fmtDate(r.dataPagamentoPrevisto), r.valorBonus != null ? `R$ ${Number(r.valorBonus).toFixed(2)}` : "", r.status ?? "", r.createdByNome ?? ""]) };
@@ -1559,6 +1769,7 @@ export default function MovimentacaoMes() {
       { nome: "Seguro de Vida", headers: ["Colaborador", "Empresa", "Tipo", "Data", "Observação", "Registrado por"], rows: d.seguroVida.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", fmtDate(r.data), r.observacao ?? "", r.createdByNome ?? ""]) },
       { nome: "Auxílio Notebook", headers: ["Colaborador", "Empresa", "Tipo", "Data Início", "Valor (R$)", "Observação", "Registrado por"], rows: d.auxNotebook.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", fmtDate(r.dataInicio), r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : "", r.observacao ?? "", r.createdByNome ?? ""]) },
       { nome: "Plano de Saúde", headers: ["Colaborador", "Empresa", "Tipo", "Plano", "Categoria", "Valor (R$)", "Observação", "Registrado por"], rows: d.planoSaude.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", r.tipoPlano ?? "", r.categoria ?? "", r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : "", r.observacao ?? "", r.createdByNome ?? ""]) },
+      { nome: "Plano Odontológico", headers: ["Colaborador", "Empresa", "Tipo", "Plano", "Categoria", "Valor (R$)", "Empresa (R$)", "Colaborador (R$)", "Registrado por"], rows: ((d as any).planoOdonto ?? []).map((r: any) => [(r.nomeColaborador ?? "") + (r.categoria === "dependente" && r.nomeDependente ? ` (dep.: ${r.nomeDependente})` : ""), r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", String(r.tipoPlano ?? "").replace(/^ODONTO /, ""), r.categoria === "dependente" ? "Dependente" : "Titular", r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : "", r.valorEmpresa != null ? `R$ ${Number(r.valorEmpresa).toFixed(2)}` : "", r.valorColaborador != null ? `R$ ${Number(r.valorColaborador).toFixed(2)}` : "", r.createdByNome ?? ""]) },
       { nome: "Vale Transporte", headers: ["Colaborador", "Empresa", "Tipo", "Observação", "Registrado por"], rows: d.valeTransporte.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", r.observacao ?? "", r.createdByNome ?? ""]) },
       { nome: "Auxílio Creche", headers: ["Colaborador", "Empresa", "Tipo", "Nome do Filho", "Dt. Nasc. Filho", "Valor (R$)", "Observação", "Registrado por"], rows: d.auxCreche.map((r: any) => [r.nomeColaborador ?? "", r.empresa ?? "", r.tipo === "incluir" ? "Incluir" : "Excluir", r.nomeFilho ?? "", fmtDate(r.dataNascimentoFilho), r.valor != null ? `R$ ${Number(r.valor).toFixed(2)}` : "", r.observacao ?? "", r.createdByNome ?? ""]) },
       { nome: "Bônus por Indicação", headers: ["Indicador", "Indicado", "Empresa", "Admissão", "Pgto. Previsto", "Valor (R$)", "Status", "Registrado por"], rows: d.bonusIndicacao.map((r: any) => [r.nomeIndicador ?? "", r.nomeIndicado ?? "", r.empresa ?? "", fmtDate(r.dataAdmissaoIndicado), fmtDate(r.dataPagamentoPrevisto), r.valorBonus != null ? `R$ ${Number(r.valorBonus).toFixed(2)}` : "", r.status ?? "", r.createdByNome ?? ""]) },
@@ -1677,6 +1888,7 @@ export default function MovimentacaoMes() {
         {abaAtiva === "seguroVida" && <AbaSeguroVida mes={mes} ano={ano} empresa={empresa} onDataLoad={setDadosAbaAtual} />}
         {abaAtiva === "auxNotebook" && <AbaAuxilioNotebook mes={mes} ano={ano} empresa={empresa} onDataLoad={setDadosAbaAtual} />}
         {abaAtiva === "planoSaude" && <AbaPlanoSaude mes={mes} ano={ano} empresa={empresa} onDataLoad={setDadosAbaAtual} />}
+        {abaAtiva === "planoOdonto" && <AbaPlanoOdonto mes={mes} ano={ano} empresa={empresa} onDataLoad={setDadosAbaAtual} />}
         {abaAtiva === "valeTransporte" && <AbaValeTransporte mes={mes} ano={ano} empresa={empresa} onDataLoad={setDadosAbaAtual} />}
         {abaAtiva === "auxCreche" && <AbaAuxilioCreche mes={mes} ano={ano} empresa={empresa} onDataLoad={setDadosAbaAtual} />}
         {abaAtiva === "bonusIndicacao" && <AbaBonusIndicacao mes={mes} ano={ano} empresa={empresa} onDataLoad={setDadosAbaAtual} />}
