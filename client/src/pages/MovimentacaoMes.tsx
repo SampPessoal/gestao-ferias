@@ -1517,6 +1517,7 @@ function AbaBonusIndicacao({ mes, ano, empresa, onDataLoad }: { mes: number; ano
       dataAdmissaoIndicado: form.dataAdmissaoIndicado,
       valorBonus: parseFloat(form.valorBonus) || 1000,
       observacao: form.observacao || undefined,
+      competenciaMes: mes, competenciaAno: ano,
     });
   };
 
