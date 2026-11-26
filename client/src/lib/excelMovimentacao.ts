@@ -3,6 +3,7 @@
  * título com competência, cabeçalho azul-marinho, linhas zebradas, filtros,
  * valores em R$, datas reais e totais por fórmula (geral, inclusões e exclusões).
  */
+import { divisaoSeguro } from "./seguroVida";
 import type { Workbook, Worksheet } from "exceljs";
 
 const NAVY = "FF0B1F3F";
@@ -206,10 +207,10 @@ function montarSecao(wb: Workbook, secao: SecaoExport, d: DadosExport, subtitulo
           nota: "OdontoPrev — Integral DOC R$ 13,90 e Master R$ 99,90. Titular: empresa paga R$ 6,95 (50% do Integral DOC); o restante é do colaborador. Dependentes: valor integral, pago pelo colaborador." });
     case "seguroVida":
       return aba(wb, nome, subtitulo,
-        [...BASE, C("Data", 13, "data"), C("Valor mensal da empresa", 16, "moeda"), ...REGISTRO],
-        d.seguroVida.map(r => [...base(r), soData(r.data), d.valorSeguroEmpresa?.[(r.empresa ?? "").toUpperCase()] ?? null, ...reg(r)]),
-        { totais: [5], colMov: 3, colValor: 5,
-          nota: "Valor mensal da empresa = valor configurado em Seguro de Vida › Valores por Empresa no momento da exportação." });
+        [...BASE, C("Data", 13, "data"), C("Valor do seguro", 15, "moeda"), C("Empresa paga", 15, "moeda"), C("Colaborador paga", 17, "moeda"), ...REGISTRO],
+        d.seguroVida.map(r => { const dv = divisaoSeguro(d.valorSeguroEmpresa?.[(r.empresa ?? "").toUpperCase()] ?? null); return [...base(r), soData(r.data), dv?.valor ?? null, dv?.empresa ?? null, dv?.colaborador ?? null, ...reg(r)]; }),
+        { totais: [5, 6, 7], colMov: 3, colValor: 5,
+          nota: "Valor do seguro = valor configurado em Seguro de Vida › Valores por Empresa no momento da exportação. A empresa paga 50% (arredondado para baixo no centavo) e o colaborador o restante." });
     case "auxNotebook":
       return aba(wb, nome, subtitulo,
         [...BASE, C("Início", 13, "data"), C("Valor mensal", 14, "moeda"), ...REGISTRO],

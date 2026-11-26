@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { divisaoSeguro } from "@/lib/seguroVida";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -235,7 +236,9 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
         <p className="text-sm text-muted-foreground">
           {data?.length ?? 0} registro(s) no período
           {(data?.length ?? 0) > 0 && (
-            <> · Total: <strong className="text-foreground tabular-nums"><PrivacyValue value={`R$ ${formatarReais((data ?? []).reduce((t: number, r: any) => t + (valorSeguroEmpresa(r.empresa) ?? 0), 0))}`} /></strong></>
+            <> · Total: <strong className="text-foreground tabular-nums"><PrivacyValue value={`R$ ${formatarReais((data ?? []).reduce((t: number, r: any) => t + (valorSeguroEmpresa(r.empresa) ?? 0), 0))}`} /></strong>
+              {" "}(empresa <strong className="tabular-nums" style={{ color: "oklch(0.35 0.10 250)" }}><PrivacyValue value={`R$ ${formatarReais((data ?? []).reduce((t: number, r: any) => t + (divisaoSeguro(valorSeguroEmpresa(r.empresa))?.empresa ?? 0), 0))}`} /></strong>
+              {" "}· colaborador <strong className="tabular-nums" style={{ color: "oklch(0.40 0.14 30)" }}><PrivacyValue value={`R$ ${formatarReais((data ?? []).reduce((t: number, r: any) => t + (divisaoSeguro(valorSeguroEmpresa(r.empresa))?.colaborador ?? 0), 0))}`} /></strong>)</>
           )}
         </p>
         <Button size="sm" onClick={() => setModal(true)}>
@@ -253,6 +256,8 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
                 <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
                 <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor mensal</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold" style={{ color: "oklch(0.40 0.10 250)" }}>Empresa</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold" style={{ color: "oklch(0.45 0.10 30)" }}>Colaborador</th>
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Observação</th>
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registrado por</th>
                 <th className="px-4 py-2.5" />
@@ -273,6 +278,12 @@ function AbaSeguroVida({ mes, ano, empresa, onDataLoad }: { mes: number; ano: nu
                   <td className="px-4 py-2.5 text-muted-foreground">{fmtDate(r.data)}</td>
                   <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
                     {valorSeguroEmpresa(r.empresa) !== null ? <PrivacyValue value={`R$ ${formatarReais(valorSeguroEmpresa(r.empresa))}`} /> : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums" style={{ color: "oklch(0.35 0.10 250)" }}>
+                    {divisaoSeguro(valorSeguroEmpresa(r.empresa)) ? <PrivacyValue value={`R$ ${formatarReais(divisaoSeguro(valorSeguroEmpresa(r.empresa))!.empresa)}`} /> : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums" style={{ color: "oklch(0.40 0.14 30)" }}>
+                    {divisaoSeguro(valorSeguroEmpresa(r.empresa)) ? <PrivacyValue value={`R$ ${formatarReais(divisaoSeguro(valorSeguroEmpresa(r.empresa))!.colaborador)}`} /> : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground max-w-[200px] truncate">{r.observacao ?? "—"}</td>
                   <td className="px-4 py-2.5 text-muted-foreground text-xs">{r.createdByNome ?? "—"}</td>

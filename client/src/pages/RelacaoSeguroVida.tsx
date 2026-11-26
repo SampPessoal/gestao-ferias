@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { divisaoSeguro } from "@/lib/seguroVida";
 import { trpc } from "@/lib/trpc";
 import { PrivacyValue } from "@/components/PrivacyValue";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -266,7 +267,9 @@ export default function RelacaoSeguroVida() {
                   <SortableHeader col="empresaNome" label="Empresa" sort={sortSeg} onToggle={toggleSortSeg} />
                   <SortableHeader col="setorNome" label="Setor" sort={sortSeg} onToggle={toggleSortSeg} />
                   <th className="text-center px-4 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Seguro de Vida</th>
-                  <SortableHeader col="valorSeguroVida" label="Valor (Folha)" sort={sortSeg} onToggle={toggleSortSeg} align="right" />
+                  <SortableHeader col="valorSeguroVida" label="Valor do seguro" sort={sortSeg} onToggle={toggleSortSeg} align="right" />
+                  <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wide" style={{ color: "oklch(0.40 0.10 250)" }}>Empresa paga</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wide" style={{ color: "oklch(0.45 0.10 30)" }}>Colaborador paga</th>
                   <th className="text-center px-4 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Ações</th>
                 </tr>
               </thead>
@@ -296,11 +299,20 @@ export default function RelacaoSeguroVida() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono font-semibold">
-                      {row.temSeguroVida && row.valorSeguroVida
-                        ? <span className="text-blue-700">{`R$ ${row.valorSeguroVida}`}</span>
-                        : <span className="text-muted-foreground">—</span>}
-                    </td>
+                    {(() => {
+                      const dv = row.temSeguroVida ? divisaoSeguro(lerReais(row.valorSeguroVida)) : null;
+                      return (<>
+                        <td className="px-4 py-3 text-right font-mono font-semibold">
+                          {dv ? <span className="text-foreground">{`R$ ${formatarReais(dv.valor)}`}</span> : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: "oklch(0.35 0.10 250)" }}>
+                          {dv ? `R$ ${formatarReais(dv.empresa)}` : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: "oklch(0.40 0.14 30)" }}>
+                          {dv ? `R$ ${formatarReais(dv.colaborador)}` : <span className="text-muted-foreground">—</span>}
+                        </td>
+                      </>);
+                    })()}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <Button size="icon" variant="ghost" className="w-8 h-8 hover:bg-blue-50 hover:text-blue-600" title="Editar" onClick={() => openEdit(row)}>
@@ -495,6 +507,9 @@ function ValoresPorEmpresa() {
   const lista = [...(data ?? [])].sort((x, y) => x.empresaNome.localeCompare(y.empresaNome, "pt-BR"));
   const total = lista.reduce((t, e) => t + e.totalMensal, 0);
   const comSeguro = lista.reduce((t, e) => t + e.comSeguro, 0);
+  // Empresa paga 50% de cada seguro; colaborador o restante
+  const totalEmpresa = lista.reduce((t, e) => t + (divisaoSeguro(e.valor)?.empresa ?? 0) * e.comSeguro, 0);
+  const totalColaborador = Math.round((total - totalEmpresa) * 100) / 100;
   const th = "px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/60";
   return (
     <section aria-labelledby="valores-empresa" className="overflow-hidden rounded-xl border border-border/60 bg-card">
@@ -503,7 +518,9 @@ function ValoresPorEmpresa() {
           <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Valores por Empresa
         </h2>
         <span className="text-[13px] text-muted-foreground">
-          Total mensal: <strong className="tabular-nums text-foreground"><PrivacyValue value={reais(total)} /></strong> · {comSeguro} com seguro
+          Total mensal: <strong className="tabular-nums text-foreground"><PrivacyValue value={reais(total)} /></strong>
+          {" "}(empresa <strong className="tabular-nums" style={{ color: "oklch(0.35 0.10 250)" }}><PrivacyValue value={reais(totalEmpresa)} /></strong>
+          {" "}· colaboradores <strong className="tabular-nums" style={{ color: "oklch(0.40 0.14 30)" }}><PrivacyValue value={reais(totalColaborador)} /></strong>) · {comSeguro} com seguro
         </span>
       </header>
       <div className="overflow-x-auto">
@@ -512,6 +529,8 @@ function ValoresPorEmpresa() {
             <tr>
               <th scope="col" className={`${th} text-left`}>Empresa</th>
               <th scope="col" className={`${th} text-right`}>Valor mensal</th>
+              <th scope="col" className={`${th} text-right`}>Empresa paga (50%)</th>
+              <th scope="col" className={`${th} text-right`}>Colaborador paga</th>
               <th scope="col" className={`${th} text-right`}>Com seguro</th>
               <th scope="col" className={`${th} text-right`}>Total / mês</th>
               <th scope="col" className={`${th} w-12`}><span className="sr-only">Ações</span></th>
@@ -519,7 +538,7 @@ function ValoresPorEmpresa() {
           </thead>
           <tbody>
             {isLoading && Array.from({ length: 4 }).map((_, i) => (
-              <tr key={i}><td colSpan={5} className="px-4 py-3"><Skeleton className="h-5 w-full" /></td></tr>
+              <tr key={i}><td colSpan={7} className="px-4 py-3"><Skeleton className="h-5 w-full" /></td></tr>
             ))}
             {lista.map(e => (
               <tr key={e.empresaId} className="border-b border-border/40 last:border-0">
@@ -530,6 +549,8 @@ function ValoresPorEmpresa() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right text-sm tabular-nums"><PrivacyValue value={reais(e.valor)} /></td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums" style={{ color: "oklch(0.35 0.10 250)" }}><PrivacyValue value={reais(divisaoSeguro(e.valor)?.empresa)} /></td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums" style={{ color: "oklch(0.40 0.14 30)" }}><PrivacyValue value={reais(divisaoSeguro(e.valor)?.colaborador)} /></td>
                 <td className="px-4 py-3 text-right text-sm tabular-nums text-foreground/75">{e.comSeguro}</td>
                 <td className="px-4 py-3 text-right text-sm tabular-nums"><PrivacyValue value={reais(e.totalMensal)} /></td>
                 <td className="px-3 py-1.5 text-right">
