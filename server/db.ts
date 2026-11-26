@@ -4349,8 +4349,9 @@ export async function createMovimentacaoBonusIndicacao(data: {
     valorBonus: data.valorBonus != null ? String(data.valorBonus) : "1000.00",
     status: data.status ?? "pendente",
     observacao: data.observacao,
-    competenciaMes: data.competenciaMes,
-    competenciaAno: data.competenciaAno,
+    // Sem competência o registro não aparece na lista do mês: usa o mês atual como padrão
+    competenciaMes: data.competenciaMes ?? new Date().getMonth() + 1,
+    competenciaAno: data.competenciaAno ?? new Date().getFullYear(),
     createdByUserId: data.createdByUserId,
     createdByNome: data.createdByNome,
   });
@@ -4360,16 +4361,32 @@ export async function updateMovimentacaoBonusIndicacao(id: number, data: {
   status?: "pendente" | "pago" | "cancelado";
   dataPagamentoEfetivo?: string;
   observacao?: string;
+  nomeIndicado?: string;
+  empresa?: string;
+  dataAdmissaoIndicado?: string;
+  valorBonus?: number;
+  competenciaMes?: number;
+  competenciaAno?: number;
 }) {
   const db = await getDb();
   if (!db) return;
-  await db.update(movimentacaoBonusIndicacao)
-    .set({
-      status: data.status,
-      dataPagamentoEfetivo: data.dataPagamentoEfetivo ?? undefined,
-      observacao: data.observacao,
-    })
-    .where(eq(movimentacaoBonusIndicacao.id, id));
+  const set: Record<string, unknown> = {};
+  if (data.status !== undefined) set.status = data.status;
+  if (data.dataPagamentoEfetivo !== undefined) set.dataPagamentoEfetivo = data.dataPagamentoEfetivo;
+  if (data.observacao !== undefined) set.observacao = data.observacao;
+  if (data.nomeIndicado !== undefined) set.nomeIndicado = data.nomeIndicado;
+  if (data.empresa !== undefined) set.empresa = data.empresa;
+  if (data.dataAdmissaoIndicado !== undefined) {
+    set.dataAdmissaoIndicado = data.dataAdmissaoIndicado;
+    // pagamento previsto acompanha a admissão: 3 meses depois
+    const [y, m, d] = data.dataAdmissaoIndicado.split("-").map(Number);
+    set.dataPagamentoPrevisto = new Date(Date.UTC(y, m - 1 + 3, d)).toISOString().slice(0, 10);
+  }
+  if (data.valorBonus !== undefined) set.valorBonus = String(data.valorBonus);
+  if (data.competenciaMes !== undefined) set.competenciaMes = data.competenciaMes;
+  if (data.competenciaAno !== undefined) set.competenciaAno = data.competenciaAno;
+  if (Object.keys(set).length === 0) return;
+  await db.update(movimentacaoBonusIndicacao).set(set).where(eq(movimentacaoBonusIndicacao.id, id));
 }
 
 export async function deleteMovimentacaoBonusIndicacao(id: number) {
