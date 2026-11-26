@@ -460,7 +460,6 @@ export default function Colaboradores() {
                 <SortableHeader col="nome" label="Colaborador" sort={sortColab} onToggle={toggleSortColab} className="px-5 py-3.5" />
                 <SortableHeader col="empresaNome" label="Empresa" sort={sortColab} onToggle={toggleSortColab} />
                 <SortableHeader col="setorNome" label="Setor" sort={sortColab} onToggle={toggleSortColab} />
-                <SortableHeader col="codigo" label="Código" sort={sortColab} onToggle={toggleSortColab} />
                 <SortableHeader col="status" label="Status" sort={sortColab} onToggle={toggleSortColab} align="center" />
                 <th className="w-12 px-4 py-3.5"></th>
               </tr>
@@ -475,7 +474,7 @@ export default function Colaboradores() {
                         <Skeleton className="h-4 w-44" />
                       </div>
                     </td>
-                    {[1, 2, 3, 4, 5].map(j => <td key={j} className="px-4 py-4"><Skeleton className="h-4 w-24" /></td>)}
+                    {[1, 2, 3, 4].map(j => <td key={j} className="px-4 py-4"><Skeleton className="h-4 w-24" /></td>)}
                   </tr>
                 ))
                 : sortColabData(data?.data ?? []).map((c, idx) => {
@@ -499,13 +498,6 @@ export default function Colaboradores() {
                       </td>
                       <td className="px-4 py-3.5 text-sm text-muted-foreground">
                         {c.setorNome ?? <span className="text-muted-foreground/40">—</span>}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        {(c as any).codigo ? (
-                          <span className="font-mono text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">
-                            {(c as any).codigo}
-                          </span>
-                        ) : <span className="text-muted-foreground/40">—</span>}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
